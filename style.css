@@ -113,18 +113,23 @@ color: white;
 @media (max-width: 600px) {
     .tabulka {
         margin: 8px;
+        width: 100%;
+        box-sizing: border-box;
     }
 
 .formulare-sekce {
     display: flex;
     flex-direction: column;
+    gap: 10px;
 }
 
 #pridat-btn {
-width: 50%;
+width: 100%;
+box-sizing: border-box;
 }
 #kategorie {
-width: 48%;
+width: 100%;
+box-sizing: border-box;
 }
 
 
