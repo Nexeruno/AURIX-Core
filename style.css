@@ -66,7 +66,27 @@ border-radius: 8px;
 margin-bottom: 10px;
 }
 
+.prijem-polozka {
+background-color: var(--karta);
+display:flex;
+justify-content: space-between;
+align-items: center;
+gap: 12px;
+padding: 12px;
+border: 1px solid var(--ramecek);
+border-radius: 8px;
+margin-bottom: 10px;
+}
+
+
 .vydaj-nazev {
+font-weight: bold;
+font-size: 18px;
+flex: 1;
+color: var(--text);
+}
+
+.prijem-nazev {
 font-weight: bold;
 font-size: 18px;
 flex: 1;
@@ -81,7 +101,22 @@ padding: 4px;
 border-radius: 4px;
 }
 
+.prijem-kategorie {
+font-size: 14px;
+color: var(--text-jemny);
+background-color: var(--primarni-svetla);
+padding: 4px;
+border-radius: 4px;
+}
+
 .vydaj-castka {
+font-weight: bold;
+font-size: 18px;
+white-space: nowrap;
+color: var(--uspech);
+}
+
+.prijem-castka {
 font-weight: bold;
 font-size: 18px;
 white-space: nowrap;
@@ -100,8 +135,42 @@ color: var(--nebezpeci);
 }
 
 .smazat-btn:hover {
-background-color: var(--nebezpeci);
-color: white;
+    background-color: var(--nebezpeci);
+    color: white;
+    border: 1px solid var(--nebezpeci-tmava);
+    transform: scale(1.1);
+}
+
+.smazat-btn-prijem {
+background-color: var(--nebezpeci-svetla);
+color: var(--nebezpeci);
+    padding: 8px;
+    border: 1px solid var(--nebezpeci);
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.3s ease-in-out;
+}
+
+.smazat-btn-prijem:hover {
+    background-color: var(--nebezpeci);
+    color: white;
+    border: 1px solid var(--nebezpeci-tmava);
+    transform: scale(1.1);
+}
+
+.smazat-vse-btn {
+background-color: var(--nebezpeci-svetla);
+color: var(--nebezpeci);
+    padding: 10px;
+    border: 1px solid var(--nebezpeci);
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.3s ease-in-out;
+}
+
+.smazat-vse-btn:hover {
     background-color: var(--nebezpeci);
     color: white;
     border: 1px solid var(--nebezpeci-tmava);
@@ -110,6 +179,59 @@ color: white;
 
 .tabulka {
     margin: 6px;
+}
+
+.tabulka-prijmu {
+    margin: 6px;
+}
+
+.prazdny-stav {
+color: var(--text-jemny);
+text-align: center;
+padding : 12px;
+font-size: 18px;
+}
+
+.prazdny-stav-prijem {
+color: var(--text-jemny);
+text-align: center;
+padding : 12px;
+font-size: 18px;
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.formulare-prijmu
+.celkem-box-prijmy
+.seznam-prijmy {
+background-color: var(--karta);
+border: 1px solid var(--ramecek);
+box-shadow: var(--stin);
+padding: 20px;
+border-radius: 10px;
+margin-bottom: 20px;
+}
+
+.button-prijem {
+background-color: var(--primarni);
+color: white;
+border-radius: 6px;
+border: none;
+}
+
+.button-prijem:hover {
+background-color: var(--primarni-tmava);
+}
+
+#celkem-prijmy {
+    font-weight: bold;
+}
+
+#celkem {
+    font-weight: bold;
 }
 
 @media (max-width: 600px) {
@@ -163,5 +285,8 @@ box-sizing: border-box;
     .vydaj-polozka {
     flex-wrap: wrap;
 }
-
+#celkem {
+    font-size: 18px;
+    font-weight: bold;
+}
 }

@@ -7,7 +7,64 @@
 </head>
 <body>
     <main>
-<h1> Evidence výdajů</h1>
+
+<h1> Evidence příjmů</h1>
+
+<section class="tabulka-prijmu-sekce">
+<form class="formulare-prijmu">
+
+<label class="tabulka-prijmu">
+<input id="nazev-prijmu" type="text" name="nazev-prijmu" placeholder="Název příjmů">
+</label>
+
+<label class="tabulka-prijmu">
+<input id="castka-prijmu" type="number" name="castka" placeholder="Částka">
+</label>
+
+<select id="kategorie-prijmu" class="tabulka-prijmu">
+    <option value="prace">Práce</option>
+    <option value="brigada">Brigáda</option>
+    <option value="prodej">Prodej</option>
+    <option value="prispevky">Příspěvky</option>
+    <option value="ostatni">Ostaní</option>
+</select>
+
+<button id="pridat-prijem-btn" type="button" 
+class ="button-prijem">Přidat příjem</button>
+
+</form>
+</section>
+
+<div class="celkem-box-prijem">
+<h2>Celkem příjmy:</h2>
+<p id="celkem-prijmy">0 Kč</p>
+</div>
+
+<label>
+    Filtrovat podle kategorie:
+    <select id="filtr-kategorie-prijmy">
+<option value="vse-prijem">Vše</option>
+<option value="prace">Práce</option>
+<option value="brigada">Brigáda</option>
+<option value="prodej">Prodej</option>
+<option value="prispevky">Příspěvky</option>
+<option value="ostatni">Ostaní</option>
+    </select>
+</label>
+
+
+<section class="seznam-prijmu-sekce">
+<h2>Seznam příjmů:</h2>
+<div id="seznam-prijmu">
+</div>
+</section>
+
+<button type="button" id="smazat-vse-prijmy-btn"
+class="smazat-vse-btn">
+Vymazat Vše
+</button>
+
+        <h1> Evidence výdajů</h1>
 
 <section class="tabulka-sekce">
 <form class="formulare-sekce">
@@ -30,6 +87,7 @@
 
 <button id="pridat-btn" type="button" 
 class ="button">Přidat výdaj</button>
+
 </form>
 </section>
 
@@ -38,12 +96,36 @@ class ="button">Přidat výdaj</button>
 <p id="celkem">0 Kč</p>
 </div>
 
+<label>
+    Filtrovat podle kategorie:
+    <select id="filtr-kategorie">
+<option value="vse">Vše</option>
+<option value="benzin">Benzín</option>
+<option value="jidlo">Jídlo</option>
+<option value="bydleni">Bydlení</option>
+<option value="sporeni">Spoření</option>
+<option value="dovolena">Dovolená</option>
+    </select>
+</label>
 
 <section class="seznam-sekce">
 <h2>Seznam výdajů:</h2>
 <div id="seznam-vydaju">
 </div>
 </section>
+
+<button type="button" id="smazat-vse-btn"
+class="smazat-vse-btn">
+Vymazat Vše
+</button>
+
+<section class="celkem-sekce">
+<h1>Souhrn</h1>
+<div id="prijmy-celkem"></div>
+<div id="vydaje-celkem"></div>
+<div id="zustatek"></div>
+</section>
+
 
 </main>
 
