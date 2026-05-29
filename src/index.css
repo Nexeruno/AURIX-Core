@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+body {
+  @apply bg-light-bg dark:bg-dark-bg text-light-text dark:text-dark-text transition-colors duration-200;
+}
+
+.glass {
+  @apply bg-white/30 dark:bg-slate-800/30 backdrop-blur-md border border-white/20;
+}
+
+.btn-primary {
+  @apply px-4 py-2 bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded-lg transition-colors;
+}
+
+.btn-secondary {
+  @apply px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-900 dark:text-slate-100 rounded-lg transition-colors;
+}
+
+.btn-danger {
+  @apply px-4 py-2 bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700 text-white rounded-lg transition-colors;
+}
+
+.card {
+  @apply bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border rounded-lg p-4 shadow-sm dark:shadow-md transition-all;
+}
+
+.input-field {
+  @apply w-full px-3 py-2 bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border rounded-lg text-light-text dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-all;
+}
+
+.select-field {
+  @apply w-full px-3 py-2 bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border rounded-lg text-light-text dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 cursor-pointer transition-all;
+}
