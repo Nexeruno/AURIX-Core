@@ -53,7 +53,6 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
-          cname: evidence-vydaju.app
           force_orphan: false
           user_name: 'github-actions[bot]'
           user_email: 'github-actions[bot]@users.noreply.github.com'
@@ -80,15 +79,6 @@ jobs:
           git tag -a "$VERSION" -m "Deployment: ${{ github.sha }}"
           git push origin "$VERSION"
           echo "✅ Tagged version: $VERSION"
-
-      - name: 📝 Update CHANGELOG
-        if: success()
-        run: |
-          VERSION=$(date +v%Y.%m.%d.%H%M%S)
-          echo "## $VERSION - $(date)" >> CHANGELOG.md
-          echo "- Build: ${{ github.run_number }}" >> CHANGELOG.md
-          echo "- Commit: ${{ github.sha }}" >> CHANGELOG.md
-          echo "" >> CHANGELOG.md
 
       - name: 🔄 Rollback on failure
         if: failure()
