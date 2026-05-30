@@ -1,0 +1,65 @@
+name: 🔄 Rollback to Last Working Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      backup_number:
+        description: 'Backup number to restore (leave empty for latest)'
+        required: false
+        default: ''
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages-backup
+
+      - name: 🔍 Find latest backup
+        id: backup
+        run: |
+          if [ -z "${{ github.event.inputs.backup_number }}" ]; then
+            # Get latest backup directory
+            LATEST=$(ls -1d backup-* 2>/dev/null | sort -V | tail -1)
+            if [ -z "$LATEST" ]; then
+              echo "❌ No backup found"
+              exit 1
+            fi
+          else
+            LATEST="backup-${{ github.event.inputs.backup_number }}"
+            if [ ! -d "$LATEST" ]; then
+              echo "❌ Backup $LATEST not found"
+              exit 1
+            fi
+          fi
+
+          echo "backup=$LATEST" >> $GITHUB_OUTPUT
+          echo "✅ Found backup: $LATEST"
+
+      - name: 📤 Deploy backup to gh-pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./${{ steps.backup.outputs.backup }}
+          branch: gh-pages
+          force_orphan: false
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_message: 'rollback: Restored from ${{ steps.backup.outputs.backup }}'
+
+      - name: ✅ Rollback complete
+        run: |
+          echo "✅ Rollback successful!"
+          echo "🌐 Site is live at: https://nexeruno.github.io/Evidence-v-daj-/"
+          echo "📦 Restored version: ${{ steps.backup.outputs.backup }}"
+          echo ""
+          echo "⚠️ Next steps:"
+          echo "1. Check what went wrong in the main branch"
+          echo "2. Fix the issue"
+          echo "3. Push to main"
+          echo "4. CI/CD will automatically deploy the fixed version"
