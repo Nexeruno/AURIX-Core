@@ -48,7 +48,7 @@ export const PendingTransactions = () => {
       }
 
       const response = await fetch(
-        'https://us-central1-evidence-vydaju.cloudfunctions.net/testGenerateRecurring',
+        'https://europe-west1-evidence-vydaju.cloudfunctions.net/testGenerateRecurring',
         {
           method: 'POST',
           headers: {
