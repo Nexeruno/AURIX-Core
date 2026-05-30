@@ -11,6 +11,14 @@ import toast from 'react-hot-toast';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
+const validateForm = (form, label) => {
+  if (!form.nazev?.trim()) return `Název ${label.toLowerCase()}e je povinný`;
+  if (!form.castka || Number(form.castka) <= 0) return 'Částka musí být větší než 0';
+  if (!form.datum) return 'Datum je povinné';
+  if (!form.kategorie) return 'Kategorie je povinná';
+  return null;
+};
+
 const Form = ({ typ }) => {
   const { session } = useAuth();
   const isVydaj   = typ === 'vydaj';
@@ -32,10 +40,11 @@ const Form = ({ typ }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.nazev.trim())                       { toast.error(`Název ${label.toLowerCase()}e je povinný`); return; }
-    if (!form.castka || Number(form.castka) <= 0) { toast.error('Částka musí být větší než 0');               return; }
-    if (!form.datum)                              { toast.error('Datum je povinné');                           return; }
-    if (!form.kategorie)                          { toast.error('Kategorie je povinná');                       return; }
+    const error = validateForm(form, label);
+    if (error) {
+      toast.error(error);
+      return;
+    }
 
     setSaving(true);
     try {
@@ -43,8 +52,9 @@ const Form = ({ typ }) => {
       toast.success(`${label} přidán ✓`);
       setForm((f) => ({ ...f, nazev: '', castka: '' }));
       nazevRef.current?.focus();
-    } catch {
-      // chyba zobrazena v store
+    } catch (err) {
+      console.error('Error adding item:', err);
+      toast.error(err.message || `Chyba při přidání ${label.toLowerCase()}e`);
     } finally {
       setSaving(false);
     }
@@ -80,9 +90,11 @@ const Form = ({ typ }) => {
   };
 
   const handleSaveRecurring = async (recurring) => {
-    if (!form.nazev.trim())                       { toast.error(`Název ${label.toLowerCase()}e je povinný`); return; }
-    if (!form.castka || Number(form.castka) <= 0) { toast.error('Částka musí být větší než 0');               return; }
-    if (!form.kategorie)                          { toast.error('Kategorie je povinná');                       return; }
+    const error = validateForm(form, label);
+    if (error) {
+      toast.error(error);
+      return;
+    }
 
     if (!session?.uid) {
       toast.error('Nejsi přihlášen');
@@ -111,8 +123,8 @@ const Form = ({ typ }) => {
       setRecurringModalOpen(false);
       nazevRef.current?.focus();
     } catch (err) {
-      console.error('Chyba při ukládání opakující se transakce:', err);
-      toast.error('Chyba při ukládání');
+      console.error('Error saving recurring:', err);
+      toast.error(err.message || 'Chyba při ukládání opakující se transakce');
     } finally {
       setSaving(false);
     }
