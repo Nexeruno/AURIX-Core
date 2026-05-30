@@ -187,9 +187,6 @@ export const Dashboard = () => {
       {/* Finanční zdraví — vždy viditelné, vždy nahoře */}
       <FinancniZdraviCard vydaje={vydaje} prijmy={prijmy} ready={dataReady} />
 
-      {/* Pending Transactions — schvalování automaticky vygenerovaných záznamů */}
-      <PendingTransactions />
-
       {/* Filter bar + export */}
       <div className="card flex flex-col sm:flex-row gap-4 items-end">
         <div className="flex-1">
@@ -256,6 +253,12 @@ export const Dashboard = () => {
             </div>
           </>
         )}
+      </div>
+
+      {/* Pending Transactions — čekání na schválení */}
+      <div>
+        <h3 className="text-lg font-bold mb-3 text-light-text dark:text-dark-text">⏳ Čeká na schválení</h3>
+        <PendingTransactions />
       </div>
 
       {/* Empty state */}
