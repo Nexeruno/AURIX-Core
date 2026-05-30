@@ -1,12 +1,17 @@
 import { useState, useRef, useCallback } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Repeat2 } from 'lucide-react';
 import { useAppStore } from '../utils/store';
 import { KATEGORIE_VYDAJ_FORM, KATEGORIE_PRIJEM_FORM } from '../utils/constants';
+import { RecurringModal } from './RecurringModal';
+import { useAuth } from '../context/AuthContext';
+import { db } from '../utils/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
 const Form = ({ typ }) => {
+  const { session } = useAuth();
   const isVydaj   = typ === 'vydaj';
   const label     = isVydaj ? 'Výdaj' : 'Příjem';
   const kategorie = isVydaj ? KATEGORIE_VYDAJ_FORM : KATEGORIE_PRIJEM_FORM;
@@ -16,6 +21,7 @@ const Form = ({ typ }) => {
 
   const [form, setForm]     = useState({ nazev: '', castka: '', datum: todayISO(), kategorie: '' });
   const [saving, setSaving] = useState(false);
+  const [recurringModalOpen, setRecurringModalOpen] = useState(false);
 
   const set = useCallback(
     (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value })),
@@ -33,12 +39,49 @@ const Form = ({ typ }) => {
     try {
       await addItem({ ...form, castka: Number(form.castka) });
       toast.success(`${label} přidán ✓`);
-      // Smaže jen název a částku — kategorie a datum zůstanou pro rychlé zadání dalšího
       setForm((f) => ({ ...f, nazev: '', castka: '' }));
-      // Vrátí fokus na název pro okamžité zadání dalšího záznamu
       nazevRef.current?.focus();
     } catch {
       // chyba zobrazena v store
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveRecurring = async (recurring) => {
+    if (!form.nazev.trim())                       { toast.error(`Název ${label.toLowerCase()}e je povinný`); return; }
+    if (!form.castka || Number(form.castka) <= 0) { toast.error('Částka musí být větší než 0');               return; }
+    if (!form.kategorie)                          { toast.error('Kategorie je povinná');                       return; }
+
+    if (!session?.uid) {
+      toast.error('Nejsi přihlášen');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const recurringData = {
+        title: form.nazev,
+        type: typ,
+        amount: Number(form.castka),
+        category: form.kategorie,
+        ...recurring,
+        recurrenceStartDate: new Date(form.datum),
+        recurrenceEndDate: recurring.recurrenceEndDate ? new Date(recurring.recurrenceEndDate) : null,
+        lastGeneratedDate: new Date(form.datum),
+        isActive: true,
+        createdAt: serverTimestamp(),
+      };
+
+      await addDoc(collection(db, 'users', session.uid, 'repeatingTransactions'), recurringData);
+
+      toast.success(`${label} nastaven na opakování${recurring.isFavorite ? ' a uložen jako oblíbený' : ''} ✓`);
+      setForm((f) => ({ ...f, nazev: '', castka: '' }));
+      setRecurringModalOpen(false);
+      nazevRef.current?.focus();
+    } catch (err) {
+      console.error('Chyba při ukládání opakující se transakce:', err);
+      toast.error('Chyba při ukládání');
     } finally {
       setSaving(false);
     }
@@ -83,20 +126,39 @@ const Form = ({ typ }) => {
             <option key={k.value} value={k.value}>{k.label}</option>
           ))}
         </select>
-        <button
-          type="submit"
-          disabled={saving}
-          className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-60"
-        >
-          <Plus size={20} />
-          {saving ? 'Ukládám...' : `Přidat ${label}`}
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="submit"
+            disabled={saving}
+            className="btn-primary flex-1 flex items-center justify-center gap-2 disabled:opacity-60"
+          >
+            <Plus size={20} />
+            {saving ? 'Ukládám...' : `Přidat ${label}`}
+          </button>
+          <button
+            type="button"
+            onClick={() => setRecurringModalOpen(true)}
+            disabled={saving}
+            className="btn-secondary flex items-center justify-center gap-2 px-4 disabled:opacity-60"
+            title="Nastavit jako opakující se"
+          >
+            <Repeat2 size={20} />
+          </button>
+        </div>
       </form>
 
       {/* Hint — kategorie a datum se pamatují */}
       <p className="text-xs text-light-textMuted dark:text-dark-textMuted mt-3 text-center">
         Po přidání zůstane kategorie a datum pro rychlé zadání dalšího záznamu
       </p>
+
+      {/* RecurringModal */}
+      <RecurringModal
+        isOpen={recurringModalOpen}
+        onClose={() => setRecurringModalOpen(false)}
+        onSave={handleSaveRecurring}
+        typ={typ}
+      />
     </div>
   );
 };
