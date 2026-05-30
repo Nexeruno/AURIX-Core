@@ -48,7 +48,7 @@ export const PendingTransactions = () => {
       }
 
       const response = await fetch(
-        'https://europe-west1-evidence-vydaju.cloudfunctions.net/testGenerateRecurring',
+        'https://us-central1-evidence-vydaju.cloudfunctions.net/testGenerateRecurring',
         {
           method: 'POST',
           headers: {
@@ -146,9 +146,11 @@ export const PendingTransactions = () => {
   return (
     <div className="card">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold">
-          {pendingList.length} čeká na schválení
-        </h3>
+        {pendingList.length > 0 && (
+          <h3 className="text-lg font-semibold">
+            {pendingList.length} čeká na schválení
+          </h3>
+        )}
         <button
           onClick={handleGenerateTest}
           disabled={generating}
