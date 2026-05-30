@@ -1,26 +1,38 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Přistup k vlastním datům
+    // Helper - kontrola admin role
+    function isAdmin(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.role == 'admin';
+    }
+
+    function isOwner(uid) {
+      return request.auth.uid == uid;
+    }
+
+    // Uživatelé
     match /users/{uid} {
-      allow read, write: if request.auth.uid == uid;
+      // Read: sám sobě nebo admin
+      allow read: if isOwner(uid) || isAdmin(request.auth.uid);
+      // Write: sám sobě nebo admin
+      allow write: if isOwner(uid) || isAdmin(request.auth.uid);
 
       // Transakce (vydaje, prijmy)
       match /vydaje/{document=**} {
-        allow read, write: if request.auth.uid == uid;
+        allow read, write: if isOwner(uid);
       }
       match /prijmy/{document=**} {
-        allow read, write: if request.auth.uid == uid;
+        allow read, write: if isOwner(uid);
       }
 
       // Opakující se transakce
       match /repeatingTransactions/{document=**} {
-        allow read, write: if request.auth.uid == uid;
+        allow read, write: if isOwner(uid);
       }
 
       // Čekající transakce (pending)
       match /pendingTransactions/{document=**} {
-        allow read, write: if request.auth.uid == uid;
+        allow read, write: if isOwner(uid);
       }
     }
 
