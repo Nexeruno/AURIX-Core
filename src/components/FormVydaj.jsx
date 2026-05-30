@@ -1,8 +1,9 @@
 import { useState, useRef, useCallback } from 'react';
-import { Plus, Repeat2 } from 'lucide-react';
+import { Plus, Repeat2, Heart } from 'lucide-react';
 import { useAppStore } from '../utils/store';
 import { KATEGORIE_VYDAJ_FORM, KATEGORIE_PRIJEM_FORM } from '../utils/constants';
 import { RecurringModal } from './RecurringModal';
+import { FavoritesModal } from './FavoritesModal';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../utils/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -22,6 +23,7 @@ const Form = ({ typ }) => {
   const [form, setForm]     = useState({ nazev: '', castka: '', datum: todayISO(), kategorie: '' });
   const [saving, setSaving] = useState(false);
   const [recurringModalOpen, setRecurringModalOpen] = useState(false);
+  const [favoritesModalOpen, setFavoritesModalOpen] = useState(false);
 
   const set = useCallback(
     (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value })),
@@ -46,6 +48,17 @@ const Form = ({ typ }) => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSelectFavorite = (favorite) => {
+    setForm({
+      nazev: favorite.title,
+      castka: favorite.amount.toString(),
+      datum: form.datum, // Zachovej dnešní datum
+      kategorie: favorite.category,
+    });
+    toast.success(`Nahrána oblíbená "${favorite.title}"`);
+    nazevRef.current?.focus();
   };
 
   const handleSaveRecurring = async (recurring) => {
@@ -137,6 +150,15 @@ const Form = ({ typ }) => {
           </button>
           <button
             type="button"
+            onClick={() => setFavoritesModalOpen(true)}
+            disabled={saving}
+            className="btn-secondary flex items-center justify-center gap-2 px-4 disabled:opacity-60"
+            title="Načíst z oblíbených"
+          >
+            <Heart size={20} />
+          </button>
+          <button
+            type="button"
             onClick={() => setRecurringModalOpen(true)}
             disabled={saving}
             className="btn-secondary flex items-center justify-center gap-2 px-4 disabled:opacity-60"
@@ -157,6 +179,14 @@ const Form = ({ typ }) => {
         isOpen={recurringModalOpen}
         onClose={() => setRecurringModalOpen(false)}
         onSave={handleSaveRecurring}
+        typ={typ}
+      />
+
+      {/* FavoritesModal */}
+      <FavoritesModal
+        isOpen={favoritesModalOpen}
+        onClose={() => setFavoritesModalOpen(false)}
+        onSelect={handleSelectFavorite}
         typ={typ}
       />
     </div>
