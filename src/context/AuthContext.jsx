@@ -125,9 +125,19 @@ export const AuthProvider = ({ children }) => {
   };
 
   const resetPassword = async (email) => {
-    const functions = getFunctions();
-    const posliResetHesla = httpsCallable(functions, 'posliResetHesla');
-    await posliResetHesla({ email: email.trim().toLowerCase() });
+    try {
+      const functions = getFunctions();
+      const posliResetHesla = httpsCallable(functions, 'posliResetHesla');
+      const result = await posliResetHesla({ email: email.trim().toLowerCase() });
+      console.log('Reset hesla úspěšně odeslán:', result);
+    } catch (err) {
+      console.error('resetPassword error:', {
+        code: err.code,
+        message: err.message,
+        details: err.details
+      });
+      throw err;
+    }
   };
 
   const logout = async () => {

@@ -51,10 +51,21 @@ exports.posliResetHesla = functions.region('europe-west1').https.onCall(async (d
   }
 
   try {
+    console.log('🔄 Reset hesla pro:', email);
     const link = await admin.auth().generatePasswordResetLink(email);
+    console.log('✓ Reset link vytvořen');
 
     const cfg = functions.config().brevo;
+    console.log('📋 Config check:', {
+      hasConfig: !!cfg,
+      hasApiKey: !!cfg?.api_key,
+      hasSender: !!cfg?.sender,
+      apiKeyLength: cfg?.api_key?.length,
+      sender: cfg?.sender
+    });
+
     if (!cfg || !cfg.api_key || !cfg.sender) {
+      console.error('❌ Config chybí:', cfg);
       throw new functions.https.HttpsError('internal', 'Brevo config chybí');
     }
 
@@ -83,6 +94,9 @@ exports.posliResetHesla = functions.region('europe-west1').https.onCall(async (d
     if (err?.errorInfo?.code === 'auth/user-not-found') return { ok: true };
     if (err instanceof functions.https.HttpsError) throw err;
     console.error('posliResetHesla error:', err);
-    throw new functions.https.HttpsError('internal', 'Interní chyba');
+    console.error('Error type:', err.constructor.name);
+    console.error('Error message:', err.message);
+    console.error('Error stack:', err.stack);
+    throw new functions.https.HttpsError('internal', `Interní chyba: ${err.message}`);
   }
 });
