@@ -15,7 +15,7 @@ import { chromium } from 'playwright';
 
   try {
     console.log('📱 Otevírám aplikaci...');
-    await page.goto('http://localhost:5173/Evidence-v-daj-/');
+    await page.goto('http://localhost:5174/Evidence-v-daj-/');
     await page.waitForLoadState('domcontentloaded');
 
     console.log(`📝 Registruji uživatele: ${testEmail}...`);
@@ -46,7 +46,7 @@ import { chromium } from 'playwright';
     });
 
     console.log('🔐 Načítám reset hesla...');
-    await page2.goto('http://localhost:5173/Evidence-v-daj-/', { waitUntil: 'domcontentloaded' });
+    await page2.goto('http://localhost:5174/Evidence-v-daj-/', { waitUntil: 'domcontentloaded' });
     await page2.waitForTimeout(1000);
 
     const forgotBtn = await page2.$('button:has-text("Zapomenuté")');

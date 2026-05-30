@@ -1,6 +1,7 @@
 const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const fetch = require('node-fetch');
+const cors = require('cors')({ origin: true });
 
 admin.initializeApp();
 
@@ -44,54 +45,53 @@ const EMAIL_HTML = (link) => `<!DOCTYPE html>
 </body>
 </html>`;
 
-exports.posliResetHesla = functions.region('europe-west1').https.onCall(async (data, context) => {
-  const email = (data.email || '').trim().toLowerCase();
-  if (!email) {
-    throw new functions.https.HttpsError('invalid-argument', 'Email je povinný');
-  }
+exports.posliResetHesla = functions.region('europe-west1').https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    try {
+      const data = req.method === 'POST' ? req.body : req.query;
+      const email = (data.email || '').trim().toLowerCase();
 
-  try {
-    console.log('🔄 Reset hesla pro:', email);
-    const link = await admin.auth().generatePasswordResetLink(email);
-    console.log('✓ Reset link vytvořen');
+      if (!email) {
+        return res.status(400).json({ error: 'Email je povinný' });
+      }
 
-    const cfg = functions.config().brevo;
-    console.log('📋 Config check:', {
-      hasConfig: !!cfg,
-      hasApiKey: !!cfg?.api_key,
-      hasSender: !!cfg?.sender,
-    });
+      console.log('🔄 Reset hesla pro:', email);
+      const link = await admin.auth().generatePasswordResetLink(email);
+      console.log('✓ Reset link vytvořen');
 
-    if (!cfg || !cfg.api_key || !cfg.sender) {
-      console.error('❌ Config chybí:', cfg);
-      throw new functions.https.HttpsError('internal', 'Brevo config chybí');
+      const cfg = functions.config().brevo;
+      if (!cfg || !cfg.api_key || !cfg.sender) {
+        console.error('❌ Config chybí:', cfg);
+        return res.status(500).json({ error: 'Brevo config chybí' });
+      }
+
+      const brevoRes = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': cfg.api_key,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sender: { name: 'Evidence Výdajů', email: cfg.sender },
+          to: [{ email }],
+          subject: 'Reset hesla — Evidence Výdajů',
+          htmlContent: EMAIL_HTML(link),
+        }),
+      });
+
+      if (!brevoRes.ok) {
+        const err = await brevoRes.text();
+        console.error('Brevo error:', brevoRes.status, err);
+        return res.status(500).json({ error: 'Chyba odesílání emailu' });
+      }
+
+      return res.status(200).json({ ok: true });
+    } catch (err) {
+      if (err?.code === 'auth/user-not-found') {
+        return res.status(200).json({ ok: true });
+      }
+      console.error('posliResetHesla error:', err);
+      return res.status(500).json({ error: err.message || 'Interní chyba' });
     }
-
-    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
-      method: 'POST',
-      headers: {
-        'api-key': cfg.api_key,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        sender: { name: 'Evidence Výdajů', email: cfg.sender },
-        to: [{ email }],
-        subject: 'Reset hesla — Evidence Výdajů',
-        htmlContent: EMAIL_HTML(link),
-      }),
-    });
-
-    if (!res.ok) {
-      const err = await res.text();
-      console.error('Brevo error:', res.status, err);
-      throw new functions.https.HttpsError('internal', 'Chyba odesílání emailu');
-    }
-
-    return { ok: true };
-  } catch (err) {
-    if (err?.code === 'auth/user-not-found') return { ok: true };
-    if (err instanceof functions.https.HttpsError) throw err;
-    console.error('posliResetHesla error:', err);
-    throw new functions.https.HttpsError('internal', err.message || 'Interní chyba');
-  }
+  });
 });

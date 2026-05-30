@@ -10,7 +10,6 @@ import {
   doc, setDoc, getDoc, getDocs, updateDoc,
   collection, query, where, serverTimestamp, deleteDoc,
 } from 'firebase/firestore';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { auth, db } from '../utils/firebase';
 import { clearSessionCache } from '../hooks/useFirestoreSync';
 
@@ -125,18 +124,27 @@ export const AuthProvider = ({ children }) => {
   };
 
   const resetPassword = async (email) => {
+    const trimmedEmail = email.trim().toLowerCase();
+    const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+    const url = `https://europe-west1-${projectId}.cloudfunctions.net/posliResetHesla`;
+
     try {
-      const functions = getFunctions();
-      const posliResetHesla = httpsCallable(functions, 'posliResetHesla');
-      console.log('Volám posliResetHesla Cloud Function...');
-      const result = await posliResetHesla({ email: email.trim().toLowerCase() });
+      console.log('Volám posliResetHesla Cloud Function na:', url);
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: trimmedEmail }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Chyba při odesílání resetů hesla');
+      }
+
+      const result = await response.json();
       console.log('Reset hesla úspěšně odeslán:', result);
     } catch (err) {
-      console.error('resetPassword error:', {
-        code: err.code,
-        message: err.message,
-        details: err.details
-      });
+      console.error('resetPassword error:', err);
       throw err;
     }
   };

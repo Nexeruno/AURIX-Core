@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { collection, getDocs, doc, updateDoc, orderBy, query } from 'firebase/firestore';
 import { db } from '../../utils/firebase';
 import { useAuth } from '../../context/AuthContext';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { formatDatum } from '../../utils/formatters';
 import { Users, ShieldCheck, ShieldOff, RefreshCw, KeyRound } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -37,18 +36,24 @@ export const AdminPage = () => {
 
   const handleResetPassword = async (email) => {
     if (!confirm(`Odeslat reset hesla na ${email}?`)) return;
+
+    const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+    const url = `https://europe-west1-${projectId}.cloudfunctions.net/posliResetHesla`;
+
     try {
-      const functions = getFunctions();
-      const posliResetHesla = httpsCallable(functions, 'posliResetHesla');
-      console.log('Volám posliResetHesla Cloud Function...');
-      await posliResetHesla({ email });
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Chyba při odesílání resetu hesla');
+      }
+
       toast.success(`Reset hesla odeslán na ${email}`);
     } catch (err) {
-      console.error('Reset hesla error:', {
-        code: err.code,
-        message: err.message,
-        details: err.details
-      });
+      console.error('Reset hesla error:', err);
       toast.error('Chyba při odesílání resetu hesla');
     }
   };

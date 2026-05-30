@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { initializeFirestore, persistentLocalCache } from 'firebase/firestore';
+import { getAuth, connectAuthEmulator } from 'firebase/auth';
+import { initializeFirestore, persistentLocalCache, connectFirestoreEmulator } from 'firebase/firestore';
+import { connectFunctionsEmulator, getFunctions } from 'firebase/functions';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -20,3 +21,25 @@ export const auth = getAuth(app);
 export const db = initializeFirestore(app, {
   localCache: persistentLocalCache(),
 });
+
+// Emulator support pro vývoj
+if (import.meta.env.DEV) {
+  try {
+    connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
+  } catch (err) {
+    // Already connected
+  }
+
+  try {
+    connectFirestoreEmulator(db, 'localhost', 8080);
+  } catch (err) {
+    // Already connected
+  }
+
+  try {
+    const functions = getFunctions(app);
+    connectFunctionsEmulator(functions, 'localhost', 5001);
+  } catch (err) {
+    // Already connected
+  }
+}
