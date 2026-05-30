@@ -40,9 +40,15 @@ export const AdminPage = () => {
     try {
       const functions = getFunctions();
       const posliResetHesla = httpsCallable(functions, 'posliResetHesla');
+      console.log('Volám posliResetHesla Cloud Function...');
       await posliResetHesla({ email });
       toast.success(`Reset hesla odeslán na ${email}`);
-    } catch {
+    } catch (err) {
+      console.error('Reset hesla error:', {
+        code: err.code,
+        message: err.message,
+        details: err.details
+      });
       toast.error('Chyba při odesílání resetu hesla');
     }
   };

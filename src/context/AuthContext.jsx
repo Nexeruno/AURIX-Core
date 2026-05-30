@@ -128,6 +128,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const functions = getFunctions();
       const posliResetHesla = httpsCallable(functions, 'posliResetHesla');
+      console.log('Volám posliResetHesla Cloud Function...');
       const result = await posliResetHesla({ email: email.trim().toLowerCase() });
       console.log('Reset hesla úspěšně odeslán:', result);
     } catch (err) {

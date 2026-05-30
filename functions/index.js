@@ -60,8 +60,6 @@ exports.posliResetHesla = functions.region('europe-west1').https.onCall(async (d
       hasConfig: !!cfg,
       hasApiKey: !!cfg?.api_key,
       hasSender: !!cfg?.sender,
-      apiKeyLength: cfg?.api_key?.length,
-      sender: cfg?.sender
     });
 
     if (!cfg || !cfg.api_key || !cfg.sender) {
@@ -91,12 +89,9 @@ exports.posliResetHesla = functions.region('europe-west1').https.onCall(async (d
 
     return { ok: true };
   } catch (err) {
-    if (err?.errorInfo?.code === 'auth/user-not-found') return { ok: true };
+    if (err?.code === 'auth/user-not-found') return { ok: true };
     if (err instanceof functions.https.HttpsError) throw err;
     console.error('posliResetHesla error:', err);
-    console.error('Error type:', err.constructor.name);
-    console.error('Error message:', err.message);
-    console.error('Error stack:', err.stack);
-    throw new functions.https.HttpsError('internal', `Interní chyba: ${err.message}`);
+    throw new functions.https.HttpsError('internal', err.message || 'Interní chyba');
   }
 });
