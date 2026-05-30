@@ -13,6 +13,7 @@ export const PendingTransactions = () => {
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState(null);
   const [generating, setGenerating] = useState(false);
+  const [cleaning, setCleaning] = useState(false);
 
   const addVydaj = useAppStore((s) => s.addVydaj);
   const addPrijem = useAppStore((s) => s.addPrijem);
@@ -36,6 +37,51 @@ export const PendingTransactions = () => {
 
     loadPending();
   }, [session?.uid]);
+
+  // Vyčisti duplikáty a oprav data
+  const handleCleanup = async () => {
+    setCleaning(true);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) {
+        toast.error('Nejsi přihlášen');
+        return;
+      }
+
+      const response = await fetch(
+        'https://europe-west1-evidence-vydaju.cloudfunctions.net/cleanupDuplicates',
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Chyba při čistění');
+      }
+
+      toast.success(
+        `🧹 ${data.message}\n✓ Smazáno ${data.deleted}, opraveno ${data.fixed}`
+      );
+
+      // Znovu načti pending
+      const snap = await getDocs(
+        collection(db, 'users', session.uid, 'pendingTransactions')
+      );
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setPendingList(list);
+    } catch (err) {
+      console.error('Chyba:', err);
+      toast.error(err.message || 'Chyba při čistění');
+    } finally {
+      setCleaning(false);
+    }
+  };
 
   // Vygeneruj návrhy (testování)
   const handleGenerateTest = async () => {
@@ -151,15 +197,26 @@ export const PendingTransactions = () => {
             {pendingList.length} čeká na schválení
           </h3>
         )}
-        <button
-          onClick={handleGenerateTest}
-          disabled={generating}
-          className="flex items-center gap-2 px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-60"
-          title="Vygenerovat návrhy z opakujících se transakcí"
-        >
-          <Zap size={16} />
-          {generating ? 'Generuji...' : 'Test'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleCleanup}
+            disabled={cleaning}
+            className="flex items-center gap-2 px-3 py-1 text-sm bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors disabled:opacity-60"
+            title="Vyčistit duplikáty a opravit data"
+          >
+            🧹
+            {cleaning ? 'Čištění...' : 'Cleanup'}
+          </button>
+          <button
+            onClick={handleGenerateTest}
+            disabled={generating}
+            className="flex items-center gap-2 px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-60"
+            title="Vygenerovat návrhy z opakujících se transakcí"
+          >
+            <Zap size={16} />
+            {generating ? 'Generuji...' : 'Test'}
+          </button>
+        </div>
       </div>
 
       {loading ? (

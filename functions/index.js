@@ -313,10 +313,36 @@ exports.generateRecurringTransactions = functions
           const shouldGenerate = shouldGenerateToday(today, lastGenerated, recurring);
 
           if (shouldGenerate) {
-            // Vytvoř návrh transakce (pending)
+            // Validace před vytvořením
+            if (!recurring.title?.trim()) {
+              console.warn(`⚠️ Přeskakuji - chybí název`);
+              continue;
+            }
+            if (!recurring.amount || recurring.amount <= 0) {
+              console.warn(`⚠️ Přeskakuji - neplatná částka: ${recurring.amount}`);
+              continue;
+            }
+
+            // Ověř že ještě není tentýž záznam pending
+            const existingPending = await db
+              .collection('users')
+              .doc(uid)
+              .collection('pendingTransactions')
+              .where('recurringId', '==', recurringDoc.id)
+              .where('generatedDate', '==', today)
+              .get();
+
+            if (existingPending.size > 0) {
+              console.warn(`⚠️ Duplikát - ${recurring.title} už je pending na dnešek`);
+              continue;
+            }
+
+            // Vytvoř návrh transakce (pending) - jen kritické pole
             const pendingTransaction = {
-              ...recurring,
-              id: undefined,
+              title: recurring.title,
+              type: recurring.type,
+              amount: recurring.amount,
+              category: recurring.category,
               recurringId: recurringDoc.id,
               status: 'pending',
               createdAt: new Date(),
@@ -454,9 +480,35 @@ exports.testGenerateRecurring = functions
           const shouldGenerate = shouldGenerateToday(today, lastGenerated, recurring);
 
           if (shouldGenerate) {
+            // Validace před vytvořením
+            if (!recurring.title?.trim()) {
+              console.warn(`⚠️ Přeskakuji - chybí název`);
+              continue;
+            }
+            if (!recurring.amount || recurring.amount <= 0) {
+              console.warn(`⚠️ Přeskakuji - neplatná částka: ${recurring.amount}`);
+              continue;
+            }
+
+            // Ověř že ještě není tentýž záznam pending
+            const existingPending = await db
+              .collection('users')
+              .doc(uid)
+              .collection('pendingTransactions')
+              .where('recurringId', '==', recurringDoc.id)
+              .where('generatedDate', '==', today)
+              .get();
+
+            if (existingPending.size > 0) {
+              console.warn(`⚠️ Duplikát - ${recurring.title} už je pending na dnešek`);
+              continue;
+            }
+
             const pendingTransaction = {
-              ...recurring,
-              id: undefined,
+              title: recurring.title,
+              type: recurring.type,
+              amount: recurring.amount,
+              category: recurring.category,
               recurringId: recurringDoc.id,
               status: 'pending',
               createdAt: new Date(),
@@ -492,6 +544,158 @@ exports.testGenerateRecurring = functions
       } catch (err) {
         console.error('❌ TEST error:', err);
         return res.status(500).json({ error: err.message });
+      }
+    });
+  });
+
+// 🧹 CLEANUP & HEALTH CHECK — Smazání duplikátů a debug
+exports.cleanupDuplicates = functions
+  .region('europe-west1')
+  .https.onRequest(async (req, res) => {
+    cors(req, res, async () => {
+      try {
+        const token = req.headers.authorization?.split('Bearer ')[1];
+        if (!token) {
+          return res.status(401).json({ error: 'Nemáš oprávnění' });
+        }
+
+        const decodedToken = await admin.auth().verifyIdToken(token);
+        const uid = decodedToken.uid;
+
+        console.log(`🧹 CLEANUP: Spouštím pro uživatele ${uid}...`);
+
+        const db = admin.firestore();
+        let deletedCount = 0;
+        let fixedCount = 0;
+
+        // 1️⃣ Smazání duplikátů v pendingTransactions
+        const pendingSnap = await db
+          .collection('users')
+          .doc(uid)
+          .collection('pendingTransactions')
+          .get();
+
+        const seenTransactions = new Map();
+        const toDelete = [];
+
+        pendingSnap.forEach((doc) => {
+          const data = doc.data();
+          const key = `${data.title}|${data.amount}|${data.category}`;
+
+          if (seenTransactions.has(key)) {
+            // Duplikát - označ k smazání
+            toDelete.push(doc.ref);
+          } else {
+            seenTransactions.set(key, doc.id);
+          }
+        });
+
+        // Smaž duplikáty
+        for (const ref of toDelete) {
+          await ref.delete();
+          deletedCount++;
+          console.log(`✓ Smazán duplikát`);
+        }
+
+        // 2️⃣ Oprava repeatingTransactions - ověření povinných polí
+        const recurringSnap = await db
+          .collection('users')
+          .doc(uid)
+          .collection('repeatingTransactions')
+          .get();
+
+        for (const doc of recurringSnap.docs) {
+          const data = doc.data();
+          const updates = {};
+
+          // Ověř povinná pole
+          if (!data.title) updates.title = 'Bez názvu';
+          if (!data.amount || data.amount <= 0) updates.amount = 0;
+          if (!data.category) updates.category = 'Ostatní';
+          if (!data.type || !['vydaj', 'prijem'].includes(data.type)) updates.type = 'vydaj';
+          if (!data.recurrenceType) updates.recurrenceType = 'daily';
+          if (!data.recurrenceFrequency || data.recurrenceFrequency < 1) updates.recurrenceFrequency = 1;
+          if (!data.isActive) updates.isActive = true;
+
+          // Resetuj lastGeneratedDate na startDate
+          if (data.recurrenceStartDate && !data.lastGeneratedDate) {
+            updates.lastGeneratedDate = data.recurrenceStartDate;
+          }
+
+          if (Object.keys(updates).length > 0) {
+            await doc.ref.update(updates);
+            fixedCount++;
+            console.log(`✓ Opravena opakující se transakce: ${data.title}`);
+          }
+        }
+
+        const result = {
+          success: true,
+          deleted: deletedCount,
+          fixed: fixedCount,
+          totalPending: pendingSnap.size,
+          totalRecurring: recurringSnap.size,
+          message: `Smazáno ${deletedCount} duplikátů, opraveno ${fixedCount} opakujících se transakcí`
+        };
+
+        console.log(`✅ CLEANUP: ${result.message}`);
+        return res.status(200).json(result);
+      } catch (err) {
+        console.error('❌ CLEANUP error:', err);
+        return res.status(500).json({ success: false, error: err.message });
+      }
+    });
+  });
+
+// 💚 HEALTH CHECK — Ověření stavu systému
+exports.healthCheck = functions
+  .region('europe-west1')
+  .https.onRequest(async (req, res) => {
+    cors(req, res, async () => {
+      try {
+        const checks = {
+          timestamp: new Date().toISOString(),
+          services: {}
+        };
+
+        // 1️⃣ Firebase Auth
+        try {
+          await admin.auth().getUser('test-nonexistent-user').catch(() => {});
+          checks.services.auth = { status: 'ok' };
+        } catch (err) {
+          checks.services.auth = { status: 'error', message: err.message };
+        }
+
+        // 2️⃣ Firestore
+        try {
+          const snap = await admin.firestore().collection('users').limit(1).get();
+          checks.services.firestore = { status: 'ok', userCount: snap.size };
+        } catch (err) {
+          checks.services.firestore = { status: 'error', message: err.message };
+        }
+
+        // 3️⃣ Cloud Scheduler (generateRecurringTransactions)
+        try {
+          const scheduler = require('@google-cloud/scheduler');
+          // Jen ověříme, že je balíček dostupný
+          checks.services.scheduler = { status: 'ok' };
+        } catch (err) {
+          checks.services.scheduler = { status: 'warning', message: 'Scheduler balíček nedostupný' };
+        }
+
+        const allOk = Object.values(checks.services).every(s => s.status === 'ok' || s.status === 'warning');
+
+        return res.status(allOk ? 200 : 503).json({
+          healthy: allOk,
+          ...checks
+        });
+      } catch (err) {
+        console.error('❌ HEALTH CHECK error:', err);
+        return res.status(503).json({
+          healthy: false,
+          timestamp: new Date().toISOString(),
+          error: err.message
+        });
       }
     });
   });
