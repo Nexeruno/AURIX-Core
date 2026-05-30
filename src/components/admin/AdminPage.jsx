@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { collection, getDocs, doc, updateDoc, orderBy, query } from 'firebase/firestore';
 import { db, auth } from '../../utils/firebase';
+import { firebaseConfig } from '../../config/firebase-config';
 import { useAuth } from '../../context/AuthContext';
 import { formatDatum } from '../../utils/formatters';
 import { Users, ShieldCheck, ShieldOff, RefreshCw, KeyRound, Pencil, Ban, Trash2 } from 'lucide-react';
@@ -40,7 +41,7 @@ export const AdminPage = () => {
   const handleResetPassword = async (email) => {
     if (!confirm(`Odeslat reset hesla na ${email}?`)) return;
 
-    const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+    const projectId = firebaseConfig.projectId;
     const url = `https://europe-west1-${projectId}.cloudfunctions.net/posliResetHesla`;
 
     try {
@@ -81,7 +82,7 @@ export const AdminPage = () => {
       const idToken = await auth.currentUser?.getIdToken();
       if (!idToken) throw new Error('Nemáš oprávnění');
 
-      const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+      const projectId = firebaseConfig.projectId;
       const url = `https://europe-west1-${projectId}.cloudfunctions.net/smazUzivatele`;
 
       const response = await fetch(url, {
@@ -108,7 +109,7 @@ export const AdminPage = () => {
       const idToken = await auth.currentUser?.getIdToken();
       if (!idToken) throw new Error('Nemáš oprávnění');
 
-      const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+      const projectId = firebaseConfig.projectId;
       const url = `https://europe-west1-${projectId}.cloudfunctions.net/zablokujUzivatele`;
 
       const response = await fetch(url, {
@@ -147,7 +148,7 @@ export const AdminPage = () => {
       const idToken = await auth.currentUser?.getIdToken();
       if (!idToken) throw new Error('Nemáš oprávnění');
 
-      const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+      const projectId = firebaseConfig.projectId;
       const url = `https://europe-west1-${projectId}.cloudfunctions.net/aktualizujUzivatele`;
 
       const response = await fetch(url, {

@@ -11,9 +11,8 @@ import {
   collection, query, where, serverTimestamp, deleteDoc, increment,
 } from 'firebase/firestore';
 import { auth, db } from '../utils/firebase';
+import { adminEmail as ADMIN_EMAIL } from '../config/firebase-config';
 import { clearSessionCache } from '../hooks/useFirestoreSync';
-
-const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || '';
 
 const AuthContext = createContext(null);
 
@@ -131,8 +130,7 @@ export const AuthProvider = ({ children }) => {
 
   const resetPassword = async (email) => {
     const trimmedEmail = email.trim().toLowerCase();
-    const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
-    const url = `https://europe-west1-${projectId}.cloudfunctions.net/posliResetHesla`;
+    const url = `https://europe-west1-${firebaseConfig.projectId}.cloudfunctions.net/posliResetHesla`;
 
     try {
       console.log('Volám posliResetHesla Cloud Function...');
