@@ -5,7 +5,7 @@ import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
-export const FavoritesModal = ({ isOpen, onClose, onSelect, typ }) => {
+export const FavoritesModal = ({ isOpen, onClose, onSelect, onQuickAdd, typ }) => {
   const { session } = useAuth();
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -80,16 +80,18 @@ export const FavoritesModal = ({ isOpen, onClose, onSelect, typ }) => {
           ) : (
             <div className="space-y-2">
               {favorites.map((fav) => (
-                <button
+                <div
                   key={fav.id}
-                  onClick={() => {
-                    onSelect(fav);
-                    onClose();
-                  }}
-                  className="w-full text-left p-3 rounded-lg bg-light-border dark:bg-dark-border hover:bg-light-card dark:hover:bg-dark-card transition-colors flex items-center justify-between group"
+                  className="p-3 rounded-lg bg-light-border dark:bg-dark-border hover:bg-light-card dark:hover:bg-dark-card transition-colors flex items-center justify-between group"
                 >
-                  <div>
-                    <div className="font-medium">{fav.title}</div>
+                  <button
+                    onClick={() => {
+                      onQuickAdd(fav);
+                      onClose();
+                    }}
+                    className="flex-1 text-left"
+                  >
+                    <div className="font-medium hover:underline">{fav.title}</div>
                     <div className="text-sm text-light-textMuted dark:text-dark-textMuted">
                       {fav.amount} Kč • {fav.category}
                     </div>
@@ -99,7 +101,7 @@ export const FavoritesModal = ({ isOpen, onClose, onSelect, typ }) => {
                       {fav.recurrenceType === 'monthly' && `Měsíčně (${fav.recurrenceDay}. den)`}
                       {fav.recurrenceType === 'yearly' && 'Ročně'}
                     </div>
-                  </div>
+                  </button>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -110,7 +112,7 @@ export const FavoritesModal = ({ isOpen, onClose, onSelect, typ }) => {
                   >
                     <Trash2 size={16} />
                   </button>
-                </button>
+                </div>
               ))}
             </div>
           )}

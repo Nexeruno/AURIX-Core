@@ -54,11 +54,29 @@ const Form = ({ typ }) => {
     setForm({
       nazev: favorite.title,
       castka: favorite.amount.toString(),
-      datum: form.datum, // Zachovej dnešní datum
+      datum: form.datum,
       kategorie: favorite.category,
     });
     toast.success(`Nahrána oblíbená "${favorite.title}"`);
     nazevRef.current?.focus();
+  };
+
+  const handleQuickAdd = async (favorite) => {
+    setSaving(true);
+    try {
+      await addItem({
+        nazev: favorite.title,
+        castka: favorite.amount,
+        datum: todayISO(),
+        kategorie: favorite.category,
+      });
+      toast.success(`${favorite.title} přidán ✓`);
+    } catch (err) {
+      console.error('Chyba při přidání:', err);
+      toast.error('Chyba při přidání');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSaveRecurring = async (recurring) => {
@@ -187,6 +205,7 @@ const Form = ({ typ }) => {
         isOpen={favoritesModalOpen}
         onClose={() => setFavoritesModalOpen(false)}
         onSelect={handleSelectFavorite}
+        onQuickAdd={handleQuickAdd}
         typ={typ}
       />
     </div>
