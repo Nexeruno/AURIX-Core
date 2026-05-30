@@ -604,6 +604,11 @@ exports.cleanupDuplicates = functions
           .collection('repeatingTransactions')
           .get();
 
+        // Vypočti včeraší datum pro reset
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        yesterday.setHours(0, 0, 0, 0);
+
         for (const doc of recurringSnap.docs) {
           const data = doc.data();
           const updates = {};
@@ -617,9 +622,15 @@ exports.cleanupDuplicates = functions
           if (!data.recurrenceFrequency || data.recurrenceFrequency < 1) updates.recurrenceFrequency = 1;
           if (!data.isActive) updates.isActive = true;
 
-          // Resetuj lastGeneratedDate na startDate
-          if (data.recurrenceStartDate && !data.lastGeneratedDate) {
-            updates.lastGeneratedDate = data.recurrenceStartDate;
+          // KLÍČOVÝ FIX: Resetuj lastGeneratedDate na VČERA aby se mohly vygenerovat
+          const lastGen = data.lastGeneratedDate?.toDate?.() || new Date(data.lastGeneratedDate);
+          const lastGenDate = new Date(lastGen);
+          lastGenDate.setHours(0, 0, 0, 0);
+
+          // Pokud byla už vygenerována dnes, resetuj na včera
+          if (lastGenDate.getTime() === today.getTime()) {
+            updates.lastGeneratedDate = yesterday;
+            console.log(`✓ Resetuji lastGeneratedDate na včera pro: ${data.title}`);
           }
 
           if (Object.keys(updates).length > 0) {
