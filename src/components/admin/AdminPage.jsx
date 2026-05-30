@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { collection, getDocs, doc, updateDoc, orderBy, query } from 'firebase/firestore';
-import { auth, db } from '../../utils/firebase';
+import { db } from '../../utils/firebase';
 import { useAuth } from '../../context/AuthContext';
-import { sendPasswordResetEmail } from 'firebase/auth';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { formatDatum } from '../../utils/formatters';
 import { Users, ShieldCheck, ShieldOff, RefreshCw, KeyRound } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -38,7 +38,9 @@ export const AdminPage = () => {
   const handleResetPassword = async (email) => {
     if (!confirm(`Odeslat reset hesla na ${email}?`)) return;
     try {
-      await sendPasswordResetEmail(auth, email);
+      const functions = getFunctions();
+      const posliResetHesla = httpsCallable(functions, 'posliResetHesla');
+      await posliResetHesla({ email });
       toast.success(`Reset hesla odeslán na ${email}`);
     } catch {
       toast.error('Chyba při odesílání resetu hesla');

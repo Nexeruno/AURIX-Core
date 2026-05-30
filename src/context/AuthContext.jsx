@@ -5,12 +5,12 @@ import {
   createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
-  sendPasswordResetEmail,
 } from 'firebase/auth';
 import {
   doc, setDoc, getDoc, getDocs, updateDoc,
   collection, query, where, serverTimestamp, deleteDoc,
 } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { auth, db } from '../utils/firebase';
 import { clearSessionCache } from '../hooks/useFirestoreSync';
 
@@ -125,7 +125,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   const resetPassword = async (email) => {
-    await sendPasswordResetEmail(auth, email.trim().toLowerCase());
+    const functions = getFunctions();
+    const posliResetHesla = httpsCallable(functions, 'posliResetHesla');
+    await posliResetHesla({ email: email.trim().toLowerCase() });
   };
 
   const logout = async () => {
