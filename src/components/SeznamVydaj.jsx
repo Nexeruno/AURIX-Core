@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useAppStore } from '../utils/store';
 import { ItemCardVydaj, ItemCardPrijem } from './ItemCard';
-import { formatCastka, filterItems } from '../utils/formatters';
+import { formatCastka, filterItems, pluralizePolozka } from '../utils/formatters';
 import { exportCSV } from '../utils/export';
 import { Trash2, Download, Search, X } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -72,7 +72,7 @@ const Seznam = ({ typ }) => {
           <>
             <p className={`text-3xl font-bold ${colorCls}`}>{formatCastka(total)}</p>
             <p className="text-xs text-light-textMuted dark:text-dark-textMuted mt-1">
-              {filteredItems.length} {search ? `z ${items.length}` : ''} položek
+              {pluralizePolozka(filteredItems.length)} {search ? `z ${items.length}` : ''}
               {search && (
                 <span className="ml-1 text-blue-500">· hledáš: „{search}"</span>
               )}

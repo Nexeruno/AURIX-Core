@@ -53,3 +53,10 @@ export const getCategoryColor = (category) => {
   };
   return colors[category] || 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200';
 };
+
+export const pluralizePolozka = (count) => {
+  if (count === 0) return 'žádná položka';
+  if (count === 1) return '1 položka';
+  if (count >= 2 && count <= 4) return `${count} položky`;
+  return `${count} položek`;
+};

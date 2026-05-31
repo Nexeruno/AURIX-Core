@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useAppStore } from '../utils/store';
-import { formatCastka, filterItems } from '../utils/formatters';
+import { formatCastka, filterItems, pluralizePolozka } from '../utils/formatters';
 import { MESICE, KATEGORIE_VYDAJ, KATEGORIE_PRIJEM } from '../utils/constants';
 import { ItemCardVydaj, ItemCardPrijem } from './ItemCard';
 import { PendingTransactions } from './PendingTransactions';
@@ -238,12 +238,12 @@ export const Dashboard = () => {
             <div className="card border-l-4 border-green-500">
               <p className="text-sm font-medium text-light-textMuted dark:text-dark-textMuted">Příjmy</p>
               <p className="text-3xl font-bold text-green-600 dark:text-green-400 mt-2">{formatCastka(totalPrijmy)}</p>
-              <p className="text-xs text-light-textMuted dark:text-dark-textMuted mt-1">{filteredPrijmy.length} položek</p>
+              <p className="text-xs text-light-textMuted dark:text-dark-textMuted mt-1">{pluralizePolozka(filteredPrijmy.length)}</p>
             </div>
             <div className="card border-l-4 border-red-500">
               <p className="text-sm font-medium text-light-textMuted dark:text-dark-textMuted">Výdaje</p>
               <p className="text-3xl font-bold text-red-600 dark:text-red-400 mt-2">{formatCastka(totalVydaje)}</p>
-              <p className="text-xs text-light-textMuted dark:text-dark-textMuted mt-1">{filteredVydaje.length} položek</p>
+              <p className="text-xs text-light-textMuted dark:text-dark-textMuted mt-1">{pluralizePolozka(filteredVydaje.length)}</p>
             </div>
             <div className={`card border-l-4 ${zustatek >= 0 ? 'border-blue-500' : 'border-red-500'}`}>
               <p className="text-sm font-medium text-light-textMuted dark:text-dark-textMuted">Zůstatek</p>

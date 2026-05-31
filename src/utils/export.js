@@ -1,4 +1,4 @@
-import { formatDatum, formatCastka, getCategoryLabel } from './formatters';
+import { formatDatum, formatCastka, getCategoryLabel, pluralizePolozka } from './formatters';
 
 const dnes = () => {
   const d = new Date();
@@ -104,12 +104,12 @@ export const exportVypisPDF = ({ username, period, vydaje, prijmy }) => {
       <div class="card green">
         <div class="clabel">Příjmy</div>
         <div class="camount">${esc(formatCastka(totalPrijmy))}</div>
-        <div class="ccount">${prijmy.length} položek</div>
+        <div class="ccount">${pluralizePolozka(prijmy.length)}</div>
       </div>
       <div class="card red">
         <div class="clabel">Výdaje</div>
         <div class="camount">${esc(formatCastka(totalVydaje))}</div>
-        <div class="ccount">${vydaje.length} položek</div>
+        <div class="ccount">${pluralizePolozka(vydaje.length)}</div>
       </div>
       <div class="card blue">
         <div class="clabel">Zůstatek</div>
