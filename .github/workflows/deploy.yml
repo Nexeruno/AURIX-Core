@@ -38,16 +38,10 @@ jobs:
           VITE_FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
           VITE_ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
 
-      - name: 📤 Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
-
-      - name: 🏷️ Create version tag
+      - name: 📤 Commit build to main
         run: |
-          VERSION=$(date +v%Y.%m.%d.%H%M%S)
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag "$VERSION" -m "Deploy: ${{ github.sha }}"
-          git push origin "$VERSION"
+          git add docs/
+          git commit -m "deploy: Build output [skip ci]" || echo "No changes to commit"
+          git push origin main
