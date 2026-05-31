@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../../utils/firebase';
 import { useAuth } from '../../context/AuthContext';
-import { Wrench, TrendingDown, CheckCircle, AlertCircle, BarChart3, Clock, Activity } from 'lucide-react';
+import { Wrench, TrendingDown, CheckCircle, AlertCircle, BarChart3, Clock, Activity, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export const SystemRepairDashboard = ({ onClose }) => {
@@ -10,6 +10,7 @@ export const SystemRepairDashboard = ({ onClose }) => {
   const [repairs, setRepairs] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [selectedRepair, setSelectedRepair] = useState(null);
 
   useEffect(() => {
@@ -58,7 +59,9 @@ export const SystemRepairDashboard = ({ onClose }) => {
         });
       } catch (err) {
         console.error('Chyba při načítání repair dat:', err);
-        toast.error('Chyba při načítání repair statistik');
+        setError(err.message);
+        setRepairs([]);
+        setStats(null);
       } finally {
         setLoading(false);
       }
@@ -98,6 +101,27 @@ export const SystemRepairDashboard = ({ onClose }) => {
       {loading ? (
         <div className="text-center py-12 text-light-textMuted dark:text-dark-textMuted">
           Načítám repair data...
+        </div>
+      ) : error ? (
+        <div className="card bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500">
+          <div className="flex items-start gap-3">
+            <XCircle size={24} className="text-red-600 dark:text-red-400 flex-shrink-0 mt-1" />
+            <div>
+              <h3 className="font-semibold text-red-700 dark:text-red-300 mb-1">Chyba při načítání dat</h3>
+              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+              <p className="text-xs text-red-500 dark:text-red-400 mt-2">Zkus obnovit stránku nebo kontaktuj admina</p>
+            </div>
+          </div>
+        </div>
+      ) : repairs.length === 0 ? (
+        <div className="card bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500">
+          <div className="flex items-center gap-2">
+            <CheckCircle size={20} className="text-green-600 dark:text-green-400" />
+            <div>
+              <p className="font-semibold text-green-700 dark:text-green-300">Žádné chyby</p>
+              <p className="text-sm text-green-600 dark:text-green-400">Systém běží bez problémů</p>
+            </div>
+          </div>
         </div>
       ) : (
         <>

@@ -14,6 +14,7 @@ export const DevOpsPanel = ({ onRepairsDashboard }) => {
   const [users, setUsers] = useState([]);
   const [systemAlerts, setSystemAlerts] = useState([]);
   const [repairStats, setRepairStats] = useState(null);
+  const [repairError, setRepairError] = useState(null);
   const [loading, setLoading] = useState({ health: true, metrics: false, users: true, systemAlerts: true, repairs: true });
   const [actionResults, setActionResults] = useState({});
 
@@ -102,13 +103,19 @@ export const DevOpsPanel = ({ onRepairsDashboard }) => {
           setRepairStats({
             lastRun: lastRepair.timestamp,
             lastStatus: lastRepair.status,
+            lastRepair: lastRepair,
             totalRepaired24h: last24h.reduce((sum, r) => sum + (r.totalRepairs || 0), 0),
             runCount24h: last24h.length,
             allRepairs: repairs,
           });
+        } else {
+          setRepairStats(null);
         }
+        setRepairError(null);
       } catch (err) {
         console.error('Repair stats fetch error:', err);
+        setRepairError(err.message);
+        setRepairStats(null);
       } finally {
         setLoading((prev) => ({ ...prev, repairs: false }));
       }
@@ -308,12 +315,20 @@ export const DevOpsPanel = ({ onRepairsDashboard }) => {
 
         {loading.repairs ? (
           <div className="text-light-textMuted dark:text-dark-textMuted">Načítám...</div>
-        ) : repairStats ? (
+        ) : repairError ? (
+          <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 flex items-start gap-2">
+            <XCircle size={20} className="text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-red-700 dark:text-red-300">Chyba při načítání</p>
+              <p className="text-sm text-red-600 dark:text-red-400">{repairError}</p>
+            </div>
+          </div>
+        ) : repairStats && repairStats.allRepairs.length > 0 ? (
           <div className="space-y-3">
             {/* Quick Stats */}
             <div className="grid grid-cols-2 gap-3">
               <div className="p-3 rounded-lg bg-light-border dark:bg-dark-border">
-                <p className="text-xs text-light-textMuted dark:text-dark-textMuted">Repairů (24h)</p>
+                <p className="text-xs text-light-textMuted dark:text-dark-textMuted">Opraveno (24h)</p>
                 <p className="text-xl font-bold text-blue-600 dark:text-blue-400">{repairStats.totalRepaired24h}</p>
               </div>
               <div className="p-3 rounded-lg bg-light-border dark:bg-dark-border">
@@ -322,7 +337,7 @@ export const DevOpsPanel = ({ onRepairsDashboard }) => {
               </div>
             </div>
 
-            {/* Last Run Status */}
+            {/* Last Run Status & Repairs */}
             <div
               className={`p-3 rounded-lg border-l-4 ${
                 repairStats.lastStatus === 'SUCCESS'
@@ -332,24 +347,43 @@ export const DevOpsPanel = ({ onRepairsDashboard }) => {
                   : 'bg-red-50 dark:bg-red-900/20 border-red-500'
               }`}
             >
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-center gap-2 mb-2">
                 {repairStats.lastStatus === 'SUCCESS' ? (
                   <CheckCircle size={16} className="text-green-600 dark:text-green-400" />
-                ) : (
+                ) : repairStats.lastStatus === 'PARTIAL_SUCCESS' ? (
                   <AlertCircle size={16} className="text-yellow-600 dark:text-yellow-400" />
+                ) : (
+                  <XCircle size={16} className="text-red-600 dark:text-red-400" />
                 )}
                 <span className="text-sm font-semibold">
-                  {repairStats.lastStatus === 'SUCCESS' ? '✓ Poslední OK' : '⚠️ Poslední ' + repairStats.lastStatus}
+                  {repairStats.lastStatus === 'SUCCESS'
+                    ? '✓ Vše OK'
+                    : repairStats.lastStatus === 'PARTIAL_SUCCESS'
+                    ? '⚠️ Částečně'
+                    : '✗ Chyba'}
                 </span>
               </div>
-              <p className="text-xs text-light-textMuted dark:text-dark-textMuted">
+              <p className="text-xs text-light-textMuted dark:text-dark-textMuted mb-2">
                 {repairStats.lastRun ? new Date(repairStats.lastRun).toLocaleString('cs-CZ') : 'N/A'}
               </p>
+
+              {/* List repairs from last run */}
+              {repairStats.lastRepair?.repairs && repairStats.lastRepair.repairs.length > 0 && (
+                <div className="mt-2 pt-2 border-t border-current border-opacity-20 space-y-1 text-xs">
+                  {repairStats.lastRepair.repairs.map((repair, idx) => (
+                    <div key={idx} className="flex items-start gap-1">
+                      <span className="text-current opacity-50 flex-shrink-0">•</span>
+                      <span>{repair.message}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         ) : (
-          <div className="text-center py-6 text-light-textMuted dark:text-dark-textMuted">
-            Zatím žádné repair data
+          <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 flex items-center gap-2">
+            <CheckCircle size={20} className="text-green-600 dark:text-green-400" />
+            <span className="font-semibold text-green-700 dark:text-green-300">Žádné chyby</span>
           </div>
         )}
       </div>
