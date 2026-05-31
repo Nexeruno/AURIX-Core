@@ -383,6 +383,7 @@ exports.generateRecurringTransactions = functions
 exports.testGenerateRecurring = functions.region(REGION).https.onRequest(async (req, res) => {
   cors(req, res, async () => {
     try {
+      console.log('🧪 testGenerateRecurring: quick actions endpoint');
       const token = req.headers.authorization?.split('Bearer ')[1];
       const decodedToken = await verifyAuth(token);
 
