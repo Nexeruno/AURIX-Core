@@ -41,6 +41,11 @@ service cloud.firestore {
       allow read, write: if isAdmin(request.auth.uid);
     }
 
+    // System Repairs (auto-healing tracking)
+    match /systemRepairs/{document=**} {
+      allow read, write: if isAdmin(request.auth.uid);
+    }
+
     // Usernames (pro ověření dostupnosti)
     match /usernames/{document=**} {
       allow read;

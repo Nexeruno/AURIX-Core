@@ -6,6 +6,7 @@ import { Header } from './components/Header';
 import { AuthPage } from './components/auth/AuthPage';
 import { AdminPage } from './components/admin/AdminPage';
 import { DevOpsPanel } from './components/admin/DevOpsPanel';
+import { SystemRepairDashboard } from './components/admin/SystemRepairDashboard';
 import { FormVydaj } from './components/FormVydaj';
 import { FormPrijem } from './components/FormPrijem';
 import { FilterBarVydaj, FilterBarPrijem } from './components/FilterBar';
@@ -25,6 +26,7 @@ function AppContent() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showAdmin, setShowAdmin] = useState(false);
   const [adminTab, setAdminTab] = useState('users');
+  const [devopsTab, setDevopsTab] = useState('overview');
 
   // Napojení Firestore real-time listenerů
   useFirestoreSync();
@@ -61,7 +63,47 @@ function AppContent() {
               🛠️ DevOps
             </button>
           </div>
-          {adminTab === 'users' ? <AdminPage /> : <DevOpsPanel />}
+
+          {adminTab === 'users' ? (
+            <AdminPage />
+          ) : (
+            <div>
+              {/* DevOps Sub-tabs */}
+              <div className="flex gap-2 mb-4">
+                <button
+                  onClick={() => setDevopsTab('overview')}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all text-sm ${
+                    devopsTab === 'overview'
+                      ? 'bg-green-500 text-white shadow-md'
+                      : 'bg-light-border dark:bg-dark-border text-light-text dark:text-dark-text hover:bg-light-card dark:hover:bg-dark-card'
+                  }`}
+                >
+                  📊 Přehled
+                </button>
+                <button
+                  onClick={() => setDevopsTab('repairs')}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all text-sm ${
+                    devopsTab === 'repairs'
+                      ? 'bg-green-500 text-white shadow-md'
+                      : 'bg-light-border dark:bg-dark-border text-light-text dark:text-dark-text hover:bg-light-card dark:hover:bg-dark-card'
+                  }`}
+                >
+                  🔧 Auto-Repair
+                </button>
+              </div>
+
+              {/* DevOps Content */}
+              {devopsTab === 'overview' ? (
+                <DevOpsPanel
+                  onRepairsDashboard={() => setDevopsTab('repairs')}
+                />
+              ) : (
+                <SystemRepairDashboard
+                  onClose={() => setDevopsTab('overview')}
+                />
+              )}
+            </div>
+          )}
         </main>
       </>
     );

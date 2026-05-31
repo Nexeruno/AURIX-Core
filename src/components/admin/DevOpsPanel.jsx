@@ -1,19 +1,20 @@
 import { useState, useEffect } from 'react';
-import { collection, getDocs, query, orderBy, updateDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, updateDoc, doc, limit } from 'firebase/firestore';
 import { db, auth } from '../../utils/firebase';
 import { firebaseConfig } from '../../config/firebase-config';
 import { useAuth } from '../../context/AuthContext';
 import { formatDatum } from '../../utils/formatters';
-import { Server, AlertTriangle, AlertCircle, CheckCircle, XCircle, RefreshCw, Zap, Users, Activity } from 'lucide-react';
+import { Server, AlertTriangle, AlertCircle, CheckCircle, XCircle, RefreshCw, Zap, Users, Activity, Wrench, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-export const DevOpsPanel = () => {
+export const DevOpsPanel = ({ onRepairsDashboard }) => {
   const { session } = useAuth();
   const [health, setHealth] = useState(null);
   const [metrics, setMetrics] = useState(null);
   const [users, setUsers] = useState([]);
   const [systemAlerts, setSystemAlerts] = useState([]);
-  const [loading, setLoading] = useState({ health: true, metrics: false, users: true, systemAlerts: true });
+  const [repairStats, setRepairStats] = useState(null);
+  const [loading, setLoading] = useState({ health: true, metrics: false, users: true, systemAlerts: true, repairs: true });
   const [actionResults, setActionResults] = useState({});
 
   // Načti health (auto 30s)
@@ -80,6 +81,40 @@ export const DevOpsPanel = () => {
     };
 
     fetchSystemAlerts();
+  }, []);
+
+  useEffect(() => {
+    const fetchRepairStats = async () => {
+      try {
+        const snap = await getDocs(query(collection(db, 'systemRepairs'), orderBy('timestamp', 'desc'), limit(10)));
+        const repairs = snap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+          timestamp: d.data().timestamp?.toDate?.()?.toISOString?.() || null,
+        }));
+
+        if (repairs.length > 0) {
+          const lastRepair = repairs[0];
+          const last24h = repairs.filter(
+            (r) => new Date(r.timestamp) > new Date(Date.now() - 86400000)
+          );
+
+          setRepairStats({
+            lastRun: lastRepair.timestamp,
+            lastStatus: lastRepair.status,
+            totalRepaired24h: last24h.reduce((sum, r) => sum + (r.totalRepairs || 0), 0),
+            runCount24h: last24h.length,
+            allRepairs: repairs,
+          });
+        }
+      } catch (err) {
+        console.error('Repair stats fetch error:', err);
+      } finally {
+        setLoading((prev) => ({ ...prev, repairs: false }));
+      }
+    };
+
+    fetchRepairStats();
   }, []);
 
   const resolveAlert = async (alertId) => {
@@ -255,7 +290,71 @@ export const DevOpsPanel = () => {
         )}
       </div>
 
-      {/* SEKCE B: Health Check */}
+      {/* SEKCE B: System Repairs (Quick Stats) */}
+      <div className="card">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <Wrench size={20} /> Auto-Repair System
+          </h3>
+          {onRepairsDashboard && (
+            <button
+              onClick={onRepairsDashboard}
+              className="text-xs px-3 py-1.5 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition flex items-center gap-1"
+            >
+              Detaily <ArrowRight size={14} />
+            </button>
+          )}
+        </div>
+
+        {loading.repairs ? (
+          <div className="text-light-textMuted dark:text-dark-textMuted">Načítám...</div>
+        ) : repairStats ? (
+          <div className="space-y-3">
+            {/* Quick Stats */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 rounded-lg bg-light-border dark:bg-dark-border">
+                <p className="text-xs text-light-textMuted dark:text-dark-textMuted">Repairů (24h)</p>
+                <p className="text-xl font-bold text-blue-600 dark:text-blue-400">{repairStats.totalRepaired24h}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-light-border dark:bg-dark-border">
+                <p className="text-xs text-light-textMuted dark:text-dark-textMuted">Runů (24h)</p>
+                <p className="text-xl font-bold text-green-600 dark:text-green-400">{repairStats.runCount24h}</p>
+              </div>
+            </div>
+
+            {/* Last Run Status */}
+            <div
+              className={`p-3 rounded-lg border-l-4 ${
+                repairStats.lastStatus === 'SUCCESS'
+                  ? 'bg-green-50 dark:bg-green-900/20 border-green-500'
+                  : repairStats.lastStatus === 'PARTIAL_SUCCESS'
+                  ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-500'
+                  : 'bg-red-50 dark:bg-red-900/20 border-red-500'
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                {repairStats.lastStatus === 'SUCCESS' ? (
+                  <CheckCircle size={16} className="text-green-600 dark:text-green-400" />
+                ) : (
+                  <AlertCircle size={16} className="text-yellow-600 dark:text-yellow-400" />
+                )}
+                <span className="text-sm font-semibold">
+                  {repairStats.lastStatus === 'SUCCESS' ? '✓ Poslední OK' : '⚠️ Poslední ' + repairStats.lastStatus}
+                </span>
+              </div>
+              <p className="text-xs text-light-textMuted dark:text-dark-textMuted">
+                {repairStats.lastRun ? new Date(repairStats.lastRun).toLocaleString('cs-CZ') : 'N/A'}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-6 text-light-textMuted dark:text-dark-textMuted">
+            Zatím žádné repair data
+          </div>
+        )}
+      </div>
+
+      {/* SEKCE C: Health Check */}
       <div className="card">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold flex items-center gap-2">
