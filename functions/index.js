@@ -649,3 +649,230 @@ exports.metrics = functions.region(REGION).https.onRequest(async (req, res) => {
     }
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 📧 HELPER - sendEmail (DRY email sending)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const sendEmail = async (to, subject, htmlContent) => {
+  const apiKey = process.env.BREVO_API_KEY;
+  const sender = process.env.BREVO_SENDER;
+
+  if (!apiKey || !sender) throw new Error('Brevo config chybí');
+
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: { 'api-key': apiKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sender: { name: 'Evidence Výdajů', email: sender },
+      to: [{ email: to }],
+      subject,
+      htmlContent,
+    }),
+  });
+
+  if (!res.ok) throw new Error(`Brevo error: ${res.status}`);
+  return res.json();
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🚨 ALERT EMAIL TEMPLATE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const ALERT_EMAIL_HTML = (alerts, timestamp) => {
+  const severityColor = alerts.some(a => a.severity === 'error') ? '#ef4444' : '#f59e0b';
+  const severityEmoji = alerts.some(a => a.severity === 'error') ? '🚨' : '⚠️';
+
+  const alertRows = alerts.map(a => `
+    <tr>
+      <td style="padding:12px;border-bottom:1px solid #e5e7eb">
+        <strong style="color:${severityColor}">${a.severity.toUpperCase()}</strong> — ${a.message}
+      </td>
+    </tr>
+  `).join('');
+
+  return `<!DOCTYPE html>
+<html lang="cs">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f3f6fb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0">
+    <tr><td align="center" style="padding:40px 20px">
+      <table width="500" style="max-width:500px;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
+        <tr>
+          <td style="background:linear-gradient(135deg,${severityColor},#f97316);padding:32px;text-align:center">
+            <div style="font-size:36px;margin-bottom:8px">${severityEmoji}</div>
+            <h1 style="margin:0;color:#fff;font-size:22px;font-weight:700">Evidence Výdajů — Alert</h1>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px">
+            <h2 style="margin:0 0 16px;color:#1e293b;font-size:18px">Zjištěno ${alerts.length} ${alerts.length === 1 ? 'upozornění' : 'upozornění'}</h2>
+            <p style="margin:0 0 20px;color:#64748b;line-height:1.6;font-size:14px">
+              ${new Date(timestamp).toLocaleString('cs-CZ')}
+            </p>
+            <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden">
+              ${alertRows}
+            </table>
+            <p style="margin:24px 0 0;color:#64748b;font-size:13px;text-align:center;line-height:1.6">
+              👉 <strong>Zkontroluj DevOps panel v aplikaci</strong> pro více detailů a možnost označit upozornění jako vyřešené.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ⏰ SCHEDULED MONITORING - Každou hodinu
+// ═══════════════════════════════════════════════════════════════════════════════
+
+exports.hourlyHealthMonitor = functions
+  .region(REGION)
+  .pubsub.schedule('0 * * * *')
+  .timeZone('Europe/Prague')
+  .onRun(async () => {
+    const alerts = [];
+
+    try {
+      console.log('🔍 Spouštím hourlyHealthMonitor...');
+
+      // Check 1: Firebase Auth dostupnost
+      try {
+        await admin.auth().listUsers(1);
+        console.log('✓ Firebase Auth OK');
+      } catch (e) {
+        alerts.push({
+          type: 'AUTH_ERROR',
+          severity: 'error',
+          message: `Firebase Auth error: ${e.message}`,
+        });
+        console.error('❌ Firebase Auth failed:', e.message);
+      }
+
+      // Check 2: Firestore dostupnost
+      try {
+        await db.collection('users').limit(1).get();
+        console.log('✓ Firestore OK');
+      } catch (e) {
+        alerts.push({
+          type: 'FIRESTORE_ERROR',
+          severity: 'error',
+          message: `Firestore error: ${e.message}`,
+        });
+        console.error('❌ Firestore failed:', e.message);
+      }
+
+      // Check 3: Pending transakce zaseknuté >24h
+      const cutoff24h = new Date(Date.now() - 86400000);
+      const usersSnap = await db.collection('users').get();
+
+      for (const userDoc of usersSnap.docs) {
+        try {
+          const pendingSnap = await db.collection('users')
+            .doc(userDoc.id)
+            .collection('pendingTransactions')
+            .where('createdAt', '<', cutoff24h)
+            .get();
+
+          if (!pendingSnap.empty) {
+            alerts.push({
+              type: 'STUCK_PENDING',
+              severity: 'warning',
+              message: `${userDoc.data().username}: ${pendingSnap.size} zaseknutých transakcí (>24h)`,
+              uid: userDoc.id,
+              count: pendingSnap.size,
+            });
+          }
+        } catch (e) {
+          console.error(`Error checking pending for user ${userDoc.id}:`, e);
+        }
+      }
+
+      // Check 4: Opakované transakce negenerující >48h
+      const cutoff48h = new Date(Date.now() - 172800000);
+
+      for (const userDoc of usersSnap.docs) {
+        try {
+          const recurSnap = await db.collection('users')
+            .doc(userDoc.id)
+            .collection('repeatingTransactions')
+            .where('isActive', '==', true)
+            .where('lastGeneratedDate', '<', cutoff48h)
+            .get();
+
+          if (!recurSnap.empty) {
+            alerts.push({
+              type: 'RECURRING_STALE',
+              severity: 'warning',
+              message: `${userDoc.data().username}: ${recurSnap.size} opakovaných transakcí negeneruje (>48h)`,
+              uid: userDoc.id,
+              count: recurSnap.size,
+            });
+          }
+        } catch (e) {
+          console.error(`Error checking recurring for user ${userDoc.id}:`, e);
+        }
+      }
+
+      // Check 5: Blokovaný uživatel s recent login (anomálie)
+      const cutoff1h = new Date(Date.now() - 3600000);
+
+      for (const userDoc of usersSnap.docs) {
+        const data = userDoc.data();
+        if (data.disabled && data.lastLogin?.toDate?.() > cutoff1h) {
+          alerts.push({
+            type: 'AUTH_ANOMALY',
+            severity: 'error',
+            message: `🚨 ANOMÁLIE: Blokovaný uživatel "${data.username}" se přihlásil v poslední hodině!`,
+            uid: userDoc.id,
+          });
+        }
+      }
+
+      // Pokud nic → SILENT (nic se nestane)
+      if (alerts.length === 0) {
+        console.log('✓ Všechny kontroly prošly bez problémů');
+        return null;
+      }
+
+      // ALERT!
+      console.log(`⚠️ Nalezeno ${alerts.length} problémů`);
+
+      // Uložit do Firestore
+      const alertDoc = {
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        severity: alerts.some(a => a.severity === 'error') ? 'error' : 'warning',
+        alerts,
+        resolved: false,
+      };
+
+      const docId = new Date().toISOString();
+      await db.collection('systemAlerts').doc(docId).set(alertDoc);
+      console.log(`✓ Alert uložen do Firestore: ${docId}`);
+
+      // Poslat email
+      const html = ALERT_EMAIL_HTML(alerts, new Date());
+      await sendEmail(ADMIN_EMAIL, `🚨 Evidence Výdajů — ${alerts.length} alert(ů)`, html);
+      console.log('✓ Email odeslán');
+
+      return null;
+    } catch (err) {
+      console.error('❌ hourlyHealthMonitor error:', err);
+      // Pošli alert o selhání samotného monitoru
+      try {
+        const errorAlert = [{
+          type: 'MONITOR_ERROR',
+          severity: 'error',
+          message: `Selhání monitoru: ${err.message}`,
+        }];
+        const html = ALERT_EMAIL_HTML(errorAlert, new Date());
+        await sendEmail(ADMIN_EMAIL, '🚨 Evidence Výdajů — MONITOR ERROR', html);
+      } catch (emailErr) {
+        console.error('Failed to send error email:', emailErr);
+      }
+      throw err;
+    }
+  });

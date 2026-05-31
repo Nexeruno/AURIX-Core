@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, updateDoc, doc } from 'firebase/firestore';
 import { db, auth } from '../../utils/firebase';
 import { firebaseConfig } from '../../config/firebase-config';
 import { useAuth } from '../../context/AuthContext';
 import { formatDatum } from '../../utils/formatters';
-import { Server, AlertTriangle, CheckCircle, XCircle, RefreshCw, Zap, Users, Activity } from 'lucide-react';
+import { Server, AlertTriangle, AlertCircle, CheckCircle, XCircle, RefreshCw, Zap, Users, Activity } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export const DevOpsPanel = () => {
@@ -12,7 +12,8 @@ export const DevOpsPanel = () => {
   const [health, setHealth] = useState(null);
   const [metrics, setMetrics] = useState(null);
   const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState({ health: true, metrics: false, users: true });
+  const [systemAlerts, setSystemAlerts] = useState([]);
+  const [loading, setLoading] = useState({ health: true, metrics: false, users: true, systemAlerts: true });
   const [actionResults, setActionResults] = useState({});
 
   // Načti health (auto 30s)
@@ -59,6 +60,38 @@ export const DevOpsPanel = () => {
 
     fetchUsers();
   }, []);
+
+  useEffect(() => {
+    const fetchSystemAlerts = async () => {
+      try {
+        const snap = await getDocs(query(collection(db, 'systemAlerts'), orderBy('timestamp', 'desc')));
+        setSystemAlerts(
+          snap.docs.map((d) => ({
+            id: d.id,
+            ...d.data(),
+            timestamp: d.data().timestamp?.toDate?.()?.toISOString?.() || null,
+          })).slice(0, 10)
+        );
+      } catch (err) {
+        console.error('System alerts fetch error:', err);
+      } finally {
+        setLoading((prev) => ({ ...prev, systemAlerts: false }));
+      }
+    };
+
+    fetchSystemAlerts();
+  }, []);
+
+  const resolveAlert = async (alertId) => {
+    try {
+      await updateDoc(doc(db, 'systemAlerts', alertId), { resolved: true });
+      setSystemAlerts((prev) => prev.filter((a) => a.id !== alertId));
+      toast.success('Alert označen jako vyřešený');
+    } catch (err) {
+      console.error('Error resolving alert:', err);
+      toast.error('Chyba při označení alertu');
+    }
+  };
 
   const fetchMetrics = async () => {
     setLoading((prev) => ({ ...prev, metrics: true }));
@@ -154,7 +187,75 @@ export const DevOpsPanel = () => {
 
   return (
     <div className="space-y-6">
-      {/* SEKCE A: Health Check */}
+      {/* SEKCE A: System Alerts */}
+      <div className="card">
+        <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
+          <AlertCircle size={20} /> System Alerts
+        </h3>
+
+        {loading.systemAlerts ? (
+          <div className="text-light-textMuted dark:text-dark-textMuted">Načítám...</div>
+        ) : systemAlerts.length === 0 ? (
+          <div className="p-4 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center gap-2">
+            <CheckCircle size={20} className="text-green-600 dark:text-green-400" />
+            <span className="text-green-700 dark:text-green-300 font-medium">Vše v pořádku — žádné chyby</span>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {systemAlerts.map((alert) => (
+              <div
+                key={alert.id}
+                className={`p-4 rounded-lg border-l-4 ${
+                  alert.severity === 'error'
+                    ? 'bg-red-50 dark:bg-red-900/20 border-red-500'
+                    : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-500'
+                }`}
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    {alert.severity === 'error' ? (
+                      <AlertTriangle size={16} className="text-red-600 dark:text-red-400" />
+                    ) : (
+                      <AlertTriangle size={16} className="text-yellow-600 dark:text-yellow-400" />
+                    )}
+                    <span
+                      className={`font-semibold text-sm ${
+                        alert.severity === 'error'
+                          ? 'text-red-700 dark:text-red-300'
+                          : 'text-yellow-700 dark:text-yellow-300'
+                      }`}
+                    >
+                      {alert.severity.toUpperCase()}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => resolveAlert(alert.id)}
+                    className="text-xs px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition"
+                  >
+                    ✓ Vyřešeno
+                  </button>
+                </div>
+                <div className="text-sm text-light-text dark:text-dark-text mb-2">
+                  {alert.timestamp && (
+                    <span className="text-light-textMuted dark:text-dark-textMuted text-xs block mb-1">
+                      {new Date(alert.timestamp).toLocaleString('cs-CZ')}
+                    </span>
+                  )}
+                </div>
+                <ul className="space-y-1">
+                  {alert.alerts?.map((a, idx) => (
+                    <li key={idx} className="text-sm text-light-text dark:text-dark-text">
+                      • {a.message}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* SEKCE B: Health Check */}
       <div className="card">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold flex items-center gap-2">
