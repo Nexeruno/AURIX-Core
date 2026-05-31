@@ -56,8 +56,8 @@ const FinancniZdraviCard = ({ vydaje, prijmy, ready }) => {
   let emoji, nadpis, zprava, barCls, cardCls, valueCls;
 
   if (zustatek <= 0) {
-    emoji = '🚨'; nadpis = 'Výdaje překračují příjmy!';
-    zprava = `Vaše výdaje přesáhly příjmy o ${formatCastka(Math.abs(zustatek))} — okamžitě omezte výdaje!`;
+    emoji = '🚨'; nadpis = 'Výdaj překračuje příjem!';
+    zprava = `Váš výdaj přesáhl příjem o ${formatCastka(Math.abs(zustatek))} — okamžitě omezit výdaj!`;
     barCls = 'bg-red-500'; valueCls = 'text-red-600 dark:text-red-400';
     cardCls = 'bg-red-50 dark:bg-red-950/40 border-red-300 dark:border-red-800';
   } else if (pct <= 15) {
@@ -66,7 +66,7 @@ const FinancniZdraviCard = ({ vydaje, prijmy, ready }) => {
     barCls = 'bg-orange-500'; valueCls = 'text-orange-600 dark:text-orange-400';
     cardCls = 'bg-orange-50 dark:bg-orange-950/40 border-orange-300 dark:border-orange-700';
   } else if (pct <= 30) {
-    emoji = '💛'; nadpis = 'Výdaje rostou — sledujte je';
+    emoji = '💛'; nadpis = 'Výdaj roste — sledujte jej';
     zprava = `Zbývá vám ${formatCastka(zustatek)} z celkových příjmů ${formatCastka(totalPrijmy)}.`;
     barCls = 'bg-yellow-400'; valueCls = 'text-yellow-700 dark:text-yellow-400';
     cardCls = 'bg-yellow-50 dark:bg-yellow-950/40 border-yellow-300 dark:border-yellow-700';

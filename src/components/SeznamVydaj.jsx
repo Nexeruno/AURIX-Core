@@ -29,9 +29,9 @@ const Seznam = ({ typ }) => {
 
   const [search, setSearch] = useState('');
 
-  const label        = isVydaj ? 'výdaje'     : 'příjmy';
-  const labelHledat  = isVydaj ? 've výdajích' : 'v příjmech';
-  const labelTitle = isVydaj ? 'Výdaje'  : 'Příjmy';
+  const label        = isVydaj ? 'výdaj'     : 'příjem';
+  const labelHledat  = isVydaj ? 've výdaji' : 'v příjmu';
+  const labelTitle = isVydaj ? 'Výdaj'  : 'Příjem';
   const colorCls   = isVydaj
     ? 'text-red-600 dark:text-red-400'
     : 'text-green-600 dark:text-green-400';

@@ -75,7 +75,7 @@ export const FavoritesModal = ({ isOpen, onClose, onSelect, onQuickAdd, typ }) =
             </p>
           ) : favorites.length === 0 ? (
             <p className="text-center py-8 text-light-textMuted dark:text-dark-textMuted">
-              Nemáš žádné oblíbené {typ === 'vydaj' ? 'výdaje' : 'příjmy'}
+              Nemáš žádný oblíbený {typ === 'vydaj' ? 'výdaj' : 'příjem'}
             </p>
           ) : (
             <div className="space-y-2">
