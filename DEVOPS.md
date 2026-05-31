@@ -134,10 +134,10 @@ firebase deploy --only hosting
 
 ## 📊 DevOps Practices
 
-### 1. **Monitoring**
-- Metrics endpoint pro systém-wide insights
-- Health check pro service status
-- Debug endpoint pro diagnostiku
+### 1. **Monitorování**
+- Endpoint metrik pro systémové přehledy
+- Kontrola stavu služby
+- Endpoint ladění pro diagnostiku
 
 ### 2. **Auto-Refresh**
 - Frontend auto-refreshuje pending transakce každých 30 sekund
@@ -157,83 +157,83 @@ firebase deploy --only hosting
 
 Projekt je připraven na budoucí ML features:
 
-### Data Collection
+### Sbírání dat
 ```javascript
-// Metrics endpoint sbírá data pro ML training
-- User behavior patterns
-- Transaction patterns
-- Timing patterns (daily, weekly, monthly trends)
-- Category distributions
-- Amount distributions
+// Endpoint metrik sbírá data pro trénování ML
+- Vzory chování uživatelů
+- Vzory transakcí
+- Časové vzory (denní, týdenní, měsíční trendy)
+- Distribuce kategorií
+- Distribuce částek
 ```
 
-### Scalability
-- ✅ **Stateless Functions**: Легко scalovat horizontálně
-- ✅ **Firestore**: Automatically scales s datovým objemem
-- ✅ **Cloud Scheduler**: Bezstav scheduling
-- ✅ **Batch Operations**: Efficient database writes
+### Škálovatelnost
+- ✅ **Bezstavové funkce**: Snadno se škálují horizontálně
+- ✅ **Firestore**: Automaticky se přizpůsobuje objemu dat
+- ✅ **Cloud Scheduler**: Bezstavové plánování
+- ✅ **Dávkové operace**: Efektivní zápisy do databáze
 
-### Future ML Features
-1. **Anomaly Detection**: Detect unusual transactions
-2. **Spending Prediction**: Predict future spending patterns
-3. **Category Recommendation**: Auto-categorize transactions
-4. **Savings Goal Optimization**: Recommend budget allocations
-5. **Fraud Detection**: Detect suspicious transactions
+### Budoucí ML funkce
+1. **Detekce anomálií**: Rozpoznání neobvyklých transakcí
+2. **Předpověď výdajů**: Předpověď budoucích výdajů
+3. **Doporučení kategorií**: Automatická kategorizace transakcí
+4. **Optimalizace spořicích cílů**: Doporučení rozpočtu
+5. **Detekce podvodů**: Rozpoznání podezřelých transakcí
 
-## 📝 Logging & Debugging
+## 📝 Protokolování a ladění
 
-### Cloud Functions Logs
+### Protokoly Cloud Functions
 ```bash
 firebase functions:log
 ```
 
-### Debug Endpoint
+### Endpoint ladění
 ```bash
 curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
   https://europe-west1-evidence-vydaju.cloudfunctions.net/debugRecurring
 ```
 
-## 🔄 Recurring Transactions Flow
+## 🔄 Tok opakujících se transakcí
 
 ```
-1. User nastaví opakující se transakci
+1. Uživatel nastaví opakující se transakci
    ↓
-2. `generateRecurringTransactions` (daily 2:00 AM)
+2. `generateRecurringTransactions` (denně v 2:00 AM)
    - Iteruje všechny uživatele
-   - Kontroluje recurrence rules
-   - Generuje pending transactions
-   - Loguje výsledky
+   - Kontroluje pravidla opakování
+   - Generuje čekající transakce
+   - Protokoluje výsledky
    ↓
-3. PendingTransactions komponenta
-   - Auto-refreshuje každých 30 sekund
+3. Komponenta čekajících transakcí
+   - Auto-obnovuje každých 30 sekund
    - Zobrazuje statistiky
-   - Umožňuje schvalování/odmítnutí
+   - Umožňuje schválení/odmítnutí
    ↓
-4. User schválí
+4. Uživatel schválí
    - Transakce se přesune do hlavního seznamu
-   - Pending záznam se smaže
-   - Toast notifikace s výsledkem
+   - Čekající záznam se smaže
+   - Upozornění se statusem
 ```
 
-## 📋 Best Practices
+## 📋 Doporučené postupy
 
-### Error Handling
-- ✅ Try/catch ve všech async funkcích
-- ✅ Detailed error messages
-- ✅ Graceful degradation
-- ✅ User-friendly toast notifications
+### Zpracování chyb
+- ✅ Try/catch ve všech asynchronních funkcích
+- ✅ Podrobné chybové zprávy
+- ✅ Elegantní degradace
+- ✅ Přátelské upozornění uživateli
 
-### Data Validation
-- ✅ Server-side validation v Cloud Functions
-- ✅ Client-side validation v React
-- ✅ Type checking (částka > 0, atd.)
-- ✅ Empty string checks
+### Ověření dat
+- ✅ Ověření na straně serveru v Cloud Functions
+- ✅ Ověření na straně klienta v Reactu
+- ✅ Kontrola typů (částka > 0, atd.)
+- ✅ Kontrola prázdných řetězců
 
-### Performance
-- ✅ Component memoization
-- ✅ Callback optimization
-- ✅ Efficient Firestore queries
-- ✅ Response time tracking
+### Výkon
+- ✅ Memoizace komponent
+- ✅ Optimalizace callback funkcí
+- ✅ Efektivní dotazy Firestore
+- ✅ Sledování doby odezvy
 
 ## 📚 Resources
 

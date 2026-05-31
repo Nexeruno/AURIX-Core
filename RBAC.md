@@ -7,13 +7,13 @@ Projekt má implementovanou RBAC aby normální uživatelé neměli přístup k 
 ### Regular User (Default)
 - ✅ Vidí "Čeká na schválení"
 - ✅ Schvaluje/odmítá transakce
-- ✅ Edituje transakce
+- ✅ Upravuje transakce
 - ❌ ŽÁDNÝ přístup k Debug/Test/Cleanup
 - ❌ ŽÁDNÝ přístup k Metrics
 - ❌ ŽÁDNÝ přístup k Admin panelu
 
 ### Admin User
-- ✅ Všechny regular user funkce
+- ✅ Všechny funkce běžného uživatele
 - ✅ 🐛 Debug button - diagnostika opakujících se transakcí
 - ✅ ⚡ Test button - ruční generování transakcí
 - ✅ 🧹 Cleanup button - smazání duplikátů + oprava dat
@@ -173,41 +173,41 @@ if (!(await verifyAdmin(decodedToken))) {
 }
 ```
 
-## ✅ Verification
+## ✅ Ověření
 
-### How to Test RBAC
+### Jak testovat RBAC
 
-**Jako normální uživatel:**
+**Jako běžný uživatel:**
 1. Přihlásit se jako běžný uživatel
 2. Jít na Dashboard → "Čeká na schválení"
-3. ❌ Nevidíš 🐛 Debug, 🧹 Cleanup, ⚡ Test tlačítka
-4. ✅ Vidíš pouze Auto-refresh toggle
+3. ❌ Nevidíš tlačítka 🐛 Ladění, 🧹 Vyčistit, ⚡ Test
+4. ✅ Vidíš pouze přepínač Auto-obnovení
 
-**Jako admin:**
-1. Přihlásit se jako admin (role=admin)
+**Jako správce:**
+1. Přihlásit se jako správce (role=admin)
 2. Jít na Dashboard → "Čeká na schválení"
 3. ✅ Vidíš všechna tlačítka: 🐛, 🧹, ⚡
-4. ✅ Vidíš Admin panel ikonu
+4. ✅ Vidíš ikonu Admin panelu
 
-**Curl test (admin endpoint):**
+**Curl test (endpoint správce):**
 ```bash
-# Bez admin role - 403
+# Bez role správce - 403
 curl -H "Authorization: Bearer USER_TOKEN" \
   https://.../metrics
 
-# S admin role - 200
+# S rolí správce - 200
 curl -H "Authorization: Bearer ADMIN_TOKEN" \
   https://.../metrics
 ```
 
-## 🎯 Future RBAC Levels
+## 🎯 Budoucí úrovně RBAC
 
 ```
 Možné budoucí role:
-- super_admin: Všechno + delete db
+- super_admin: Vše + smazání databáze
 - finance_manager: Vidí všechny transakce
 - support: Může resetovat hesla
-- data_analyst: Vidí pouze metrics/reports
+- data_analyst: Vidí pouze metriky/sestavy
 ```
 
 ---

@@ -199,9 +199,9 @@ const Form = ({ typ }) => {
         </div>
       </form>
 
-      {/* Hint — kategorie a datum se pamatují */}
+      {/* Poznámka — kategorie a datum se pamatují */}
       <p className="text-xs text-light-textMuted dark:text-dark-textMuted mt-3 text-center">
-        Po přidání zůstane kategorie a datum pro rychlé zadání dalšího záznamu
+        Po přidání si aplikace zapamatuje kategorii a datum pro rychlejší zadání dalšího záznamu
       </p>
 
       {/* RecurringModal */}
