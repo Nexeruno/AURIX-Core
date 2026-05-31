@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { collection, getDocs, doc, updateDoc, orderBy, query } from 'firebase/firestore';
-import { db, auth } from '../../utils/firebase';
+import { auth } from '../../utils/firebase';
 import { firebaseConfig } from '../../config/firebase-config';
 import { useAuth } from '../../context/AuthContext';
 import { formatDatum } from '../../utils/formatters';
+import { fetchAllUsers } from '../../utils/adminUtils';
 import { Users, ShieldCheck, ShieldOff, RefreshCw, KeyRound, Pencil, Ban, Trash2, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -17,15 +17,8 @@ export const AdminPage = () => {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const snap = await getDocs(query(collection(db, 'users'), orderBy('createdAt', 'desc')));
-      setUsers(
-        snap.docs.map((d) => ({
-          uid: d.id,
-          ...d.data(),
-          createdAt: d.data().createdAt?.toDate?.()?.toISOString?.() || null,
-          lastLogin: d.data().lastLogin?.toDate?.()?.toISOString?.() || null,
-        }))
-      );
+      const data = await fetchAllUsers();
+      setUsers(data);
     } catch (err) {
       console.error(err);
       toast.error('Chyba při načítání uživatelů');
@@ -66,13 +59,30 @@ export const AdminPage = () => {
     const newRole = currentRole === 'admin' ? 'user' : 'admin';
     const roleName = newRole === 'admin' ? 'správce' : 'uživatel';
     try {
-      await updateDoc(doc(db, 'users', uid), { role: newRole });
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) throw new Error('Nemáš oprávnění');
+
+      const projectId = firebaseConfig.projectId;
+      const url = `https://europe-west1-${projectId}.cloudfunctions.net/aktualizujUzivatele`;
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid, role: newRole, idToken }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Chyba při změně role');
+      }
+
       setUsers((prev) =>
         prev.map((u) => (u.uid === uid ? { ...u, role: newRole } : u))
       );
       toast.success(`Role změněna na: ${roleName}`);
-    } catch {
-      toast.error('Chyba při změně role');
+    } catch (err) {
+      console.error('Toggle role error:', err);
+      toast.error(err.message || 'Chyba při změně role');
     }
   };
 

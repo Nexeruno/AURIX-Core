@@ -4,6 +4,7 @@ import { db, auth } from '../../utils/firebase';
 import { firebaseConfig } from '../../config/firebase-config';
 import { useAuth } from '../../context/AuthContext';
 import { formatDatum } from '../../utils/formatters';
+import { fetchAllUsers } from '../../utils/adminUtils';
 import { Server, AlertTriangle, AlertCircle, CheckCircle, XCircle, RefreshCw, Zap, Users, Activity, Wrench, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -40,17 +41,10 @@ export const DevOpsPanel = () => {
 
   // Načti uživatele (jednou)
   useEffect(() => {
-    const fetchUsers = async () => {
+    const loadUsers = async () => {
       try {
-        const snap = await getDocs(query(collection(db, 'users'), orderBy('createdAt', 'desc')));
-        setUsers(
-          snap.docs.map((d) => ({
-            uid: d.id,
-            ...d.data(),
-            createdAt: d.data().createdAt?.toDate?.()?.toISOString?.() || null,
-            lastLogin: d.data().lastLogin?.toDate?.()?.toISOString?.() || null,
-          }))
-        );
+        const data = await fetchAllUsers();
+        setUsers(data);
       } catch (err) {
         console.error('Users fetch error:', err);
       } finally {
@@ -58,7 +52,7 @@ export const DevOpsPanel = () => {
       }
     };
 
-    fetchUsers();
+    loadUsers();
   }, []);
 
   useEffect(() => {

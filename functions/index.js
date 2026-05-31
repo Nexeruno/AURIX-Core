@@ -251,23 +251,8 @@ exports.posliResetHesla = functions.region(REGION).https.onRequest((req, res) =>
       console.log('🔄 Reset hesla pro:', email);
 
       const link = await admin.auth().generatePasswordResetLink(email);
-      const apiKey = process.env.BREVO_API_KEY;
-      const sender = process.env.BREVO_SENDER;
+      await sendEmail(email, 'Reset hesla — Evidence Výdajů', EMAIL_HTML(link));
 
-      if (!apiKey || !sender) return res.status(500).json({ error: 'Brevo config chybí' });
-
-      const brevoRes = await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: { 'api-key': apiKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sender: { name: 'Evidence Výdajů', email: sender },
-          to: [{ email }],
-          subject: 'Reset hesla — Evidence Výdajů',
-          htmlContent: EMAIL_HTML(link),
-        }),
-      });
-
-      if (!brevoRes.ok) return res.status(500).json({ error: 'Chyba odesílání emailu' });
       res.status(200).json({ ok: true });
     } catch (err) {
       if (err?.code === 'auth/user-not-found') return res.status(200).json({ ok: true });
