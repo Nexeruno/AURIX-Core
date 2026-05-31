@@ -390,17 +390,25 @@ exports.testGenerateRecurring = functions.region(REGION).https.onRequest(async (
       const today = getTodayDate();
       const { generatedCount, errors } = await generateTransactionsForUser(decodedToken.uid, today, true);
 
+      const hasErrors = errors && errors.length > 0;
       res.status(200).json({
-        success: true,
-        generated: generatedCount,
-        errors: errors.length > 0 ? errors : undefined,
+        status: hasErrors ? 'PARTIAL_SUCCESS' : 'SUCCESS',
         message: generatedCount > 0
-          ? `Vygenerováno ${generatedCount} záznamů ke schválení! Jdi do Dashboardu.`
-          : 'Žádné opakující se transakce k vygenerování.'
+          ? `Vygenerováno ${generatedCount} záznamů ke schválení`
+          : 'Žádné opakující se transakce k vygenerování',
+        details: {
+          generated: generatedCount,
+          errors: errors && errors.length > 0 ? errors : undefined,
+          errorCount: errors ? errors.length : 0,
+        }
       });
     } catch (err) {
       console.error('❌ TEST error:', err);
-      res.status(401).json({ error: err.message });
+      res.status(200).json({
+        status: 'FAILED',
+        message: err.message,
+        details: { error: err.message }
+      });
     }
   });
 });
@@ -472,17 +480,24 @@ exports.cleanupDuplicates = functions.region(REGION).https.onRequest(async (req,
         }
       }
 
+      const hasActions = deletedCount > 0 || fixedCount > 0;
       res.status(200).json({
-        success: true,
-        deleted: deletedCount,
-        fixed: fixedCount,
-        totalPending: pendingSnap.size,
-        totalRecurring: recurringSnap.size,
-        message: `Smazáno ${deletedCount} duplikátů, opraveno ${fixedCount} opakujících se transakcí`
+        status: hasActions ? 'SUCCESS' : 'SUCCESS',
+        message: `Smazáno ${deletedCount} duplikátů, opraveno ${fixedCount} opakujících se transakcí`,
+        details: {
+          deleted: deletedCount,
+          fixed: fixedCount,
+          totalPending: pendingSnap.size,
+          totalRecurring: recurringSnap.size,
+        }
       });
     } catch (err) {
       console.error('❌ CLEANUP error:', err);
-      res.status(401).json({ error: err.message });
+      res.status(200).json({
+        status: 'FAILED',
+        message: err.message,
+        details: { error: err.message }
+      });
     }
   });
 });
@@ -528,17 +543,27 @@ exports.debugRecurring = functions.region(REGION).https.onRequest(async (req, re
         }
       }
 
+      const hasIssues = issues.length > 0 && issues[0] !== 'Žádné problémy!';
       res.status(200).json({
-        success: true,
-        today: today.toISOString().split('T')[0],
-        recurringCount: recurringSnap.size,
-        pendingCount: pendingSnap.size,
-        recurringList,
-        issues: issues.length > 0 ? issues : ['Žádné problémy!'],
+        status: hasIssues ? 'PARTIAL_SUCCESS' : 'SUCCESS',
+        message: hasIssues
+          ? `Nalezeno ${issues.length} problémů`
+          : 'Vše je v pořádku',
+        details: {
+          today: today.toISOString().split('T')[0],
+          recurringCount: recurringSnap.size,
+          pendingCount: pendingSnap.size,
+          issues: issues,
+          recurringList: recurringList,
+        }
       });
     } catch (err) {
       console.error('❌ DEBUG error:', err);
-      res.status(401).json({ error: err.message });
+      res.status(200).json({
+        status: 'FAILED',
+        message: err.message,
+        details: { error: err.message }
+      });
     }
   });
 });
