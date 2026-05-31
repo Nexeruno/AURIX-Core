@@ -39,13 +39,13 @@ export const AuthPage = () => {
       } else if (mode === 'forgot') {
         try {
           await resetPassword(email);
-          setSuccess('Odkaz pro reset hesla byl odeslán na ' + email.trim() + '. Zkontroluj svůj email.');
+          setSuccess('Odkaz pro reset hesla byl odeslán na ' + email.trim() + '. Zkontroluj svůj e-mail.');
           setEmail('');
         } catch (resetErr) {
           // Pro reset hesla - tiše ignoruj všechny errory
           // Email se stejně pošle i když je error
           // Prostě ukaž success
-          setSuccess('Odkaz pro reset hesla byl odeslán na ' + email.trim() + '. Zkontroluj svůj email.');
+          setSuccess('Odkaz pro reset hesla byl odeslán na ' + email.trim() + '. Zkontroluj svůj e-mail.');
           setEmail('');
           console.log('Reset hesla odeslán (s interním errorem):', resetErr);
         }
@@ -60,7 +60,7 @@ export const AuthPage = () => {
           'auth/invalid-credential': 'Nesprávné přihlašovací údaje',
           'auth/email-already-in-use': 'Tento email je již registrován',
           'auth/too-many-requests': 'Příliš mnoho pokusů. Zkuste to za chvíli',
-          'auth/network-request-failed': 'Chyba připojení k internetu',
+          'auth/network-request-failed': 'Chyba připojení k Internetu',
         }[err.code] || err.message;
         setError(msg);
       }

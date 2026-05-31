@@ -64,12 +64,13 @@ export const AdminPage = () => {
 
   const toggleRole = async (uid, currentRole) => {
     const newRole = currentRole === 'admin' ? 'user' : 'admin';
+    const roleName = newRole === 'admin' ? 'správce' : 'uživatel';
     try {
       await updateDoc(doc(db, 'users', uid), { role: newRole });
       setUsers((prev) =>
         prev.map((u) => (u.uid === uid ? { ...u, role: newRole } : u))
       );
-      toast.success(`Role změněna na: ${newRole}`);
+      toast.success(`Role změněna na: ${roleName}`);
     } catch {
       toast.error('Chyba při změně role');
     }
@@ -126,7 +127,7 @@ export const AdminPage = () => {
       setUsers((prev) =>
         prev.map((u) => (u.uid === uid ? { ...u, disabled: !currentDisabled } : u))
       );
-      toast.success(!currentDisabled ? 'Uživatel blokován' : 'Uživatel odblokován');
+      toast.success(currentDisabled ? 'Uživatel odblokován' : 'Uživatel blokován');
     } catch (err) {
       console.error('Block error:', err);
       toast.error(err.message || 'Chyba při blokování uživatele');
@@ -140,7 +141,7 @@ export const AdminPage = () => {
       return;
     }
     if (!/^[a-zA-Z0-9_]+$/.test(newUsername)) {
-      toast.error('Jméno může obsahovat jen písmena, číslice a _');
+      toast.error('Jméno může obsahovat pouze písmena, číslice a podtržítko');
       return;
     }
 

@@ -15,7 +15,7 @@ const ItemCard = ({ item, typ }) => {
     if (!confirm(`Opravdu smazat tento ${label}?`)) return;
     try {
       await removeItem(item.id);
-      toast.success(`${label.charAt(0).toUpperCase() + label.slice(1)} smazán`);
+      toast.success(`${label.charAt(0).toUpperCase() + label.slice(1)} odstraněn`);
     } catch {
       // chyba zobrazena v store
     }

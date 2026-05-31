@@ -54,7 +54,7 @@ const Form = ({ typ }) => {
       nazevRef.current?.focus();
     } catch (err) {
       console.error('Error adding item:', err);
-      toast.error(err.message || `Chyba při přidání ${label.toLowerCase()}e`);
+      toast.error(err.message || `Chyba při přidání ${label.toLowerCase()}u`);
     } finally {
       setSaving(false);
     }
@@ -118,7 +118,7 @@ const Form = ({ typ }) => {
 
       await addDoc(collection(db, 'users', session.uid, 'repeatingTransactions'), recurringData);
 
-      toast.success(`${label} nastaven na opakování${recurring.isFavorite ? ' a uložen jako oblíbený' : ''} ✓`);
+      toast.success(`${label} nastaven/a na opakování${recurring.isFavorite ? ' a uložen/a jako oblíbený/á' : ''} ✓`);
       setForm((f) => ({ ...f, nazev: '', castka: '' }));
       setRecurringModalOpen(false);
       nazevRef.current?.focus();
