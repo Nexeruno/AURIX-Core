@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: firebase-emulator
+  namespace: evidence-vydaju
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: firebase-emulator
+  template:
+    metadata:
+      labels:
+        app: firebase-emulator
+    spec:
+      containers:
+      - name: emulator
+        image: node:20-alpine
+        workingDir: /emulator
+        command:
+        - sh
+        - -c
+        - |
+          npm install -g firebase-tools &&
+          firebase emulators:start \
+            --only auth,firestore,functions \
+            --host 0.0.0.0 \
+            --project evidence-vydaju-37852 \
+            --import /emulator-data/seed \
+            --export-on-exit /emulator-data/snapshots
+        ports:
+        - name: ui
+          containerPort: 4000
+          protocol: TCP
+        - name: firestore
+          containerPort: 8080
+          protocol: TCP
+        - name: auth
+          containerPort: 9099
+          protocol: TCP
+        - name: functions
+          containerPort: 5001
+          protocol: TCP
+        volumeMounts:
+        - name: emulator-storage
+          mountPath: /emulator-data
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /
+            port: ui
+          initialDelaySeconds: 30
+          periodSeconds: 15
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: ui
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 2
+      volumes:
+      - name: emulator-storage
+        persistentVolumeClaim:
+          claimName: emulator-data

@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: evidence-vydaju
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secret.yaml
+  - frontend-deployment.yaml
+  - frontend-service.yaml
+  - frontend-hpa.yaml
+  - emulator-pvc.yaml
+  - emulator-deployment.yaml
+  - emulator-service.yaml
+  - ingress.yaml
+
+commonLabels:
+  app: evidence-vydaju
+  version: "1.0"
+
+commonAnnotations:
+  managed-by: kustomize

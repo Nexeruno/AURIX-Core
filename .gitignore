@@ -32,3 +32,6 @@ dist-ssr
 .env.*.prod
 functions/.env*
 functions/.runtimeconfig.json
+
+# Kubernetes secrets (generated from example)
+k8s/secret.yaml
