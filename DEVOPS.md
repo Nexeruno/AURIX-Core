@@ -32,7 +32,8 @@ Tento projekt je připraven pro DevOps, monitoring a budoucí AI/MLOps.
 │  │ - healthCheck (Firebase status)      │  │
 │  │ - metrics (system statistics)        │  │
 │  │ - debugRecurring (diagnostics)       │  │
-│  │ - cleanupDuplicates (data cleaning)  │  │
+│  │ - safeAutoRepairSystem ⏲️ 6-hourly   │  │
+│  │ - hourlyHealthMonitor ⏲️ hourly      │  │
 │  └──────────────────────────────────────┘  │
 └────────────────┬────────────────────────────┘
                  │
@@ -143,10 +144,20 @@ firebase deploy --only hosting
 - Frontend auto-refreshuje pending transakce každých 30 sekund
 - Togglable v UI pro control
 
-### 3. **Data Cleanup**
-- `cleanupDuplicates` - smaže duplikáty a opravuje data
-- Manuálně spustitelné z UI
-- Preventivní duplikát-check při generování
+### 3. **Safe Auto-Repair System** 🔧
+- `safeAutoRepairSystem` - detekuje & archivuje chyby (NIKDY NEMAZÁ!)
+- Běží automaticky každých 6 hodin (0, 6, 12, 18 hodin)
+- Manuálně spustitelné z UI (Quick Actions panel)
+- **Opravy:**
+  - Archivuje invalid PENDING transakce
+  - Opravuje chybné RECURRING (missing fields → defaults)
+  - Archivuje staré PENDING (>48h) do archivedProblems
+  - Logguje vše do systemRepairs + posílá email report
+- **Guardrails:**
+  - ❌ NIKDY nemaže platby
+  - ❌ NIKDY nedetekuje duplikáty
+  - ✅ Vše je archivováno a auditovatelné
+  - ✅ Zachovává historii oprav
 
 ### 4. **Scheduled Jobs**
 - `generateRecurringTransactions` běží daily v 2:00 AM (Prague timezone)
@@ -192,6 +203,137 @@ firebase functions:log
 curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
   https://europe-west1-evidence-vydaju.cloudfunctions.net/debugRecurring
 ```
+
+## 🔧 Safe Auto-Repair System
+
+### Přehled
+
+Safe Auto-Repair je inteligentní systém, který **detekuje a archivuje** problematická data bez jejich smazání. Funguje v pozadí každých 6 hodin nebo na vyžádání.
+
+### Co se detekuje a opravuje?
+
+#### 1. **Invalid PENDING Transactions** ❌ → 📦
+```
+Detekuje:
+- Pending bez názvu
+- Pending bez nebo se zápornou částkou
+- Pending bez kategorie
+- Pending bez/špatného typu (vydaj/prijem)
+- Pending bez data
+
+Akce:
+- Archivuje do users/{uid}/archivedProblems
+- Zachovává všechny původní fieldy
+- Přidává metadata: reason, validationErrors, timestamp
+- NIKDY se nemazá!
+```
+
+#### 2. **Invalid RECURRING Transactions** 🔧
+```
+Detekuje:
+- Recurring bez názvu
+- Recurring se zápornou/nulovou částkou
+- Recurring bez kategorie
+- Recurring s chybným typem
+- Recurring s chybnou frekvencí
+
+Akce:
+- Opravuje do validních výchozích hodnot
+- Přidává repairHistory s detaily oprav
+- NEDEAKTIVUJE a nemazá!
+```
+
+#### 3. **Staré PENDING Transakce** ⏳ → 📦
+```
+Detekuje:
+- Pending starší než 48 hodin
+
+Akce:
+- Archivuje do archivedProblems
+- Uvolní místo v aktivním pending listu
+- Zachovává pro analýzu a učení
+```
+
+### Archivované Kolekce
+
+#### `users/{uid}/archivedProblems`
+```javascript
+{
+  // Původní data transakce
+  title: "...",
+  amount: 100,
+  category: "...",
+  type: "vydaj",
+  
+  // Metadata archivace
+  archivedAt: Timestamp,
+  reason: "INVALID_PENDING_TRANSACTION" | "OLD_PENDING_TRANSACTION_48H",
+  validationErrors: ["missing_title", "invalid_amount"],
+  originalId: "doc-id",
+  userId: "uid"
+}
+```
+
+#### `systemRepairs` (globální log)
+```javascript
+{
+  timestamp: Timestamp,
+  duration: 1234, // ms
+  repairs: [
+    {
+      type: "ARCHIVE_INVALID_PENDING",
+      severity: "warning",
+      count: 5,
+      message: "Archivováno 5 invalidních pending transakcí (bez smazání)"
+    },
+    {
+      type: "FIX_INVALID_RECURRING",
+      severity: "info",
+      count: 2,
+      message: "Opraveno 2 opakujících se transakcí"
+    }
+  ],
+  totalRepairs: 7,
+  status: "SUCCESS" | "PARTIAL_SUCCESS" | "FAILED"
+}
+```
+
+### Spouštění
+
+#### Automatické (Scheduled)
+```
+Běží každých 6 hodin: 0, 6, 12, 18 hodin (Prague timezone)
+Cloud Scheduler job: safeAutoRepairSystem
+```
+
+#### Manuální (Quick Actions)
+```
+UI: Dashboard → ⚙️ DevOps Panel → ⚡ Quick Actions
+     → 🔧 Safe Auto-Repair tlačítko
+Spustí se na vyžádání s okamžitým reportem
+```
+
+#### API
+```bash
+curl -X POST \
+  -H "Authorization: Bearer <TOKEN>" \
+  https://europe-west1-evidence-vydaju.cloudfunctions.net/safeAutoRepairSystem
+```
+
+### Email Reports
+
+Pokud je něco k opravě, odešle se email na `danzby@seznam.cz` s:
+- 📊 Počtem opravených položek
+- 📋 Seznamem co bylo opraveno
+- 🔗 Linkem do DevOps panelu
+
+### AI/MLOps Benefit
+
+Všechny archivované problemy si můžete později prohlédnout a:
+- 🤖 Trénovat ML modely na detekci chyb
+- 📊 Analyzovat vzory problémů
+- 📈 Zlepšovat validaci a UI
+- 🔍 Audity a compliance reports
 
 ## 🔄 Tok opakujících se transakcí
 
@@ -254,6 +396,19 @@ curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
 
 ---
 
-**Last Updated**: 2026-05-30  
-**Version**: 1.0.0  
+**Last Updated**: 2026-05-31  
+**Version**: 2.0.0 (Safe Auto-Repair Added)  
 **Status**: Production Ready ✅
+
+## 📝 Changelog
+
+### v2.0.0 (2026-05-31)
+- ✅ Added Safe Auto-Repair System (safeAutoRepairSystem)
+- ✅ Archives problematic data instead of deleting
+- ✅ Runs every 6 hours automatically
+- ✅ Detailed logging and email reports
+- ✅ Removed dangerous cleanupDuplicates function
+- ✅ Added repairHistory tracking for recurring transactions
+
+### v1.0.0 (2026-05-30)
+- Initial release with monitoring and metrics
