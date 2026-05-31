@@ -11,7 +11,7 @@ import {
   collection, query, where, serverTimestamp, deleteDoc, increment,
 } from 'firebase/firestore';
 import { auth, db } from '../utils/firebase';
-import { adminEmail as ADMIN_EMAIL } from '../config/firebase-config';
+import { firebaseConfig, adminEmail as ADMIN_EMAIL } from '../config/firebase-config';
 import { clearSessionCache } from '../hooks/useFirestoreSync';
 
 const AuthContext = createContext(null);

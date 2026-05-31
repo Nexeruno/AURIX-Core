@@ -2,7 +2,10 @@ require('dotenv').config();
 const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const fetch = require('node-fetch');
-const cors = require('cors')({ origin: true });
+const cors = require('cors')({
+  origin: ['https://nexeruno.github.io', 'http://localhost:5173'],
+  credentials: true,
+});
 
 const ADMIN_EMAIL = 'danzby@seznam.cz';
 const REGION = 'europe-west1';
@@ -40,6 +43,33 @@ const getYesterdayDate = () => {
   yesterday.setDate(yesterday.getDate() - 1);
   yesterday.setHours(0, 0, 0, 0);
   return yesterday;
+};
+
+const checkRateLimit = async (key, maxRequests = 3, windowMinutes = 10) => {
+  const docRef = db.collection('_rateLimits').doc(key);
+  const doc = await docRef.get();
+  const now = Date.now();
+  const windowMs = windowMinutes * 60 * 1000;
+
+  if (!doc.exists) {
+    await docRef.set({ count: 1, firstRequest: now, expiresAt: new Date(now + windowMs) });
+    return true;
+  }
+
+  const data = doc.data();
+  if (now > data.firstRequest + windowMs) {
+    // Window prošel, reset
+    await docRef.set({ count: 1, firstRequest: now, expiresAt: new Date(now + windowMs) });
+    return true;
+  }
+
+  if (data.count >= maxRequests) {
+    return false; // Překročen limit
+  }
+
+  // Zvýš počet
+  await docRef.update({ count: admin.firestore.FieldValue.increment(1) });
+  return true;
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -209,6 +239,11 @@ exports.posliResetHesla = functions.region(REGION).https.onRequest((req, res) =>
     try {
       const data = req.method === 'POST' ? req.body : req.query;
       const email = (data.email || '').trim().toLowerCase();
+      const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
+
+      // Rate limit: max 3× za 10 minut per IP
+      const allowed = await checkRateLimit(`reset:${ip}`, 3, 10);
+      if (!allowed) return res.status(429).json({ error: 'Příliš mnoho pokusů. Zkuste za 10 minut.' });
 
       if (!email) return res.status(400).json({ error: 'Email je povinný' });
       if (!validateEmail(email)) return res.status(400).json({ error: 'Neplatný formát emailu' });

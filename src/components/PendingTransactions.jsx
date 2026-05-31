@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Check, X, Edit2, Zap, AlertCircle, Clock, TrendingUp, TrendingDown, CheckCircle, RefreshCw } from 'lucide-react';
 import { useAppStore } from '../utils/store';
 import { db, auth } from '../utils/firebase';
+import { firebaseConfig } from '../config/firebase-config';
 import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -253,23 +254,11 @@ export const PendingTransactions = () => {
   const addVydaj = useAppStore((s) => s.addVydaj);
   const addPrijem = useAppStore((s) => s.addPrijem);
 
-  // Check admin role
+  // Check admin role — use session.isAdmin (no full collection scan)
   useEffect(() => {
-    if (!session?.uid) return;
-    const checkAdmin = async () => {
-      try {
-        const snap = await getDocs(collection(db, 'users'));
-        const doc = snap.docs.find(d => d.id === session.uid);
-        if (doc) {
-          setUserDoc(doc.data());
-          setIsAdmin(doc.data()?.role === 'admin');
-        }
-      } catch (err) {
-        console.error('Error checking admin:', err);
-      }
-    };
-    checkAdmin();
-  }, [session?.uid]);
+    if (!session) return;
+    setIsAdmin(session.isAdmin || false);
+  }, [session]);
 
   // Load pending transactions
   const loadPending = useCallback(async () => {
@@ -305,7 +294,7 @@ export const PendingTransactions = () => {
     setDebugging(true);
     try {
       const data = await callCloudFunction(
-        'https://europe-west1-evidence-vydaju.cloudfunctions.net/debugRecurring'
+        `https://europe-west1-${firebaseConfig.projectId}.cloudfunctions.net/debugRecurring`
       );
 
       if (data.recurringCount === 0) {
@@ -327,7 +316,7 @@ export const PendingTransactions = () => {
     setGenerating(true);
     try {
       const data = await callCloudFunction(
-        'https://europe-west1-evidence-vydaju.cloudfunctions.net/testGenerateRecurring',
+        `https://europe-west1-${firebaseConfig.projectId}.cloudfunctions.net/testGenerateRecurring`,
         'POST'
       );
 
