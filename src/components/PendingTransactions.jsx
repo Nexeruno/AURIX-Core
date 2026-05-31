@@ -518,7 +518,7 @@ export const PendingTransactions = () => {
           <CheckCircle size={48} className="mx-auto text-green-500 mb-3 opacity-50" />
           <p className="text-lg font-medium">Žádné čekající transakce!</p>
           <p className="text-sm text-light-textMuted dark:text-dark-textMuted mt-2">
-            Skvělé! Wszystkie transakce jsou schválené. 🎉
+            Skvělé! Všechny transakce jsou schválené. 🎉
           </p>
         </div>
       ) : (
