@@ -1189,26 +1189,29 @@ exports.aiUpdateConfig = functions.region(REGION).https.onRequest(async (req, re
   });
 });
 
-exports.aiTriggerAnalysis = functions.region(REGION).https.onRequest(async (req, res) => {
-  cors(req, res, async () => {
+exports.aiTriggerAnalysis = functions.region(REGION).https.onRequest((req, res) => {
+  return cors(req, res, async () => {
     let decodedToken = null;
     try {
       const token = req.headers.authorization?.split('Bearer ')[1];
 
       if (!token) {
-        return res.status(400).json({ error: 'Token je povinný' });
+        res.status(400).json({ error: 'Token je povinný' });
+        return;
       }
 
       decodedToken = await verifyAuth(token);
       if (!(await verifyAdmin(decodedToken))) {
-        return res.status(403).json({ error: '🔐 Jen admin!' });
+        res.status(403).json({ error: '🔐 Jen admin!' });
+        return;
       }
 
       // Rate limiting: max 5 triggers per hour per admin
       const rateLimited = await checkAIRateLimit(decodedToken.uid, 'triggerAnalysis', 5);
       if (!rateLimited) {
         await logAdminAction(decodedToken.uid, 'aiTriggerAnalysis_BLOCKED', { reason: 'rate_limit' });
-        return res.status(429).json({ error: 'Příliš mnoho analýz. Max 5 za hodinu.' });
+        res.status(429).json({ error: 'Příliš mnoho analýz. Max 5 za hodinu.' });
+        return;
       }
 
       // Audit log
