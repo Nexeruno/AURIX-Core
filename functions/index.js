@@ -1206,8 +1206,8 @@ exports.aiTriggerAnalysis = functions.region(REGION).https.onRequest((req, res) 
         return;
       }
 
-      // Rate limiting: max 5 triggers per hour per admin
-      const rateLimited = await checkAIRateLimit(decodedToken.uid, 'triggerAnalysis', 5);
+      // Rate limiting: max 50 triggers per hour per admin
+      const rateLimited = await checkAIRateLimit(decodedToken.uid, 'triggerAnalysis', 50);
       if (!rateLimited) {
         await logAdminAction(decodedToken.uid, 'aiTriggerAnalysis_BLOCKED', { reason: 'rate_limit' });
         res.status(429).json({ error: 'Příliš mnoho analýz. Max 5 za hodinu.' });
