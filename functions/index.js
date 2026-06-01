@@ -899,9 +899,10 @@ exports.aiAnalyzeUsers = functions
         const uid = userDoc.id;
         const userData = userDoc.data();
 
-        // Check if user has any telemetry data
+        // Check if user has any telemetry data (sessions OR transactions)
         const sessionsSnap = await db.collection('aiTelemetry').doc(uid).collection('sessions').limit(1).get();
-        if (sessionsSnap.empty) continue;
+        const transactionsCheckSnap = await db.collection('aiTelemetry').doc(uid).collection('transactions').limit(1).get();
+        if (sessionsSnap.empty && transactionsCheckSnap.empty) continue;
 
         try {
           // Fetch all sessions (last 90 days)
@@ -1088,8 +1089,8 @@ exports.aiGetAllInsights = functions.region(REGION).https.onRequest(async (req, 
         return res.status(403).json({ error: '🔐 Jen admin!' });
       }
 
-      // Rate limiting: max 20 requests per hour per admin
-      const rateLimited = await checkAIRateLimit(decodedToken.uid, 'getAllInsights', 20);
+      // Rate limiting: max 100 requests per hour per admin
+      const rateLimited = await checkAIRateLimit(decodedToken.uid, 'getAllInsights', 100);
       if (!rateLimited) {
         await logAdminAction(decodedToken.uid, 'aiGetAllInsights_BLOCKED', { reason: 'rate_limit', ipHash });
         await logSecurityEvent('RATE_LIMIT_EXCEEDED', 'medium', {
@@ -1231,8 +1232,10 @@ exports.aiTriggerAnalysis = functions.region(REGION).https.onRequest((req, res) 
         const uid = userDoc.id;
         const userData = userDoc.data();
 
+        // Check if user has any telemetry data (sessions OR transactions)
         const sessionsSnap = await db.collection('aiTelemetry').doc(uid).collection('sessions').limit(1).get();
-        if (sessionsSnap.empty) continue;
+        const transactionsCheckSnap = await db.collection('aiTelemetry').doc(uid).collection('transactions').limit(1).get();
+        if (sessionsSnap.empty && transactionsCheckSnap.empty) continue;
 
         try {
           const allSessionsSnap = await db.collection('aiTelemetry')
