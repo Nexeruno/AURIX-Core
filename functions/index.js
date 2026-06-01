@@ -3,7 +3,7 @@ const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const fetch = require('node-fetch');
 const cors = require('cors')({
-  origin: ['https://nexeruno.github.io', 'http://localhost:5173'],
+  origin: ['https://nexeruno.github.io', 'http://localhost:5173', 'http://localhost:5176', 'http://localhost:5177', 'http://localhost:5178', 'http://localhost:5179'],
   credentials: true,
 });
 
