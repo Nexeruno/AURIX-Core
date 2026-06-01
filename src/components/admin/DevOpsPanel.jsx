@@ -401,7 +401,8 @@ export const DevOpsPanel = () => {
               </div>
             )}
 
-            <div className="overflow-x-auto">
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-light-border dark:border-dark-border">
@@ -451,6 +452,45 @@ export const DevOpsPanel = () => {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="md:hidden space-y-3">
+              {users.slice(0, 10).map((u) => (
+                <div key={u.uid} className="p-3 bg-light-bg dark:bg-dark-bg rounded-lg border border-light-border dark:border-dark-border">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <p className="font-medium text-light-text dark:text-dark-text">{u.username || u.email}</p>
+                      <p className="text-xs text-light-textMuted dark:text-dark-textMuted">
+                        {u.lastLogin ? formatDatum(u.lastLogin.split('T')[0]) : '—'}
+                      </p>
+                    </div>
+                    {u.disabled ? (
+                      <span className="text-xs bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 px-2 py-1 rounded">
+                        blokován
+                      </span>
+                    ) : (
+                      <span className="text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 px-2 py-1 rounded">
+                        aktivní
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div className="p-2 bg-light-card dark:bg-dark-card rounded">
+                      <p className="text-light-textMuted dark:text-dark-textMuted">Loginy</p>
+                      <p className="font-semibold">{u.loginCount || 0}</p>
+                    </div>
+                    <div className="p-2 bg-light-card dark:bg-dark-card rounded">
+                      <p className="text-light-textMuted dark:text-dark-textMuted">Záznamů</p>
+                      <p className="font-semibold">{(u.vydajeCount || 0) + (u.prijmyCount || 0)}</p>
+                    </div>
+                    <div className="p-2 bg-light-card dark:bg-dark-card rounded">
+                      <p className="text-light-textMuted dark:text-dark-textMuted">V/P</p>
+                      <p className="font-semibold">{u.vydajeCount || 0}/{u.prijmyCount || 0}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </>
         )}

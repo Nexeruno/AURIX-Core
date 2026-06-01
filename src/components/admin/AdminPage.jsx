@@ -241,7 +241,9 @@ export const AdminPage = () => {
         ) : users.length === 0 ? (
           <p className="text-center text-light-textMuted dark:text-dark-textMuted py-8">Žádní uživatelé</p>
         ) : (
-          <div className="overflow-x-auto -mx-4 px-4">
+          <>
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto -mx-4 px-4">
             <table className="w-full text-sm min-w-[600px]">
               <thead>
                 <tr className="border-b border-light-border dark:border-dark-border text-left text-light-textMuted dark:text-dark-textMuted">
@@ -386,7 +388,142 @@ export const AdminPage = () => {
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="md:hidden space-y-3">
+              {users.map((user) => (
+                <div key={user.uid} className="p-4 bg-light-bg dark:bg-dark-bg rounded-lg border border-light-border dark:border-dark-border">
+                  {/* Username (editable on mobile) */}
+                  <div className="mb-3">
+                    {editingUid === user.uid ? (
+                      <input
+                        autoFocus
+                        type="text"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onBlur={() => handleEditUsername(user.uid, editValue)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleEditUsername(user.uid, editValue);
+                          if (e.key === 'Escape') setEditingUid(null);
+                        }}
+                        className="input-field py-1 px-2 w-full"
+                        maxLength={20}
+                      />
+                    ) : (
+                      <h4 className="font-semibold text-light-text dark:text-dark-text">
+                        {user.username || '—'}
+                      </h4>
+                    )}
+                    <p className="text-xs text-light-textMuted dark:text-dark-textMuted mt-1 break-all">{user.email}</p>
+                  </div>
+
+                  {/* Stats */}
+                  <div className="grid grid-cols-3 gap-2 mb-3 text-xs">
+                    <div className="p-2 bg-light-card dark:bg-dark-card rounded">
+                      <p className="text-light-textMuted dark:text-dark-textMuted">Loginy</p>
+                      <p className="font-semibold">{user.loginCount ?? 0}</p>
+                    </div>
+                    <div className="p-2 bg-light-card dark:bg-dark-card rounded">
+                      <p className="text-light-textMuted dark:text-dark-textMuted">Výdaje</p>
+                      <p className="font-semibold">{user.vydajeCount ?? 0}</p>
+                    </div>
+                    <div className="p-2 bg-light-card dark:bg-dark-card rounded">
+                      <p className="text-light-textMuted dark:text-dark-textMuted">Příjmy</p>
+                      <p className="font-semibold">{user.prijmyCount ?? 0}</p>
+                    </div>
+                  </div>
+
+                  {/* Role & Status */}
+                  <div className="flex items-center gap-2 mb-3 text-xs">
+                    <span
+                      className={`px-2 py-0.5 rounded font-medium ${
+                        user.role === 'admin'
+                          ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300'
+                          : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      {user.role === 'admin' ? 'admin' : 'user'}
+                    </span>
+                    {user.disabled && (
+                      <span className="px-2 py-0.5 rounded font-medium bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">
+                        blokován
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 pt-2 border-t border-light-border dark:border-dark-border">
+                    <button
+                      onClick={() => handleResetPassword(user.email)}
+                      title="Odeslat reset hesla"
+                      className="p-2 rounded hover:bg-light-card dark:hover:bg-dark-card transition-colors flex-1 text-xs font-medium flex items-center justify-center gap-1"
+                    >
+                      <KeyRound size={14} /> Heslo
+                    </button>
+                    {user.uid !== session.uid && (
+                      <>
+                        <button
+                          onClick={() => {
+                            setEditingUid(user.uid);
+                            setEditValue(user.username || '');
+                          }}
+                          title="Editovat jméno"
+                          className="p-2 rounded hover:bg-light-card dark:hover:bg-dark-card transition-colors flex-1 text-xs font-medium flex items-center justify-center gap-1"
+                        >
+                          <Pencil size={14} /> Editovat
+                        </button>
+                        <button
+                          onClick={() => handleBlockUser(user.uid, user.disabled)}
+                          title={user.disabled ? 'Odblokovat' : 'Blokovat'}
+                          className="p-2 rounded hover:bg-light-card dark:hover:bg-dark-card transition-colors flex-1 text-xs font-medium flex items-center justify-center gap-1"
+                        >
+                          {user.disabled ? (
+                            <>
+                              <Check size={14} /> Odblok
+                            </>
+                          ) : (
+                            <>
+                              <Ban size={14} /> Blok
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => toggleRole(user.uid, user.role)}
+                          title={user.role === 'admin' ? 'Odebrat admin' : 'Přidat admin'}
+                          className="p-2 rounded hover:bg-light-card dark:hover:bg-dark-card transition-colors flex-1 text-xs font-medium flex items-center justify-center gap-1"
+                        >
+                          {user.role === 'admin' ? (
+                            <>
+                              <ShieldOff size={14} /> -Admin
+                            </>
+                          ) : (
+                            <>
+                              <ShieldCheck size={14} /> +Admin
+                            </>
+                          )}
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Delete button — full width */}
+                  {user.uid !== session.uid && (
+                    <button
+                      onClick={() => handleDeleteUser(user.uid, user.email)}
+                      title="Smazat účet"
+                      className="w-full mt-2 p-2 rounded text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors flex items-center justify-center gap-1"
+                    >
+                      <Trash2 size={14} /> Smazat účet
+                    </button>
+                  )}
+                  {user.uid === session.uid && (
+                    <p className="text-xs text-light-textMuted dark:text-dark-textMuted text-center mt-2">Tvůj účet</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
     </div>

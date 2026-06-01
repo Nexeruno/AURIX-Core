@@ -188,26 +188,26 @@ export const Dashboard = () => {
       <FinancniZdraviCard vydaje={vydaje} prijmy={prijmy} ready={dataReady} />
 
       {/* Filter bar + export */}
-      <div className="card flex flex-col sm:flex-row gap-4 items-end">
+      <div className="card space-y-3 sm:space-y-0 sm:flex sm:flex-row sm:gap-4 sm:items-end">
         <div className="flex-1">
           <label className="text-sm font-medium text-light-textMuted dark:text-dark-textMuted mb-2 block">Měsíc</label>
-          <select className="select-field" value={mesic} onChange={(e) => setMesic(e.target.value)}>
+          <select className="select-field text-sm" value={mesic} onChange={(e) => setMesic(e.target.value)}>
             {MESICE.map((m) => (
               <option key={m.value} value={m.value}>{m.label}</option>
             ))}
           </select>
         </div>
         <div className="flex-1">
-          <label className="text-sm font-medium text-light-textMuted dark:text-dark-textMuted mb-2 block">Kategorie výdajů</label>
-          <select className="select-field" value={katVydaj} onChange={(e) => setKatVydaj(e.target.value)}>
+          <label className="text-sm font-medium text-light-textMuted dark:text-dark-textMuted mb-2 block">Výdaje</label>
+          <select className="select-field text-sm" value={katVydaj} onChange={(e) => setKatVydaj(e.target.value)}>
             {KATEGORIE_VYDAJ.map((k) => (
               <option key={k.value} value={k.value}>{k.label}</option>
             ))}
           </select>
         </div>
         <div className="flex-1">
-          <label className="text-sm font-medium text-light-textMuted dark:text-dark-textMuted mb-2 block">Kategorie příjmů</label>
-          <select className="select-field" value={katPrijem} onChange={(e) => setKatPrijem(e.target.value)}>
+          <label className="text-sm font-medium text-light-textMuted dark:text-dark-textMuted mb-2 block">Příjmy</label>
+          <select className="select-field text-sm" value={katPrijem} onChange={(e) => setKatPrijem(e.target.value)}>
             {KATEGORIE_PRIJEM.map((k) => (
               <option key={k.value} value={k.value}>{k.label}</option>
             ))}
@@ -215,11 +215,11 @@ export const Dashboard = () => {
         </div>
         <button
           onClick={handleExportPDF}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors whitespace-nowrap shrink-0"
+          className="w-full sm:w-auto flex items-center justify-center sm:justify-start gap-2 px-3 sm:px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors whitespace-nowrap shrink-0 text-sm"
           title="Exportovat výpis jako PDF"
         >
-          <FileDown size={18} />
-          <span className="hidden sm:inline">Výpis PDF</span>
+          <FileDown size={16} />
+          <span>PDF</span>
         </button>
       </div>
 
