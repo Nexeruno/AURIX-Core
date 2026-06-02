@@ -902,41 +902,52 @@ const generateLearningReport = async (triggeredBy) => {
   const windowData = {};
 
   try {
+    // Get all users
+    const usersSnap = await db.collection('users').get();
+
     for (const [label, offsetMs] of Object.entries(timeWindows)) {
       const startTime = new Date(now.getTime() - offsetMs);
+      let totalUsers = 0;
+      let totalSessions = 0;
+      let totalVydaje = 0;
+      let totalPrijmy = 0;
 
-      try {
-        const sessionsSnap = await db.collectionGroup('sessions')
-          .where('startTime', '>=', startTime)
-          .limit(500)
-          .get();
+      // Iterate through all users and collect their data
+      for (const userDoc of usersSnap.docs) {
+        const uid = userDoc.id;
 
-        const sessions = sessionsSnap.docs.map(d => d.data());
-        const uniqueUsers = new Set(sessions.map(s => s.uid).filter(Boolean));
-        let vydaje = 0, prijmy = 0;
-        const categoryCount = {};
+        try {
+          const sessionsSnap = await db.collection('aiTelemetry')
+            .doc(uid)
+            .collection('sessions')
+            .where('startTime', '>=', startTime)
+            .limit(100)
+            .get();
 
-        sessions.forEach(s => {
-          if (s.vydajeCount) vydaje += s.vydajeCount;
-          if (s.prijmyCount) prijmy += s.prijmyCount;
-        });
+          if (!sessionsSnap.empty) {
+            totalUsers++;
+            totalSessions += sessionsSnap.size;
 
-        const topCategories = Object.entries(categoryCount)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 3)
-          .map(([name, count]) => ({ name, count }));
-
-        windowData[label] = {
-          usersActive: uniqueUsers.size,
-          sessions: sessions.length,
-          vydaje,
-          prijmy,
-          topCategories,
-        };
-      } catch (err) {
-        console.warn(`Error processing ${label}:`, err);
-        windowData[label] = { usersActive: 0, sessions: 0, vydaje: 0, prijmy: 0, topCategories: [] };
+            // Count transactions from aiInsights if available
+            const insightsDoc = await db.collection('aiInsights').doc(uid).get();
+            if (insightsDoc.exists) {
+              const insights = insightsDoc.data();
+              totalVydaje += (insights.financial?.totalTransactions || 0) * 0.6; // estimate
+              totalPrijmy += (insights.financial?.totalTransactions || 0) * 0.4; // estimate
+            }
+          }
+        } catch (err) {
+          console.warn(`Error processing user ${uid}:`, err);
+        }
       }
+
+      windowData[label] = {
+        usersActive: totalUsers,
+        sessions: totalSessions,
+        vydaje: Math.round(totalVydaje),
+        prijmy: Math.round(totalPrijmy),
+        topCategories: [],
+      };
     }
 
     const reportDoc = {
