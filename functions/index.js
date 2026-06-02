@@ -1753,6 +1753,133 @@ const calculateIncomeFeatures = (income) => {
   return { monthlyIncome };
 };
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🤖 ADVANCED CONFIDENCE SCORING - Complex Model
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Helper: Remove outliers using IQR method (Interquartile Range)
+const removeOutliers = (values) => {
+  if (values.length < 4) return values;
+
+  const sorted = [...values].sort((a, b) => a - b);
+  const q1Idx = Math.floor(sorted.length * 0.25);
+  const q3Idx = Math.floor(sorted.length * 0.75);
+  const q1 = sorted[q1Idx];
+  const q3 = sorted[q3Idx];
+  const iqr = q3 - q1;
+  const lowerBound = q1 - 1.5 * iqr;
+  const upperBound = q3 + 1.5 * iqr;
+
+  return values.filter(v => v >= lowerBound && v <= upperBound);
+};
+
+// Helper: Calculate standard deviation
+const calculateStandardDeviation = (values) => {
+  if (values.length < 2) return 0;
+
+  const mean = values.reduce((s, v) => s + v, 0) / values.length;
+  const squaredDiffs = values.map(v => Math.pow(v - mean, 2));
+  const variance = squaredDiffs.reduce((s, v) => s + v, 0) / values.length;
+  return Math.sqrt(variance);
+};
+
+// Helper: Detect trend (linear regression slope)
+const detectTrend = (monthlyData) => {
+  const entries = Object.entries(monthlyData).sort(([a], [b]) => a.localeCompare(b));
+  if (entries.length < 2) return { slope: 0, strength: 0 };
+
+  const values = entries.map(([, v]) => v);
+  const n = values.length;
+  const xMean = (n - 1) / 2;
+  const yMean = values.reduce((s, v) => s + v, 0) / n;
+
+  let numerator = 0;
+  let denominator = 0;
+
+  for (let i = 0; i < n; i++) {
+    numerator += (i - xMean) * (values[i] - yMean);
+    denominator += Math.pow(i - xMean, 2);
+  }
+
+  const slope = denominator !== 0 ? numerator / denominator : 0;
+  const avgValue = yMean;
+  const trendStrength = Math.abs(slope) / (avgValue || 1);
+
+  return { slope, strength: Math.min(trendStrength, 1) };
+};
+
+// Helper: Apply exponential smoothing weights (recent months weighted more)
+const exponentialSmoothing = (monthlyData) => {
+  const entries = Object.entries(monthlyData).sort(([a], [b]) => a.localeCompare(b));
+  if (entries.length === 0) return {};
+
+  const smoothed = {};
+  const weights = [];
+  const n = entries.length;
+
+  // Generate exponential weights: recent = higher weight
+  for (let i = 0; i < n; i++) {
+    weights.push(Math.exp(i / n));
+  }
+
+  const weightSum = weights.reduce((s, w) => s + w, 0);
+
+  entries.forEach(([month, value], idx) => {
+    smoothed[month] = value * (weights[idx] / weightSum);
+  });
+
+  return smoothed;
+};
+
+// Helper: Calculate advanced confidence score
+const calculateConfidenceScore = (monthlyData) => {
+  const entries = Object.entries(monthlyData).sort(([a], [b]) => a.localeCompare(b));
+
+  if (entries.length < 2) {
+    return { confidence: 'low', score: 0.2, reason: 'Málo dat (< 2 měsíce)' };
+  }
+
+  const values = entries.map(([, v]) => v);
+
+  // 1. Remove outliers
+  const cleanedValues = removeOutliers(values);
+  const outlierRatio = 1 - (cleanedValues.length / values.length);
+
+  // 2. Calculate volatility
+  const stdDev = calculateStandardDeviation(cleanedValues);
+  const mean = cleanedValues.reduce((s, v) => s + v, 0) / cleanedValues.length;
+  const volatility = mean > 0 ? stdDev / mean : 1;
+
+  // 3. Detect trend
+  const { strength: trendStrength } = detectTrend(monthlyData);
+
+  // 4. Calculate confidence score (0-1)
+  // Formula: (1 - volatility) * (1 + trendStrength/2) * (1 - outlierRatio)
+  let score = (1 - Math.min(volatility, 1)) * (1 + trendStrength / 2) * (1 - outlierRatio);
+  score = Math.max(0, Math.min(1, score)); // Clamp 0-1
+
+  // Determine confidence level
+  let confidence = 'low';
+  let reason = '';
+
+  if (score >= 0.7) {
+    confidence = 'high';
+    reason = 'Stabilní, konzistentní výdaje';
+  } else if (score >= 0.5) {
+    confidence = 'medium';
+    if (volatility > 0.3) reason = 'Mírně kolísavé výdaje';
+    else if (outlierRatio > 0.2) reason = 'Některé anomálie v datech';
+    else reason = 'Slabý trend v datech';
+  } else {
+    confidence = 'low';
+    if (volatility > 0.5) reason = 'Velmi kolísavé výdaje (volatilita > 50%)';
+    else if (outlierRatio > 0.3) reason = 'Příliš mnoho anomálií v datech';
+    else reason = 'Nedostatek stabilních dat';
+  }
+
+  return { confidence, score: Math.round(score * 100), reason };
+};
+
 // Helper: Generate baseline prediction
 const generateBaselinePrediction = (transactions, income) => {
   // Expense prediction
@@ -1785,15 +1912,8 @@ const generateBaselinePrediction = (transactions, income) => {
     categories[cat] = totalAll > 0 ? Math.round((amount / totalAll) * totalPredicted) : 0;
   });
 
-  // Confidence: based on data consistency
-  let confidence = 'low';
-  if (last3Months.length === 3) {
-    const variance = Math.abs(monthlyExpenses[last3Months[0]] - monthlyExpenses[last3Months[2]]) / avg3m;
-    if (variance < 0.2) confidence = 'high';
-    else if (variance < 0.4) confidence = 'medium';
-  } else if (last3Months.length >= 2) {
-    confidence = 'medium';
-  }
+  // Advanced confidence scoring
+  const { confidence, score: confidenceScore, reason: confidenceReason } = calculateConfidenceScore(monthlyExpenses);
 
   // Income analysis
   let incomeStats = {};
@@ -1826,6 +1946,8 @@ const generateBaselinePrediction = (transactions, income) => {
     totalPredictedExpense: totalPredicted,
     categories,
     confidence,
+    confidenceScore,
+    confidenceReason,
     features: { avg3m: Math.round(avg3m), avg6m: Math.round(avg6m), dataPoints: transactions.length },
     incomeStats,
     monthlyIncome,
@@ -1844,7 +1966,9 @@ const savePredictionResults = async (uid, prediction) => {
       totalPredictedExpense: prediction.totalPredictedExpense,
       categories: prediction.categories,
       confidence: prediction.confidence,
-      modelType: 'average-baseline',
+      confidenceScore: prediction.confidenceScore,
+      confidenceReason: prediction.confidenceReason,
+      modelType: 'average-baseline-v2',
       modelVersion: ML_VERSION,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       incomeStats: prediction.incomeStats || {},

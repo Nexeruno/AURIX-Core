@@ -123,17 +123,36 @@ export const MLPredictionPanel = () => {
                       Vytvořeno: {pred.createdAt?.toLocaleString('cs-CZ')}
                     </p>
                   </div>
-                  <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                  <div className={`px-3 py-2 rounded text-xs ${
                     pred.confidence === 'high'
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                      ? 'bg-green-100 dark:bg-green-900'
                       : pred.confidence === 'medium'
-                      ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                      : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                      ? 'bg-yellow-100 dark:bg-yellow-900'
+                      : 'bg-red-100 dark:bg-red-900'
                   }`}>
-                    {pred.confidence === 'high' ? '✅ Vysoká' :
-                     pred.confidence === 'medium' ? '⚠️ Střední' :
-                     '❓ Nízká'} jistota
-                  </span>
+                    <div className={`font-semibold ${
+                      pred.confidence === 'high'
+                        ? 'text-green-800 dark:text-green-200'
+                        : pred.confidence === 'medium'
+                        ? 'text-yellow-800 dark:text-yellow-200'
+                        : 'text-red-800 dark:text-red-200'
+                    }`}>
+                      {pred.confidence === 'high' ? '✅ Vysoká' :
+                       pred.confidence === 'medium' ? '⚠️ Střední' :
+                       '❌ Nízká'} jistota ({pred.confidenceScore || '?'}%)
+                    </div>
+                    {pred.confidenceReason && (
+                      <div className={`text-xs mt-1 ${
+                        pred.confidence === 'high'
+                          ? 'text-green-700 dark:text-green-300'
+                          : pred.confidence === 'medium'
+                          ? 'text-yellow-700 dark:text-yellow-300'
+                          : 'text-red-700 dark:text-red-300'
+                      }`}>
+                        {pred.confidenceReason}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 mb-3">
