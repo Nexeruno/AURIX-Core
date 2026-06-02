@@ -12,6 +12,7 @@ export const MLPredictionPanel = () => {
   const [mlRuns, setMlRuns] = useState([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showHidden, setShowHidden] = useState(false);
+  const [expandedPred, setExpandedPred] = useState(null);
 
   const checkAdmin = async () => {
     try {
@@ -228,209 +229,155 @@ export const MLPredictionPanel = () => {
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {predictions
-              .filter(pred => pred.uid === selectedUserId)
-              .filter(pred => showHidden || !pred.hidden)
-              .map(pred => {
-                // Placeholder pro uživatele bez predikcí
-                if (pred.status === 'no-predictions') {
-                  return (
-                    <div
-                      key={pred.id}
-                      className="p-4 rounded-lg border-l-4 border-gray-400 bg-gray-50 dark:bg-gray-900"
-                    >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-semibold text-sm">
-                            <span className="text-xs text-light-textMuted dark:text-dark-textMuted mr-2">
-                              ({pred.username})
-                            </span>
-                            Zatím žádná predikce
-                          </p>
-                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
-                            {pred.message}
-                          </p>
-                        </div>
-                        <span className="px-2 py-1 rounded text-xs font-semibold bg-gray-300 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
-                          ⏸️ Čekání
-                        </span>
-                      </div>
-                    </div>
-                  );
-                }
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b-2 border-light-border dark:border-dark-border bg-light-bg dark:bg-dark-bg">
+                  <th className="text-left py-2 px-3 font-semibold">Měsíc</th>
+                  <th className="text-right py-2 px-3 font-semibold">Výdaje</th>
+                  <th className="text-right py-2 px-3 font-semibold">Průměr 3m</th>
+                  <th className="text-center py-2 px-3 font-semibold">Jistota</th>
+                  <th className="text-center py-2 px-3 font-semibold">Akce</th>
+                </tr>
+              </thead>
+              <tbody>
+                {predictions
+                  .filter(pred => pred.uid === selectedUserId)
+                  .filter(pred => showHidden || !pred.hidden)
+                  .map(pred => {
+                    const isExpanded = expandedPred === `${pred.uid}-${pred.id}`;
+                    const predKey = `${pred.uid}-${pred.id}`;
 
-                // Normální predikce
-                return (
-              <div
-                key={`${pred.uid}-${pred.id}`}
-                className={`p-4 rounded-lg border-l-4 border-purple-500 ${
-                  pred.hidden
-                    ? 'bg-gray-100 dark:bg-gray-800 opacity-60'
-                    : 'bg-light-bg dark:bg-dark-card'
-                }`}
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <p className="font-semibold text-sm">
-                      {isAdmin && pred.username && (
-                        <span className="text-xs text-light-textMuted dark:text-dark-textMuted mr-2">
-                          ({pred.username})
-                        </span>
-                      )}
-                      {new Date(pred.month + '-01').toLocaleDateString('cs-CZ', {
-                        month: 'long',
-                        year: 'numeric',
-                      })}
-                      {pred.hidden && <span className="ml-2 text-xs bg-gray-500 text-white px-2 py-1 rounded">SKRYTO</span>}
-                    </p>
-                    <p className="text-xs text-light-textMuted dark:text-dark-textMuted">
-                      Vytvořeno: {pred.createdAt?.toLocaleString('cs-CZ')}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => toggleHidden(pred.id, pred.uid, pred.hidden)}
-                      className="px-2 py-1 hover:opacity-80 transition-opacity text-lg"
-                      title={pred.hidden ? 'Obnovit' : 'Skrýt'}
-                    >
-                      {pred.hidden ? '👁️' : '🗑️'}
-                    </button>
-                    <div className={`px-3 py-2 rounded text-xs ${
-                      pred.confidence === 'high'
-                        ? 'bg-green-100 dark:bg-green-900'
-                        : pred.confidence === 'medium'
-                        ? 'bg-yellow-100 dark:bg-yellow-900'
-                        : 'bg-red-100 dark:bg-red-900'
-                    }`}>
-                    <div className={`font-semibold ${
-                      pred.confidence === 'high'
-                        ? 'text-green-800 dark:text-green-200'
-                        : pred.confidence === 'medium'
-                        ? 'text-yellow-800 dark:text-yellow-200'
-                        : 'text-red-800 dark:text-red-200'
-                    }`}>
-                      {pred.confidence === 'high' ? '✅ Vysoká' :
-                       pred.confidence === 'medium' ? '⚠️ Střední' :
-                       '❌ Nízká'} jistota ({pred.confidenceScore || '?'}%)
-                    </div>
-                    {pred.confidenceReason && (
-                      <div className={`text-xs mt-1 ${
-                        pred.confidence === 'high'
-                          ? 'text-green-700 dark:text-green-300'
-                          : pred.confidence === 'medium'
-                          ? 'text-yellow-700 dark:text-yellow-300'
-                          : 'text-red-700 dark:text-red-300'
-                      }`}>
-                        {pred.confidenceReason}
-                      </div>
-                    )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 mb-3">
-                  <div>
-                    <p className="text-xs text-light-textMuted dark:text-dark-textMuted">
-                      Předpověď celkem
-                    </p>
-                    <p className="text-2xl font-bold text-red-600">
-                      {pred.totalPredictedExpense.toLocaleString('cs-CZ')}
-                    </p>
-                  </div>
-                  {pred.features && (
-                    <div>
-                      <p className="text-xs text-light-textMuted dark:text-dark-textMuted">
-                        Průměr 3 měsíců
-                      </p>
-                      <p className="text-2xl font-bold text-blue-600">
-                        {pred.features.avg3m?.toLocaleString('cs-CZ')}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Categories breakdown */}
-                {Object.keys(pred.categories || {}).length > 0 && (
-                  <div className="p-3 bg-light-border dark:bg-dark-border rounded-lg">
-                    <p className="text-xs font-semibold mb-2 text-light-textMuted dark:text-dark-textMuted">
-                      Po kategoriích:
-                    </p>
-                    <div className="space-y-1 text-sm">
-                      {Object.entries(pred.categories)
-                        .sort(([, a], [, b]) => b - a)
-                        .map(([cat, amount]) => (
-                          <div key={cat} className="flex justify-between">
-                            <span className="capitalize">{cat}:</span>
-                            <span className="font-semibold">
-                              {amount.toLocaleString('cs-CZ')}
-                            </span>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Income section */}
-                {pred.incomeStats && Object.keys(pred.incomeStats).length > 0 && (
-                  <div className="mt-4 p-3 bg-green-50 dark:bg-green-950 rounded-lg border-l-4 border-green-500">
-                    <p className="font-semibold mb-3 text-green-900 dark:text-green-200">
-                      💰 Příjmy - Měsíční přehled
-                    </p>
-
-                    {/* Monthly breakdown */}
-                    {pred.monthlyIncome && Object.keys(pred.monthlyIncome).length > 0 && (
-                      <div className="space-y-2 mb-3">
-                        {Object.entries(pred.monthlyIncome)
-                          .sort(([a], [b]) => a.localeCompare(b))
-                          .map(([month, amount]) => {
-                            const percentage = pred.incomeStats.avg6m > 0
-                              ? (amount / pred.incomeStats.avg6m) * 100
-                              : 0;
-                            return (
-                              <div key={month} className="flex items-center gap-2">
-                                <span className="text-xs font-mono text-green-800 dark:text-green-300 w-12">
-                                  {month}
-                                </span>
-                                <div className="flex-1 bg-green-200 dark:bg-green-800 rounded h-5 relative overflow-hidden">
-                                  <div
-                                    className="bg-green-500 dark:bg-green-400 h-full transition-all"
-                                    style={{ width: `${Math.min(percentage, 100)}%` }}
-                                  />
-                                </div>
-                                <span className="text-xs font-semibold text-green-900 dark:text-green-200 w-20 text-right">
-                                  {amount.toLocaleString('cs-CZ')}
-                                </span>
+                    // Placeholder pro uživatele bez predikcí
+                    if (pred.status === 'no-predictions') {
+                      return (
+                        <tr key={pred.id} className="border-b border-light-border dark:border-dark-border">
+                          <td colSpan="5" className="py-2 px-3">
+                            <div className="flex items-center gap-3 text-light-textMuted dark:text-dark-textMuted">
+                              <span className="text-lg">⏳</span>
+                              <div>
+                                <p className="text-sm font-medium">Zatím žádná predikce</p>
+                                <p className="text-xs">{pred.message}</p>
                               </div>
-                            );
-                          })}
-                      </div>
-                    )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    }
 
-                    {/* Income averages */}
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <p className="text-xs text-green-700 dark:text-green-300">Průměr 3 měsíce</p>
-                        <p className="font-bold text-green-900 dark:text-green-100">
-                          {pred.incomeStats.avg3m?.toLocaleString('cs-CZ')}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-green-700 dark:text-green-300">Průměr 6 měsíců</p>
-                        <p className="font-bold text-green-900 dark:text-green-100">
-                          {pred.incomeStats.avg6m?.toLocaleString('cs-CZ')}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                    // Normální predikce
+                    const confColor = pred.confidence === 'high' ? 'bg-green-100 dark:bg-green-900' :
+                                     pred.confidence === 'medium' ? 'bg-yellow-100 dark:bg-yellow-900' :
+                                     'bg-red-100 dark:bg-red-900';
+                    const confTextColor = pred.confidence === 'high' ? 'text-green-800 dark:text-green-200' :
+                                         pred.confidence === 'medium' ? 'text-yellow-800 dark:text-yellow-200' :
+                                         'text-red-800 dark:text-red-200';
+                    const confIcon = pred.confidence === 'high' ? '✅' :
+                                    pred.confidence === 'medium' ? '⚠️' : '❌';
 
-                <p className="text-xs text-light-textMuted dark:text-dark-textMuted mt-2">
-                  Model: {pred.modelType || 'unknown'} ({pred.modelVersion})
-                </p>
-              </div>
-                );
-              })}
+                    return (
+                      <tbody key={predKey}>
+                        <tr
+                          className={`border-b border-light-border dark:border-dark-border hover:bg-light-bg dark:hover:bg-dark-bg transition-colors ${
+                            pred.hidden ? 'opacity-60' : ''
+                          }`}
+                        >
+                          <td className="py-2 px-3 font-medium">
+                            {new Date(pred.month + '-01').toLocaleDateString('cs-CZ', {
+                              month: 'short',
+                              year: 'numeric',
+                            })}
+                            {pred.hidden && <span className="ml-2 text-xs bg-gray-500 text-white px-2 py-0.5 rounded">SKRYTO</span>}
+                          </td>
+                          <td className="py-2 px-3 text-right font-semibold text-red-600 dark:text-red-400">
+                            {pred.totalPredictedExpense.toLocaleString('cs-CZ')} Kč
+                          </td>
+                          <td className="py-2 px-3 text-right text-light-textMuted dark:text-dark-textMuted">
+                            {pred.features?.avg3m?.toLocaleString('cs-CZ')} Kč
+                          </td>
+                          <td className="py-2 px-3 text-center">
+                            <span className={`px-2 py-1 rounded text-xs font-semibold ${confColor} ${confTextColor}`}>
+                              {confIcon} {pred.confidenceScore || '?'}%
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                onClick={() => setExpandedPred(isExpanded ? null : predKey)}
+                                className="px-2 py-1 hover:bg-light-border dark:hover:bg-dark-border rounded transition-colors text-lg"
+                                title={isExpanded ? 'Zavřít' : 'Detaily'}
+                              >
+                                {isExpanded ? '▼' : '▶'}
+                              </button>
+                              <button
+                                onClick={() => toggleHidden(pred.id, pred.uid, pred.hidden)}
+                                className="px-2 py-1 hover:bg-light-border dark:hover:bg-dark-border rounded transition-colors text-lg"
+                                title={pred.hidden ? 'Obnovit' : 'Skrýt'}
+                              >
+                                {pred.hidden ? '👁️' : '🗑️'}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+
+                        {/* Expandable details */}
+                        {isExpanded && (
+                          <tr className="bg-light-bg dark:bg-dark-bg border-b border-light-border dark:border-dark-border">
+                            <td colSpan="5" className="py-3 px-3">
+                              <div className="space-y-3">
+                                {/* Confidence reason */}
+                                {pred.confidenceReason && (
+                                  <div className={`p-2 rounded text-xs ${confColor}`}>
+                                    <p className={confTextColor}>{pred.confidenceReason}</p>
+                                  </div>
+                                )}
+
+                                {/* Categories */}
+                                {Object.keys(pred.categories || {}).length > 0 && (
+                                  <div>
+                                    <p className="text-xs font-semibold text-light-textMuted dark:text-dark-textMuted mb-1">Po kategoriích:</p>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                                      {Object.entries(pred.categories)
+                                        .sort(([, a], [, b]) => b - a)
+                                        .map(([cat, amount]) => (
+                                          <div key={cat} className="p-2 bg-light-card dark:bg-dark-card rounded text-xs">
+                                            <p className="capitalize font-medium">{cat}</p>
+                                            <p className="font-semibold text-red-600 dark:text-red-400">{amount.toLocaleString('cs-CZ')}</p>
+                                          </div>
+                                        ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Income summary */}
+                                {pred.incomeStats && Object.keys(pred.incomeStats).length > 0 && (
+                                  <div className="p-2 bg-green-50 dark:bg-green-950 rounded">
+                                    <p className="text-xs font-semibold text-green-900 dark:text-green-200 mb-1">💰 Příjmy</p>
+                                    <div className="grid grid-cols-2 gap-2 text-xs">
+                                      <div>
+                                        <p className="text-green-700 dark:text-green-300">Průměr 3m</p>
+                                        <p className="font-bold text-green-900 dark:text-green-100">{pred.incomeStats.avg3m?.toLocaleString('cs-CZ')}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-green-700 dark:text-green-300">Průměr 6m</p>
+                                        <p className="font-bold text-green-900 dark:text-green-100">{pred.incomeStats.avg6m?.toLocaleString('cs-CZ')}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                <p className="text-xs text-light-textMuted dark:text-dark-textMuted">
+                                  Model: {pred.modelType} v{pred.modelVersion} • Vytvořeno: {pred.createdAt?.toLocaleDateString('cs-CZ')}
+                                </p>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    );
+                  })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
