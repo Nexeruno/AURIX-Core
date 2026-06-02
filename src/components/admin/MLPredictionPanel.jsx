@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { auth, db } from '../../utils/firebase';
 import { collection, query, orderBy, limit, getDocs, doc, updateDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
+import { UserFilterDropdown } from '../UserFilterDropdown';
 
 export const MLPredictionPanel = () => {
   const [predictions, setPredictions] = useState([]);
@@ -204,23 +205,19 @@ export const MLPredictionPanel = () => {
             )}
           </div>
 
-          {/* User Filter */}
+          {/* User Filter Dropdown */}
           {allUsers.length > 1 && (
-            <div className="flex gap-2 flex-wrap">
-              {allUsers.map(user => (
-                <button
-                  key={user.uid}
-                  onClick={() => setSelectedUserId(user.uid)}
-                  className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
-                    selectedUserId === user.uid
-                      ? 'bg-purple-500 text-white shadow-md'
-                      : 'bg-light-bg dark:bg-dark-bg text-light-text dark:text-dark-text hover:bg-light-border dark:hover:bg-dark-border'
-                  }`}
-                >
-                  {user.username}
-                </button>
-              ))}
-            </div>
+            <UserFilterDropdown
+              users={allUsers}
+              selectedUid={selectedUserId}
+              onSelect={setSelectedUserId}
+              getStatusBadge={(user) => {
+                const userPreds = predictions.filter(p => p.uid === user.uid);
+                const activePreds = userPreds.filter(p => p.status === 'active');
+                return `${activePreds.length} predikci`;
+              }}
+              placeholder="Vybrat uživatele..."
+            />
           )}
         </div>
 

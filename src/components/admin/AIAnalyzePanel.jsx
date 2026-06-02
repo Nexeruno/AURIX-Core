@@ -5,6 +5,7 @@ import { collection, getDocs } from 'firebase/firestore';
 import { Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { ArrowLeft, TrendingUp, Clock, Mouse } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { UserFilterDropdown } from '../UserFilterDropdown';
 
 const COLORS = ['#3B82F6', '#EF4444', '#10B981'];
 
@@ -343,25 +344,23 @@ export const AIAnalyzePanel = () => {
           <TrendingUp size={20} /> Analýza všech uživatelů
         </h3>
 
-        {/* User filter buttons */}
+        {/* User Filter Dropdown */}
         {allUsers.length > 1 && (
-          <div className="mb-4 pb-4 border-b border-light-border dark:border-dark-border">
-            <p className="text-xs text-light-textMuted dark:text-dark-textMuted mb-2">Filtr uživatelů:</p>
-            <div className="flex gap-2 flex-wrap">
-              {allUsers.map(user => (
-                <button
-                  key={user.uid}
-                  onClick={() => setSelectedUid(user.uid)}
-                  className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                    selectedUid === user.uid
-                      ? 'bg-purple-500 text-white'
-                      : 'bg-light-bg dark:bg-dark-bg text-light-text dark:text-dark-text hover:bg-light-border dark:hover:bg-dark-border'
-                  }`}
-                >
-                  {user.username}
-                </button>
-              ))}
-            </div>
+          <div className="mb-4">
+            <UserFilterDropdown
+              users={allUsers}
+              selectedUid={selectedUid}
+              onSelect={setSelectedUid}
+              getStatusBadge={(user) => {
+                const userInsight = allInsights.find(i => i.uid === user.uid);
+                if (!userInsight) return 'Bez dat';
+                if (userInsight.status === 'inactive') {
+                  return `⏸️ ${userInsight.daysSinceActive || 0} dní`;
+                }
+                return `${userInsight.totalSessions || 0} sezení`;
+              }}
+              placeholder="Vybrat uživatele..."
+            />
           </div>
         )}
       </div>
