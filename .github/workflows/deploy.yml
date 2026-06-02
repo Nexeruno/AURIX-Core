@@ -26,9 +26,29 @@ jobs:
 
       - name: 📦 Install dependencies
         run: npm ci
+        continue-on-error: false
 
-      - name: 🧪 Run tests
-        run: npm test
+      - name: 🔍 Run linter
+        run: |
+          echo "▶️ Starting ESLint..."
+          npm run lint
+          if [ $? -eq 0 ]; then
+            echo "✅ Linter passed"
+          else
+            echo "❌ Linter failed"
+            exit 1
+          fi
+
+      - name: 🧪 Run unit tests
+        run: |
+          echo "▶️ Starting unit tests..."
+          npm test
+          if [ $? -eq 0 ]; then
+            echo "✅ All tests passed"
+          else
+            echo "❌ Tests failed"
+            exit 1
+          fi
         env:
           VITE_FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.FIREBASE_AUTH_DOMAIN }}
@@ -39,7 +59,15 @@ jobs:
           VITE_ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
 
       - name: 🔨 Build application
-        run: npm run build
+        run: |
+          echo "▶️ Building application..."
+          npm run build
+          if [ $? -eq 0 ]; then
+            echo "✅ Build successful"
+          else
+            echo "❌ Build failed"
+            exit 1
+          fi
         env:
           VITE_FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.FIREBASE_AUTH_DOMAIN }}
@@ -49,10 +77,90 @@ jobs:
           VITE_FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
           VITE_ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
 
+      - name: 🌐 Smoke tests (local)
+        run: |
+          echo "▶️ Running smoke tests on local build..."
+
+          # Check if docs/index.html exists and is not empty
+          if [ ! -f "docs/index.html" ]; then
+            echo "❌ Build artifact not found: docs/index.html"
+            exit 1
+          fi
+
+          echo "📄 Checking HTML structure..."
+          if grep -q 'id="root"' docs/index.html; then
+            echo "✅ Root div found in HTML"
+          else
+            echo "❌ Root div not found in HTML"
+            exit 1
+          fi
+
+          # Verify HTML is valid (basic check)
+          if grep -q '<html' docs/index.html && grep -q '</html>' docs/index.html; then
+            echo "✅ HTML structure looks valid"
+          else
+            echo "❌ HTML structure incomplete"
+            exit 1
+          fi
+
+          # Check build size
+          BUILD_SIZE=$(du -sh docs | cut -f1)
+          echo "📦 Build size: $BUILD_SIZE"
+
+          if [ $(find docs -name '*.js' -o -name '*.css' | wc -l) -gt 0 ]; then
+            echo "✅ Assets generated successfully"
+          else
+            echo "❌ No assets found in build"
+            exit 1
+          fi
+
+          echo "✅ Smoke tests passed"
+
       - name: 📤 Commit build to main
         run: |
+          echo "▶️ Committing build artifacts..."
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add docs/
-          git commit -m "deploy: Build output [skip ci]" || echo "No changes to commit"
+          git commit -m "deploy: Build output [skip ci]" || echo "ℹ️ No changes to commit"
           git push origin main
+          if [ $? -eq 0 ]; then
+            echo "✅ Build artifacts committed and pushed"
+          else
+            echo "⚠️ Failed to push (might be up-to-date)"
+            exit 0
+          fi
+
+      - name: 🎉 Deployment successful
+        run: |
+          echo "✅✅✅ DEPLOYMENT COMPLETE ✅✅✅"
+          echo "📍 Deployed to: https://nexeruno.github.io/Evidence-v-daj-/"
+          echo "⏱️ Completed at: $(date)"
+
+      - name: 🚨 Notify on failure (Linter)
+        if: failure() && steps.linter.outcome == 'failure'
+        run: |
+          echo "❌ DEPLOYMENT FAILED: Linter check failed"
+          echo "📋 Run 'npm run lint' locally to fix issues"
+          exit 1
+
+      - name: 🚨 Notify on failure (Tests)
+        if: failure() && steps.tests.outcome == 'failure'
+        run: |
+          echo "❌ DEPLOYMENT FAILED: Unit tests failed"
+          echo "📋 Run 'npm test' locally to debug"
+          exit 1
+
+      - name: 🚨 Notify on failure (Build)
+        if: failure() && steps.build.outcome == 'failure'
+        run: |
+          echo "❌ DEPLOYMENT FAILED: Build failed"
+          echo "📋 Check build output above for errors"
+          exit 1
+
+      - name: 🚨 Notify on failure (Smoke tests)
+        if: failure() && steps.smoke.outcome == 'failure'
+        run: |
+          echo "❌ DEPLOYMENT FAILED: Smoke tests failed"
+          echo "📋 Build artifacts are corrupted or incomplete"
+          exit 1
