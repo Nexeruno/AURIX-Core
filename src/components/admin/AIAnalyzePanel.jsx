@@ -44,25 +44,49 @@ export const AIAnalyzePanel = () => {
       const data = await response.json();
       const activeUsers = data.allInsights || [];
 
-      // Fetch all users from Firestore
+      // Fetch all users from Firestore with enhanced activity tracking
       const usersSnap = await getDocs(collection(db, 'users'));
-      const allUsers = usersSnap.docs.map(doc => ({
-        uid: doc.id,
-        username: doc.data().username || doc.id,
-        lastActivity: doc.data().lastLogin || doc.data().createdAt,
-      }));
+      const allUsers = usersSnap.docs.map(doc => {
+        const userData = doc.data();
+        return {
+          uid: doc.id,
+          username: userData.username || doc.id,
+          lastActivity: userData.lastActivity || userData.lastLogin || userData.createdAt,
+          lastSessionStart: userData.lastSessionStart,
+          lastSessionEnd: userData.lastSessionEnd,
+          isOnline: userData.isOnline || false,
+          lastTabHidden: userData.lastTabHidden,
+          lastLogout: userData.lastLogout,
+          loginCount: userData.loginCount || 0,
+        };
+      });
 
-      // Merge: active users get insights, inactive get status
+      // Merge: active users get insights, inactive get enhanced status
       const merged = allUsers.map(user => {
         const activeUser = activeUsers.find(u => u.uid === user.uid);
         if (activeUser) {
           return { ...activeUser, ...user, status: 'active' };
         }
+
+        // Calculate if user is really inactive or just has tab hidden
+        const daysSinceActivity = calculateDaysSinceLastActivity(user.lastActivity);
+        const isTabJustHidden = user.lastTabHidden &&
+          calculateDaysSinceLastActivity(user.lastTabHidden) === 0;
+
+        const displayStatus = isTabJustHidden ? 'tab-hidden' : 'inactive';
+
         return {
           uid: user.uid,
           username: user.username,
-          status: 'inactive',
-          daysSinceActive: calculateDaysSinceLastActivity(user.lastActivity),
+          status: displayStatus,
+          daysSinceActive: daysSinceActivity,
+          isOnline: user.isOnline,
+          lastActivity: user.lastActivity,
+          lastSessionStart: user.lastSessionStart,
+          lastSessionEnd: user.lastSessionEnd,
+          lastTabHidden: user.lastTabHidden,
+          lastLogout: user.lastLogout,
+          loginCount: user.loginCount,
           totalSessions: 0,
           totalClicks: 0,
           totalTimeMinutes: 0,
@@ -70,10 +94,14 @@ export const AIAnalyzePanel = () => {
         };
       });
 
-      // Sort: active first, then by last activity
+      // Sort: active first, then tab-hidden (present but away), then inactive (logged off)
       merged.sort((a, b) => {
-        if (a.status !== b.status) return a.status === 'active' ? -1 : 1;
-        return (b.lastAnalyzed || 0) - (a.lastAnalyzed || 0);
+        const statusOrder = { active: 0, 'tab-hidden': 1, inactive: 2 };
+        const aOrder = statusOrder[a.status] ?? 3;
+        const bOrder = statusOrder[b.status] ?? 3;
+        if (aOrder !== bOrder) return aOrder - bOrder;
+        // Within same status: by last activity
+        return (b.lastActivity || 0) - (a.lastActivity || 0);
       });
 
       setAllInsights(merged);
@@ -354,10 +382,16 @@ export const AIAnalyzePanel = () => {
               getStatusBadge={(user) => {
                 const userInsight = allInsights.find(i => i.uid === user.uid);
                 if (!userInsight) return 'Bez dat';
+                if (userInsight.status === 'active') {
+                  return `🟢 ${userInsight.totalSessions || 0} sezení`;
+                }
+                if (userInsight.status === 'tab-hidden') {
+                  return `🟡 Tab skrytý`;
+                }
                 if (userInsight.status === 'inactive') {
                   return `⏸️ ${userInsight.daysSinceActive || 0} dní`;
                 }
-                return `${userInsight.totalSessions || 0} sezení`;
+                return 'Bez dat';
               }}
               placeholder="Vybrat uživatele..."
             />
@@ -391,6 +425,8 @@ export const AIAnalyzePanel = () => {
                     className={`border-b border-light-border dark:border-dark-border ${
                       user.status === 'inactive'
                         ? 'bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800'
+                        : user.status === 'tab-hidden'
+                        ? 'bg-yellow-50 dark:bg-yellow-900/20 hover:bg-yellow-100 dark:hover:bg-yellow-900/30'
                         : 'hover:bg-light-bg dark:hover:bg-dark-card'
                     }`}
                   >
@@ -400,8 +436,14 @@ export const AIAnalyzePanel = () => {
                         <span className="text-xs bg-gray-400 text-white px-2 py-1 rounded">
                           ⏸️ {user.daysSinceActive} dní
                         </span>
+                      ) : user.status === 'tab-hidden' ? (
+                        <span className="text-xs bg-yellow-400 text-yellow-900 px-2 py-1 rounded font-semibold">
+                          🟡 Tab skrytý
+                        </span>
                       ) : (
-                        user.totalSessions
+                        <span className="text-xs bg-green-400 text-green-900 px-2 py-1 rounded font-semibold">
+                          🟢 {user.totalSessions}
+                        </span>
                       )}
                     </td>
                     <td className="py-3 px-3 text-purple-600 dark:text-purple-400">{user.totalClicks || 0}</td>
@@ -438,6 +480,8 @@ export const AIAnalyzePanel = () => {
                 className={`p-3 rounded-lg border ${
                   user.status === 'inactive'
                     ? 'bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-700'
+                    : user.status === 'tab-hidden'
+                    ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-300 dark:border-yellow-700'
                     : 'bg-light-bg dark:bg-dark-bg border-light-border dark:border-dark-border'
                 }`}
               >
@@ -446,14 +490,19 @@ export const AIAnalyzePanel = () => {
                   {user.status === 'inactive' && (
                     <span className="text-xs bg-gray-400 text-white px-2 py-1 rounded">⏸️ {user.daysSinceActive}d</span>
                   )}
+                  {user.status === 'tab-hidden' && (
+                    <span className="text-xs bg-yellow-400 text-yellow-900 px-2 py-1 rounded font-semibold">🟡 Tab skrytý</span>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 mb-3 text-xs">
                   <div className="p-2 bg-light-card dark:bg-dark-card rounded">
                     <p className="text-light-textMuted dark:text-dark-textMuted">
-                      {user.status === 'inactive' ? 'Status' : 'Sezení'}
+                      {user.status === 'inactive' || user.status === 'tab-hidden' ? 'Status' : 'Sezení'}
                     </p>
-                    <p className="font-bold">{user.status === 'inactive' ? '⏸️ Idle' : user.totalSessions}</p>
+                    <p className="font-bold">
+                      {user.status === 'inactive' ? '⏸️ Offline' : user.status === 'tab-hidden' ? '🟡 Skrytý' : user.totalSessions}
+                    </p>
                   </div>
                   <div className="p-2 bg-light-card dark:bg-dark-card rounded">
                     <p className="text-light-textMuted dark:text-dark-textMuted">Kliknutí</p>

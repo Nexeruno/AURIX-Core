@@ -82,10 +82,14 @@ export const AuthProvider = ({ children }) => {
 
     const cred = await signInWithEmailAndPassword(auth, email, password);
 
-    // Track login: lastLogin + loginCount
+    // Track login: lastLogin, loginCount, session start, online status
     updateDoc(doc(db, 'users', cred.user.uid), {
       lastLogin: serverTimestamp(),
+      lastActivity: serverTimestamp(),
+      lastSessionStart: serverTimestamp(),
       loginCount: increment(1),
+      isOnline: true,
+      lastLoginIP: 'tracking-enabled', // Placeholder - can be enhanced
     }).catch(() => {});
   };
 
@@ -165,6 +169,18 @@ export const AuthProvider = ({ children }) => {
     if (uid) {
       clearSessionCache(uid);
       await aiTracker.flush();
+
+      // Track logout: record when user logged out + mark offline
+      try {
+        await updateDoc(doc(db, 'users', uid), {
+          lastLogout: serverTimestamp(),
+          lastActivity: serverTimestamp(),
+          isOnline: false,
+          lastSessionEnd: serverTimestamp(),
+        });
+      } catch (err) {
+        // Fail silently
+      }
     }
     useAppStore.getState().resetStore();
     await signOut(auth);

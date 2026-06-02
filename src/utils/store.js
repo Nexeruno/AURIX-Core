@@ -128,38 +128,118 @@ export const useAppStore = create((set) => ({
     set((state) => ({ filtrVydaj: { ...state.filtrVydaj, ...filtry } })),
 }));
 
-// Activity tracker - update lastActivity on user interaction
+// Activity tracker - comprehensive user activity tracking
 let activityTimeout;
+let tabVisibleTimeout;
+let lastSessionStart;
+let lastTabVisibility = document.hidden;
 
 export const initActivityTracker = () => {
+  const uid = auth.currentUser?.uid;
+  if (!uid) return;
+
+  // Update activity timestamp in Firestore
   const updateActivity = async () => {
     try {
-      const uid = auth.currentUser?.uid;
-      if (!uid) return;
-      await import('firebase/firestore').then(({ updateDoc }) => {
-        updateDoc(doc(db, 'users', uid), { lastActivity: serverTimestamp() });
+      if (!auth.currentUser?.uid) return;
+      const { updateDoc } = await import('firebase/firestore');
+      await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+        lastActivity: serverTimestamp(),
       });
     } catch (err) {
-      // Fail silently - activity tracking is not critical
+      // Fail silently
     }
   };
 
-  const onActivity = () => {
+  // Record user interaction (click, keypress, scroll)
+  const onUserInteraction = () => {
     clearTimeout(activityTimeout);
-    activityTimeout = setTimeout(updateActivity, 5000); // Debounce: update every 5s max
+    activityTimeout = setTimeout(updateActivity, 5000);
   };
 
-  // Track: clicks, key presses, scroll, tab visibility
-  document.addEventListener('click', onActivity, { passive: true });
-  document.addEventListener('keydown', onActivity, { passive: true });
-  document.addEventListener('scroll', onActivity, { passive: true });
-  window.addEventListener('visibilitychange', onActivity, { passive: true });
+  // Handle tab visibility changes
+  const onVisibilityChange = async () => {
+    try {
+      const currentUid = auth.currentUser?.uid;
+      if (!currentUid) return;
+
+      const isNowVisible = !document.hidden;
+      const { updateDoc, serverTimestamp } = await import('firebase/firestore');
+
+      if (isNowVisible && !lastTabVisibility) {
+        // Tab became visible - user likely returned
+        lastSessionStart = new Date();
+        await updateDoc(doc(db, 'users', currentUid), {
+          lastActivity: serverTimestamp(),
+          lastSessionStart: serverTimestamp(),
+          isOnline: true,
+        });
+      } else if (!isNowVisible && lastTabVisibility) {
+        // Tab became hidden - user is away but not logged out
+        await updateDoc(doc(db, 'users', currentUid), {
+          lastTabHidden: serverTimestamp(),
+          isOnline: false,
+        });
+      }
+
+      lastTabVisibility = isNowVisible;
+    } catch (err) {
+      // Fail silently
+    }
+  };
+
+  // Track page/tab changes
+  const onPageChange = async () => {
+    try {
+      const currentUid = auth.currentUser?.uid;
+      if (!currentUid) return;
+
+      const { updateDoc, serverTimestamp } = await import('firebase/firestore');
+      const currentPage = window.location.pathname.split('/').pop() || 'dashboard';
+
+      await updateDoc(doc(db, 'users', currentUid), {
+        lastPageView: currentPage,
+        lastPageViewTime: serverTimestamp(),
+      });
+    } catch (err) {
+      // Fail silently
+    }
+  };
+
+  // Track: user interactions
+  document.addEventListener('click', onUserInteraction, { passive: true });
+  document.addEventListener('keydown', onUserInteraction, { passive: true });
+  document.addEventListener('scroll', onUserInteraction, { passive: true });
+
+  // Track: tab visibility (important for "always open" users)
+  document.addEventListener('visibilitychange', onVisibilityChange, { passive: true });
+
+  // Track: page navigation
+  window.addEventListener('popstate', onPageChange, { passive: true });
+
+  // Set initial session start
+  (async () => {
+    try {
+      const currentUid = auth.currentUser?.uid;
+      if (!currentUid) return;
+      const { updateDoc, serverTimestamp } = await import('firebase/firestore');
+      lastSessionStart = new Date();
+      await updateDoc(doc(db, 'users', currentUid), {
+        lastActivity: serverTimestamp(),
+        lastSessionStart: serverTimestamp(),
+        isOnline: true,
+      });
+    } catch (err) {
+      // Fail silently
+    }
+  })();
 
   // Cleanup on unload
   window.addEventListener('beforeunload', () => {
-    document.removeEventListener('click', onActivity);
-    document.removeEventListener('keydown', onActivity);
-    document.removeEventListener('scroll', onActivity);
-    window.removeEventListener('visibilitychange', onActivity);
+    document.removeEventListener('click', onUserInteraction);
+    document.removeEventListener('keydown', onUserInteraction);
+    document.removeEventListener('scroll', onUserInteraction);
+    document.removeEventListener('visibilitychange', onVisibilityChange);
+    window.removeEventListener('popstate', onPageChange);
   });
 };
