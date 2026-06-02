@@ -40,18 +40,18 @@ jobs:
         run: |
           echo "🔍 Checking build artifacts..."
 
-          if [ ! -f "dist/index.html" ]; then
-            echo "❌ FAIL: dist/index.html not found"
+          if [ ! -f "docs/index.html" ]; then
+            echo "❌ FAIL: docs/index.html not found"
             exit 1
           fi
 
-          if [ ! -d "dist/assets" ]; then
-            echo "❌ FAIL: dist/assets directory not found"
+          if [ ! -d "docs/assets" ]; then
+            echo "❌ FAIL: docs/assets directory not found"
             exit 1
           fi
 
-          JS_FILES=$(find dist/assets -name "*.js" | wc -l)
-          CSS_FILES=$(find dist/assets -name "*.css" | wc -l)
+          JS_FILES=$(find docs/assets -name "*.js" | wc -l)
+          CSS_FILES=$(find docs/assets -name "*.css" | wc -l)
 
           if [ "$JS_FILES" -eq 0 ]; then
             echo "❌ FAIL: No JS files in assets"
@@ -71,10 +71,10 @@ jobs:
       - name: 📊 Check bundle size
         run: |
           echo "📊 Bundle Analysis:"
-          du -sh dist/
-          du -sh dist/assets/
+          du -sh docs/
+          du -sh docs/assets/
 
-          BUNDLE_SIZE=$(du -s dist/assets/index-*.js | awk '{print $1}')
+          BUNDLE_SIZE=$(du -s docs/assets/index-*.js | awk '{print $1}')
           echo "Main bundle: $BUNDLE_SIZE"
 
           if [ "$BUNDLE_SIZE" -gt 2000000 ]; then
