@@ -1704,6 +1704,25 @@ const loadUserTransactions = async (uid) => {
   }
 };
 
+// Helper: Load all income for a user
+const loadUserIncome = async (uid) => {
+  try {
+    const prijmySnap = await db.collection(`users/${uid}/prijmy`).get();
+    return prijmySnap.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      type: 'prijem',
+      castka: Number(doc.data().castka || 0),
+      datum: doc.data().datum || new Date().toISOString().slice(0, 10),
+      kategorie: doc.data().kategorie || 'other',
+      createdAt: doc.data().createdAt,
+    })).filter(t => t.castka > 0);
+  } catch (err) {
+    logger.warn(`Failed to load income for ${uid}: ${err.message}`);
+    return [];
+  }
+};
+
 // Helper: Calculate monthly expense features
 const calculateExpenseFeatures = (transactions) => {
   const monthlyExpenses = {};
@@ -1721,16 +1740,30 @@ const calculateExpenseFeatures = (transactions) => {
   return { monthlyExpenses, categoryExpenses };
 };
 
+// Helper: Calculate monthly income features
+const calculateIncomeFeatures = (income) => {
+  const monthlyIncome = {};
+
+  income.forEach(t => {
+    const [year, month] = t.datum.split('-').slice(0, 2);
+    const monthKey = `${year}-${month}`;
+    monthlyIncome[monthKey] = (monthlyIncome[monthKey] || 0) + t.castka;
+  });
+
+  return { monthlyIncome };
+};
+
 // Helper: Generate baseline prediction
-const generateBaselinePrediction = (transactions) => {
+const generateBaselinePrediction = (transactions, income) => {
+  // Expense prediction
   if (transactions.length === 0) {
-    return { totalPredictedExpense: 0, categories: {}, confidence: 'low' };
+    return { totalPredictedExpense: 0, categories: {}, confidence: 'low', monthlyIncome: {}, incomeStats: {} };
   }
 
   const { monthlyExpenses, categoryExpenses: allCategories } = calculateExpenseFeatures(transactions);
   const months = Object.keys(monthlyExpenses).sort();
 
-  // Calculate 3-month and 6-month averages
+  // Calculate 3-month and 6-month averages for expenses
   const last3Months = months.slice(-3);
   const last6Months = months.slice(-6);
 
@@ -1762,11 +1795,40 @@ const generateBaselinePrediction = (transactions) => {
     confidence = 'medium';
   }
 
+  // Income analysis
+  let incomeStats = {};
+  let monthlyIncome = {};
+
+  if (income && income.length > 0) {
+    const { monthlyIncome: monthlyIncomeData } = calculateIncomeFeatures(income);
+    monthlyIncome = monthlyIncomeData;
+    const incomeMonths = Object.keys(monthlyIncome).sort();
+
+    const incLast3 = incomeMonths.slice(-3);
+    const incLast6 = incomeMonths.slice(-6);
+
+    const incAvg3m = incLast3.length > 0
+      ? incLast3.reduce((s, m) => s + monthlyIncome[m], 0) / incLast3.length
+      : 0;
+
+    const incAvg6m = incLast6.length > 0
+      ? incLast6.reduce((s, m) => s + monthlyIncome[m], 0) / incLast6.length
+      : 0;
+
+    incomeStats = {
+      avg3m: Math.round(incAvg3m),
+      avg6m: Math.round(incAvg6m),
+      dataPoints: income.length,
+    };
+  }
+
   return {
     totalPredictedExpense: totalPredicted,
     categories,
     confidence,
     features: { avg3m: Math.round(avg3m), avg6m: Math.round(avg6m), dataPoints: transactions.length },
+    incomeStats,
+    monthlyIncome,
   };
 };
 
@@ -1785,6 +1847,8 @@ const savePredictionResults = async (uid, prediction) => {
       modelType: 'average-baseline',
       modelVersion: ML_VERSION,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      incomeStats: prediction.incomeStats || {},
+      monthlyIncome: prediction.monthlyIncome || {},
     };
 
     await db.collection(`users/${uid}/mlPredictions`).add(predictionData);
@@ -1829,7 +1893,8 @@ exports.runMlPipeline = functions
             continue;
           }
 
-          const prediction = generateBaselinePrediction(transactions);
+          const income = await loadUserIncome(user.uid);
+          const prediction = generateBaselinePrediction(transactions, income);
           const saved = await savePredictionResults(user.uid, prediction);
 
           if (saved) {
@@ -1952,7 +2017,8 @@ exports.testMlPipeline = functions.region(REGION).https.onRequest(async (req, re
               continue;
             }
 
-            const prediction = generateBaselinePrediction(transactions);
+            const income = await loadUserIncome(user.uid);
+            const prediction = generateBaselinePrediction(transactions, income);
             const saved = await savePredictionResults(user.uid, prediction);
 
             if (saved) {

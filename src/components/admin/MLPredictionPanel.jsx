@@ -178,6 +178,60 @@ export const MLPredictionPanel = () => {
                   </div>
                 )}
 
+                {/* Income section */}
+                {pred.incomeStats && Object.keys(pred.incomeStats).length > 0 && (
+                  <div className="mt-4 p-3 bg-green-50 dark:bg-green-950 rounded-lg border-l-4 border-green-500">
+                    <p className="font-semibold mb-3 text-green-900 dark:text-green-200">
+                      💰 Příjmy - Měsíční přehled
+                    </p>
+
+                    {/* Monthly breakdown */}
+                    {pred.monthlyIncome && Object.keys(pred.monthlyIncome).length > 0 && (
+                      <div className="space-y-2 mb-3">
+                        {Object.entries(pred.monthlyIncome)
+                          .sort(([a], [b]) => a.localeCompare(b))
+                          .map(([month, amount]) => {
+                            const percentage = pred.incomeStats.avg6m > 0
+                              ? (amount / pred.incomeStats.avg6m) * 100
+                              : 0;
+                            return (
+                              <div key={month} className="flex items-center gap-2">
+                                <span className="text-xs font-mono text-green-800 dark:text-green-300 w-12">
+                                  {month}
+                                </span>
+                                <div className="flex-1 bg-green-200 dark:bg-green-800 rounded h-5 relative overflow-hidden">
+                                  <div
+                                    className="bg-green-500 dark:bg-green-400 h-full transition-all"
+                                    style={{ width: `${Math.min(percentage, 100)}%` }}
+                                  />
+                                </div>
+                                <span className="text-xs font-semibold text-green-900 dark:text-green-200 w-20 text-right">
+                                  {amount.toLocaleString('cs-CZ')}
+                                </span>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    )}
+
+                    {/* Income averages */}
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <p className="text-xs text-green-700 dark:text-green-300">Průměr 3 měsíce</p>
+                        <p className="font-bold text-green-900 dark:text-green-100">
+                          {pred.incomeStats.avg3m?.toLocaleString('cs-CZ')}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-green-700 dark:text-green-300">Průměr 6 měsíců</p>
+                        <p className="font-bold text-green-900 dark:text-green-100">
+                          {pred.incomeStats.avg6m?.toLocaleString('cs-CZ')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <p className="text-xs text-light-textMuted dark:text-dark-textMuted mt-2">
                   Model: {pred.modelType || 'unknown'} ({pred.modelVersion})
                 </p>
