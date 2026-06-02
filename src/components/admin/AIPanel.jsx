@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AIAnalyzePanel } from './AIAnalyzePanel';
 import { AIControlPanel } from './AIControlPanel';
 import { AILearningPanel } from './AILearningPanel';
+import { AILearningPanel as LearningPanel } from './LearningPanel';
 
 export const AIPanel = () => {
   const [aiTab, setAiTab] = useState('analyze');
@@ -39,11 +40,22 @@ export const AIPanel = () => {
         >
           📚 Co se naučila
         </button>
+        <button
+          onClick={() => setAiTab('reports')}
+          className={`px-5 py-2 rounded-lg font-medium transition-all text-sm ${
+            aiTab === 'reports'
+              ? 'bg-purple-500 text-white shadow-md'
+              : 'bg-light-bg dark:bg-dark-bg text-light-text dark:text-dark-text hover:bg-light-border dark:hover:bg-dark-border'
+          }`}
+        >
+          📈 Učení
+        </button>
       </div>
 
       {aiTab === 'analyze' && <AIAnalyzePanel />}
       {aiTab === 'control' && <AIControlPanel />}
       {aiTab === 'learning' && <AILearningPanel />}
+      {aiTab === 'reports' && <LearningPanel />}
     </div>
   );
 };
