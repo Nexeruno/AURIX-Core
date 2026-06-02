@@ -1798,7 +1798,7 @@ const savePredictionResults = async (uid, prediction) => {
 // Scheduled function: Run ML pipeline every 3 days
 exports.runMlPipeline = functions
   .region(REGION)
-  .pubsub.schedule('every 3 days').onRun(async () => {
+  .pubsub.schedule('0 0 */3 * *').onRun(async () => {
     const startTime = Date.now();
 
     logger.info({
