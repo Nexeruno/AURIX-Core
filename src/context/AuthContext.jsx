@@ -7,8 +7,7 @@ import {
   onAuthStateChanged,
 } from 'firebase/auth';
 import {
-  doc, setDoc, getDoc, getDocs, updateDoc,
-  collection, query, where, serverTimestamp, deleteDoc, increment,
+  doc, setDoc, getDoc, updateDoc, serverTimestamp, deleteDoc, increment,
 } from 'firebase/firestore';
 import { auth, db } from '../utils/firebase';
 import { firebaseConfig, adminEmail as ADMIN_EMAIL } from '../config/firebase-config';

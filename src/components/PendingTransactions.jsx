@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Check, X, Edit2, Zap, AlertCircle, Clock, TrendingUp, TrendingDown, CheckCircle, RefreshCw } from 'lucide-react';
+import { Check, X, Edit2, Zap, Clock, TrendingUp, TrendingDown, CheckCircle, RefreshCw } from 'lucide-react';
 import { useAppStore } from '../utils/store';
 import { db, auth } from '../utils/firebase';
 import { firebaseConfig } from '../config/firebase-config';
@@ -200,7 +200,7 @@ const TransactionRow = ({ pending, isEditing, editForm, onEdit, onSave, onCancel
 // 📊 SECTION - VYDAJE nebo PŘÍJMY
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const TransactionSection = ({ title, icon: Icon, items, isEditing, editForm, onEdit, onSave, onCancel, onApprove, onReject, color }) => {
+const TransactionSection = ({ title, icon: Icon, items, isEditing, onEdit, onSave, onApprove, onReject, color }) => {
   if (items.length === 0) return null;
 
   return (
@@ -250,7 +250,6 @@ const TransactionSection = ({ title, icon: Icon, items, isEditing, editForm, onE
 
 export const PendingTransactions = () => {
   const { session } = useAuth();
-  const [userDoc, setUserDoc] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [pendingList, setPendingList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -338,21 +337,6 @@ export const PendingTransactions = () => {
     } finally {
       setGenerating(false);
     }
-  };
-
-  // Edit handler
-  const handleEditStart = (pending) => {
-    const dateValue = pending.generatedDate?.toDate?.()?.toISOString()?.slice(0, 10)
-      || (typeof pending.generatedDate === 'string' ? pending.generatedDate : new Date().toISOString().slice(0, 10));
-
-    setEditingId(pending.id);
-    setEditForm({
-      title: pending.title,
-      amount: pending.amount,
-      category: pending.category,
-      type: pending.type,
-      date: dateValue,
-    });
   };
 
   const handleEditChange = (id, form) => {

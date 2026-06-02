@@ -167,6 +167,7 @@ export const Dashboard = () => {
     });
 
     return { pieData, barData };
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization
   }, [filteredVydaje, filteredPrijmy]);
 
   const isEmpty = vydaje.length === 0 && prijmy.length === 0;

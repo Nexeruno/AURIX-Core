@@ -120,11 +120,8 @@ class AITracker {
     });
   }
 
-  trackGlobalClick(event) {
+  trackGlobalClick() {
     if (!this.isActive || !this.uid) return;
-
-    const target = event.target;
-    const elementType = target.tagName.toLowerCase();
 
     this.clickCount++;
   }

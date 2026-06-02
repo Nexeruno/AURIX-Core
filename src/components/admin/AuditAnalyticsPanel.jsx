@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { collection, getDocs, query, orderBy, limit, where } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../../utils/firebase';
-import { Search, Filter, Download, AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import { Search, Download, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export const AuditAnalyticsPanel = () => {

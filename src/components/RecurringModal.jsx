@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-export const RecurringModal = ({ isOpen, onClose, onSave, typ }) => {
+export const RecurringModal = ({ isOpen, onClose, onSave }) => {
   const [recurring, setRecurring] = useState({
     recurrenceType: 'monthly',
     recurrenceFrequency: 1,

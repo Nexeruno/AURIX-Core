@@ -1,4 +1,4 @@
-import { CheckCircle, AlertCircle, Target, Zap, TrendingUp, Lightbulb } from 'lucide-react';
+import { CheckCircle, AlertCircle, Target, TrendingUp, Lightbulb } from 'lucide-react';
 
 export const AILearningPanel = () => {
   const capabilities = [

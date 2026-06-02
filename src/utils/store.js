@@ -1,11 +1,9 @@
 import { create } from 'zustand';
 import {
-  collection, deleteDoc, doc, getDocs,
-  serverTimestamp, updateDoc, increment, writeBatch,
+  collection, doc, increment, writeBatch, serverTimestamp, getDocs,
 } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import toast from 'react-hot-toast';
-import { aiTracker } from './aiTracker';
 
 const getUid = () => auth.currentUser?.uid;
 

@@ -5,7 +5,7 @@ import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
-export const FavoritesModal = ({ isOpen, onClose, onSelect, onQuickAdd, typ }) => {
+export const FavoritesModal = ({ isOpen, onClose, onQuickAdd, typ }) => {
   const { session } = useAuth();
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(false);

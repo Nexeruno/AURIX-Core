@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { firebaseConfig } from '../../config/firebase-config';
 import { auth } from '../../utils/firebase';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { ArrowLeft, TrendingUp, Clock, Mouse, Type } from 'lucide-react';
+import { Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { ArrowLeft, TrendingUp, Clock, Mouse } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const COLORS = ['#3B82F6', '#EF4444', '#10B981'];
@@ -70,7 +70,6 @@ export const AIAnalyzePanel = () => {
   const formatMinutes = (ms) => Math.round(ms / 60000);
   const formatSeconds = (ms) => Math.round(ms / 1000);
   const dayNames = ['Neděle', 'Pondělí', 'Úterý', 'Středa', 'Čtvrtek', 'Pátek', 'Sobota'];
-  const monthNames = ['Led', 'Úno', 'Bře', 'Dub', 'Kvě', 'Čer', 'Čvc', 'Srp', 'Zář', 'Říj', 'Lis', 'Pro'];
 
   if (loading) {
     return <div className="text-center py-8 text-light-textMuted dark:text-dark-textMuted">Načítání...</div>;

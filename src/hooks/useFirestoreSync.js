@@ -34,7 +34,9 @@ export const clearSessionCache = (uid) => {
   try {
     sessionStorage.removeItem(cacheKey(uid, 'vydaje'));
     sessionStorage.removeItem(cacheKey(uid, 'prijmy'));
-  } catch {}
+  } catch (err) {
+    // sessionStorage cleanup failed, ignore
+  }
 };
 
 export const useFirestoreSync = () => {

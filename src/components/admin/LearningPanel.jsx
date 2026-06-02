@@ -29,20 +29,26 @@ export const AILearningPanel = () => {
         limit(50)
       );
 
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const data = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        console.log('Reports loaded:', data.length);
-        setReports(data);
-        setLoading(false);
-      });
+      const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          const data = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+          console.log('Reports loaded:', data.length);
+          setReports(data);
+          setLoading(false);
+        },
+        (error) => {
+          console.error('Firestore error:', error);
+          setLoading(false);
+        }
+      );
 
       return () => unsubscribe();
     } catch (err) {
-      console.error('Firestore error:', err);
-      setLoading(false);
+      console.error('Firestore setup error:', err);
     }
   }, []);
 

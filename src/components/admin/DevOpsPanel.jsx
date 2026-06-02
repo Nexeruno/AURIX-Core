@@ -2,21 +2,18 @@ import { useState, useEffect } from 'react';
 import { collection, getDocs, query, orderBy, updateDoc, doc, limit } from 'firebase/firestore';
 import { db, auth } from '../../utils/firebase';
 import { firebaseConfig } from '../../config/firebase-config';
-import { useAuth } from '../../context/AuthContext';
 import { formatDatum } from '../../utils/formatters';
 import { fetchAllUsers } from '../../utils/adminUtils';
-import { Server, AlertTriangle, AlertCircle, CheckCircle, XCircle, RefreshCw, Zap, Users, Activity, Wrench, ArrowRight } from 'lucide-react';
+import { Server, AlertTriangle, AlertCircle, CheckCircle, XCircle, RefreshCw, Users, Activity } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export const DevOpsPanel = () => {
-  const { session } = useAuth();
   const [health, setHealth] = useState(null);
   const [metrics, setMetrics] = useState(null);
   const [users, setUsers] = useState([]);
   const [systemAlerts, setSystemAlerts] = useState([]);
   const [securityEvents, setSecurityEvents] = useState([]);
   const [loading, setLoading] = useState({ health: true, metrics: false, users: true, systemAlerts: true, securityEvents: true });
-  const [actionResults, setActionResults] = useState({});
 
   // Načti health (auto 30s)
   useEffect(() => {
@@ -130,37 +127,6 @@ export const DevOpsPanel = () => {
       toast.error('Chyba při načítání metrik');
     } finally {
       setLoading((prev) => ({ ...prev, metrics: false }));
-    }
-  };
-
-  const callCloudFunction = async (functionName) => {
-    try {
-      const token = await auth.currentUser?.getIdToken();
-      if (!token) throw new Error('Nemáš token');
-
-      setActionResults((prev) => ({ ...prev, [functionName]: { loading: true } }));
-
-      const res = await fetch(
-        `https://europe-west1-${firebaseConfig.projectId}.cloudfunctions.net/${functionName}`,
-        {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-          body: JSON.stringify({}),
-        }
-      );
-
-      const data = await res.json();
-      setActionResults((prev) => ({ ...prev, [functionName]: data }));
-
-      if (res.ok) {
-        toast.success(`${functionName} vykonán`);
-      } else {
-        toast.error(`Chyba: ${data.error || 'neznámá chyba'}`);
-      }
-    } catch (err) {
-      console.error(`${functionName} error:`, err);
-      setActionResults((prev) => ({ ...prev, [functionName]: { error: err.message } }));
-      toast.error(`Chyba: ${err.message}`);
     }
   };
 

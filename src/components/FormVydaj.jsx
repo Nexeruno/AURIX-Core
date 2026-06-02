@@ -12,7 +12,7 @@ import { aiTracker } from '../utils/aiTracker';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-const validateForm = (form, label, isVydaj) => {
+const validateForm = (form, label) => {
   const locusCases = { 'Výdaj': 'výdaje', 'Příjem': 'příjmu' };
   if (!form.nazev?.trim()) return `Název ${locusCases[label]} je povinný`;
   if (!form.castka || Number(form.castka) <= 0) return 'Částka musí být větší než 0';

@@ -1,7 +1,8 @@
 {
   "env": {
     "browser": true,
-    "es2021": true
+    "es2021": true,
+    "node": true
   },
   "extends": [
     "eslint:recommended",
@@ -20,8 +21,18 @@
       "version": "detect"
     }
   },
+  "ignorePatterns": [
+    "node_modules/",
+    "docs/",
+    "dist/",
+    "functions/",
+    "*.min.js"
+  ],
   "rules": {
     "react/prop-types": "off",
-    "react/react-in-jsx-scope": "off"
+    "react/react-in-jsx-scope": "off",
+    "react/no-unescaped-entities": "off",
+    "react-hooks/set-state-in-effect": "off",
+    "react-hooks/preserve-manual-memoization": "off"
   }
 }
