@@ -57,27 +57,55 @@ export const MLPredictionPanel = () => {
       let allPredictions = [];
 
       if (isAdmin) {
-        // Admin vidí všechny predikce všech uživatelů
+        // Admin vidí všechny predikce všech uživatelů + uživatele bez predikcí
         const usersSnap = await getDocs(collection(db, 'users'));
-        for (const userDoc of usersSnap.docs) {
+        const usersList = usersSnap.docs.map(doc => ({
+          uid: doc.id,
+          username: doc.data().username || doc.id,
+          lastActivity: doc.data().lastLogin || doc.data().createdAt,
+        }));
+
+        for (const user of usersList) {
           const preds = await getDocs(
             query(
-              collection(db, `users/${userDoc.id}/mlPredictions`),
+              collection(db, `users/${user.uid}/mlPredictions`),
               orderBy('createdAt', 'desc'),
               limit(20)
             )
           );
-          allPredictions.push(
-            ...preds.docs.map(doc => ({
-              id: doc.id,
-              uid: userDoc.id,
-              username: userDoc.data().username || userDoc.id,
-              ...doc.data(),
-              createdAt: doc.data().createdAt?.toDate?.(),
-            }))
-          );
+
+          if (preds.empty) {
+            // Uživatel bez predikcí - přidej placeholder
+            allPredictions.push({
+              id: `${user.uid}-no-predictions`,
+              uid: user.uid,
+              username: user.username,
+              month: '-',
+              totalPredictedExpense: 0,
+              status: 'no-predictions',
+              createdAt: null,
+              message: '⏳ Čeká na první běh pipeline (každé 3 dny)',
+            });
+          } else {
+            // Přidej všechny predikce
+            allPredictions.push(
+              ...preds.docs.map(doc => ({
+                id: doc.id,
+                uid: user.uid,
+                username: user.username,
+                status: 'active',
+                ...doc.data(),
+                createdAt: doc.data().createdAt?.toDate?.(),
+              }))
+            );
+          }
         }
-        allPredictions.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        allPredictions.sort((a, b) => {
+          // Aktivní uživatelé první, pak podle data
+          if (a.status === 'active' && b.status !== 'active') return -1;
+          if (a.status !== 'active' && b.status === 'active') return 1;
+          return (b.createdAt || 0) - (a.createdAt || 0);
+        });
       } else {
         // Běžný uživatel vidí jen svoje
         const preds = await getDocs(
@@ -174,7 +202,36 @@ export const MLPredictionPanel = () => {
           <div className="space-y-4">
             {predictions
               .filter(pred => showHidden || !pred.hidden)
-              .map(pred => (
+              .map(pred => {
+                // Placeholder pro uživatele bez predikcí
+                if (pred.status === 'no-predictions') {
+                  return (
+                    <div
+                      key={pred.id}
+                      className="p-4 rounded-lg border-l-4 border-gray-400 bg-gray-50 dark:bg-gray-900"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-semibold text-sm">
+                            <span className="text-xs text-light-textMuted dark:text-dark-textMuted mr-2">
+                              ({pred.username})
+                            </span>
+                            Zatím žádná predikce
+                          </p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                            {pred.message}
+                          </p>
+                        </div>
+                        <span className="px-2 py-1 rounded text-xs font-semibold bg-gray-300 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+                          ⏸️ Čekání
+                        </span>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Normální predikce
+                return (
               <div
                 key={`${pred.uid}-${pred.id}`}
                 className={`p-4 rounded-lg border-l-4 border-purple-500 ${
@@ -342,7 +399,8 @@ export const MLPredictionPanel = () => {
                   Model: {pred.modelType || 'unknown'} ({pred.modelVersion})
                 </p>
               </div>
-            ))}
+                );
+              })}
           </div>
         )}
       </div>

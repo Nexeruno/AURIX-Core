@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { firebaseConfig } from '../../config/firebase-config';
-import { auth } from '../../utils/firebase';
+import { auth, db } from '../../utils/firebase';
+import { collection, getDocs } from 'firebase/firestore';
 import { Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { ArrowLeft, TrendingUp, Clock, Mouse } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -13,12 +14,22 @@ export const AIAnalyzePanel = () => {
   const [selectedUid, setSelectedUid] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const calculateDaysSinceLastActivity = (lastActivityDate) => {
+    if (!lastActivityDate) return null;
+    const date = new Date(lastActivityDate);
+    const now = new Date();
+    const diffTime = Math.abs(now - date);
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
   const fetchAllInsights = async () => {
     setLoading(true);
     try {
       const idToken = await auth.currentUser?.getIdToken();
       if (!idToken) throw new Error('ID Token not found');
 
+      // Fetch insights from Cloud Function
       const url = `https://europe-west1-${firebaseConfig.projectId}.cloudfunctions.net/aiGetAllInsights`;
       const response = await fetch(url, {
         method: 'GET',
@@ -29,7 +40,41 @@ export const AIAnalyzePanel = () => {
 
       if (!response.ok) throw new Error('Failed to fetch insights');
       const data = await response.json();
-      setAllInsights(data.allInsights || []);
+      const activeUsers = data.allInsights || [];
+
+      // Fetch all users from Firestore
+      const usersSnap = await getDocs(collection(db, 'users'));
+      const allUsers = usersSnap.docs.map(doc => ({
+        uid: doc.id,
+        username: doc.data().username || doc.id,
+        lastActivity: doc.data().lastLogin || doc.data().createdAt,
+      }));
+
+      // Merge: active users get insights, inactive get status
+      const merged = allUsers.map(user => {
+        const activeUser = activeUsers.find(u => u.uid === user.uid);
+        if (activeUser) {
+          return { ...activeUser, ...user, status: 'active' };
+        }
+        return {
+          uid: user.uid,
+          username: user.username,
+          status: 'inactive',
+          daysSinceActive: calculateDaysSinceLastActivity(user.lastActivity),
+          totalSessions: 0,
+          totalClicks: 0,
+          totalTimeMinutes: 0,
+          mostUsedTab: 'unknown',
+        };
+      });
+
+      // Sort: active first, then by last activity
+      merged.sort((a, b) => {
+        if (a.status !== b.status) return a.status === 'active' ? -1 : 1;
+        return (b.lastAnalyzed || 0) - (a.lastAnalyzed || 0);
+      });
+
+      setAllInsights(merged);
     } catch (err) {
       console.error('Error fetching insights:', err);
       toast.error('Chyba při načítání analýz');
@@ -308,9 +353,24 @@ export const AIAnalyzePanel = () => {
               </thead>
               <tbody>
                 {allInsights.map(user => (
-                  <tr key={user.uid} className="border-b border-light-border dark:border-dark-border hover:bg-light-bg dark:hover:bg-dark-card">
+                  <tr
+                    key={user.uid}
+                    className={`border-b border-light-border dark:border-dark-border ${
+                      user.status === 'inactive'
+                        ? 'bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800'
+                        : 'hover:bg-light-bg dark:hover:bg-dark-card'
+                    }`}
+                  >
                     <td className="py-3 px-3 font-medium">{user.username}</td>
-                    <td className="py-3 px-3">{user.totalSessions}</td>
+                    <td className="py-3 px-3">
+                      {user.status === 'inactive' ? (
+                        <span className="text-xs bg-gray-400 text-white px-2 py-1 rounded">
+                          ⏸️ {user.daysSinceActive} dní
+                        </span>
+                      ) : (
+                        user.totalSessions
+                      )}
+                    </td>
                     <td className="py-3 px-3 text-purple-600 dark:text-purple-400">{user.totalClicks || 0}</td>
                     <td className="py-3 px-3">{user.totalTimeMinutes}m</td>
                     <td className="py-3 px-3">
@@ -323,8 +383,12 @@ export const AIAnalyzePanel = () => {
                       {user.lastAnalyzed ? new Date(user.lastAnalyzed).toLocaleDateString('cs-CZ') : 'Nikdy'}
                     </td>
                     <td className="py-3 px-3">
-                      <button onClick={() => fetchUserInsights(user.uid)} className="px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition">
-                        Detail
+                      <button
+                        onClick={() => fetchUserInsights(user.uid)}
+                        disabled={user.status === 'inactive'}
+                        className="px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
+                      >
+                        {user.status === 'inactive' ? '—' : 'Detail'}
                       </button>
                     </td>
                   </tr>
@@ -336,13 +400,27 @@ export const AIAnalyzePanel = () => {
           {/* Mobile cards */}
           <div className="md:hidden space-y-3">
             {allInsights.map(user => (
-              <div key={user.uid} className="p-3 bg-light-bg dark:bg-dark-bg rounded-lg border border-light-border dark:border-dark-border">
-                <h4 className="font-semibold text-light-text dark:text-dark-text mb-2">{user.username}</h4>
+              <div
+                key={user.uid}
+                className={`p-3 rounded-lg border ${
+                  user.status === 'inactive'
+                    ? 'bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-700'
+                    : 'bg-light-bg dark:bg-dark-bg border-light-border dark:border-dark-border'
+                }`}
+              >
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className="font-semibold text-light-text dark:text-dark-text">{user.username}</h4>
+                  {user.status === 'inactive' && (
+                    <span className="text-xs bg-gray-400 text-white px-2 py-1 rounded">⏸️ {user.daysSinceActive}d</span>
+                  )}
+                </div>
 
                 <div className="grid grid-cols-3 gap-2 mb-3 text-xs">
                   <div className="p-2 bg-light-card dark:bg-dark-card rounded">
-                    <p className="text-light-textMuted dark:text-dark-textMuted">Sezení</p>
-                    <p className="font-bold">{user.totalSessions}</p>
+                    <p className="text-light-textMuted dark:text-dark-textMuted">
+                      {user.status === 'inactive' ? 'Status' : 'Sezení'}
+                    </p>
+                    <p className="font-bold">{user.status === 'inactive' ? '⏸️ Idle' : user.totalSessions}</p>
                   </div>
                   <div className="p-2 bg-light-card dark:bg-dark-card rounded">
                     <p className="text-light-textMuted dark:text-dark-textMuted">Kliknutí</p>
