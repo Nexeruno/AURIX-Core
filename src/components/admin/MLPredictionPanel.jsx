@@ -5,6 +5,8 @@ import toast from 'react-hot-toast';
 
 export const MLPredictionPanel = () => {
   const [predictions, setPredictions] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
+  const [selectedUserId, setSelectedUserId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [mlRuns, setMlRuns] = useState([]);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -55,17 +57,23 @@ export const MLPredictionPanel = () => {
       }
 
       let allPredictions = [];
+      let users = [];
 
       if (isAdmin) {
         // Admin vidí všechny predikce všech uživatelů + uživatele bez predikcí
         const usersSnap = await getDocs(collection(db, 'users'));
-        const usersList = usersSnap.docs.map(doc => ({
+        users = usersSnap.docs.map(doc => ({
           uid: doc.id,
           username: doc.data().username || doc.id,
           lastActivity: doc.data().lastLogin || doc.data().createdAt,
-        }));
+        })).sort((a, b) => (a.username || '').localeCompare(b.username || ''));
 
-        for (const user of usersList) {
+        setAllUsers(users);
+        if (users.length > 0 && !selectedUserId) {
+          setSelectedUserId(users[0].uid);
+        }
+
+        for (const user of users) {
           const preds = await getDocs(
             query(
               collection(db, `users/${user.uid}/mlPredictions`),
@@ -108,6 +116,9 @@ export const MLPredictionPanel = () => {
         });
       } else {
         // Běžný uživatel vidí jen svoje
+        setAllUsers([{ uid, username: auth.currentUser?.displayName || 'Já' }]);
+        setSelectedUserId(uid);
+
         const preds = await getDocs(
           query(
             collection(db, `users/${uid}/mlPredictions`),
@@ -175,20 +186,41 @@ export const MLPredictionPanel = () => {
     <div className="space-y-6">
       {/* User Predictions */}
       <div className="card">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold">🤖 Předpovědi výdajů</h3>
-          {isAdmin && (
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input
-                type="checkbox"
-                checked={showHidden}
-                onChange={(e) => setShowHidden(e.target.checked)}
-                className="w-4 h-4"
-              />
-              <span className="text-light-textMuted dark:text-dark-textMuted">
-                Zobrazit skryté
-              </span>
-            </label>
+        <div className="mb-4">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-lg font-semibold">🤖 Předpovědi výdajů</h3>
+            {isAdmin && (
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showHidden}
+                  onChange={(e) => setShowHidden(e.target.checked)}
+                  className="w-4 h-4"
+                />
+                <span className="text-light-textMuted dark:text-dark-textMuted">
+                  Zobrazit skryté
+                </span>
+              </label>
+            )}
+          </div>
+
+          {/* User Filter */}
+          {allUsers.length > 1 && (
+            <div className="flex gap-2 flex-wrap">
+              {allUsers.map(user => (
+                <button
+                  key={user.uid}
+                  onClick={() => setSelectedUserId(user.uid)}
+                  className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                    selectedUserId === user.uid
+                      ? 'bg-purple-500 text-white shadow-md'
+                      : 'bg-light-bg dark:bg-dark-bg text-light-text dark:text-dark-text hover:bg-light-border dark:hover:bg-dark-border'
+                  }`}
+                >
+                  {user.username}
+                </button>
+              ))}
+            </div>
           )}
         </div>
 
@@ -201,6 +233,7 @@ export const MLPredictionPanel = () => {
         ) : (
           <div className="space-y-4">
             {predictions
+              .filter(pred => pred.uid === selectedUserId)
               .filter(pred => showHidden || !pred.hidden)
               .map(pred => {
                 // Placeholder pro uživatele bez predikcí
