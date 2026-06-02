@@ -8,6 +8,7 @@ export const AIControlPanel = () => {
   const [triggering, setTriggering] = useState(false);
   const [lastRun, setLastRun] = useState(null);
   const [lastSummary, setLastSummary] = useState(null);
+  const [mlPipelineTriggering, setMlPipelineTriggering] = useState(false);
 
   const triggerAnalysis = async () => {
     setTriggering(true);
@@ -36,6 +37,34 @@ export const AIControlPanel = () => {
       toast.error('Chyba při spuštění analýzy');
     } finally {
       setTriggering(false);
+    }
+  };
+
+  const triggerMlPipeline = async () => {
+    setMlPipelineTriggering(true);
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) throw new Error('ID Token not found');
+
+      const url = `https://europe-west1-${firebaseConfig.projectId}.cloudfunctions.net/testMlPipeline`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      });
+
+      if (!response.ok) throw new Error('Failed to trigger ML Pipeline');
+
+      const data = await response.json();
+      toast.success(`✅ ML Pipeline spuštěno. Zpracováno ${data.usersProcessed} uživatelů, ${data.predictionsCreated} predikací.`);
+    } catch (err) {
+      console.error('Error triggering ML Pipeline:', err);
+      toast.error('Chyba při spuštění ML Pipeline');
+    } finally {
+      setMlPipelineTriggering(false);
     }
   };
 
@@ -106,16 +135,30 @@ export const AIControlPanel = () => {
       <div className="card">
         <h3 className="text-lg font-semibold mb-4">🚀 Ruční spuštění</h3>
         <div className="space-y-3">
-          <p className="text-sm text-light-textMuted dark:text-dark-textMuted">
-            Normálně se analýza spouští automaticky každých 10 hodin. Kliknutím níže ji spustíte hned.
-          </p>
-          <button
-            onClick={triggerAnalysis}
-            disabled={triggering}
-            className="btn-secondary w-full disabled:opacity-60"
-          >
-            {triggering ? 'Analýza běží...' : 'Spustit analýzu'}
-          </button>
+          <div>
+            <p className="text-sm text-light-textMuted dark:text-dark-textMuted mb-2">
+              Normálně se analýza spouští automaticky každých 10 hodin. Kliknutím níže ji spustíte hned.
+            </p>
+            <button
+              onClick={triggerAnalysis}
+              disabled={triggering}
+              className="btn-secondary w-full disabled:opacity-60"
+            >
+              {triggering ? 'Analýza běží...' : 'Spustit analýzu'}
+            </button>
+          </div>
+          <div>
+            <p className="text-sm text-light-textMuted dark:text-dark-textMuted mb-2">
+              ML Pipeline se spouští automaticky každé 3 dny. Kliknutím níže ji spustíte teď.
+            </p>
+            <button
+              onClick={triggerMlPipeline}
+              disabled={mlPipelineTriggering}
+              className="btn-secondary w-full disabled:opacity-60 bg-purple-600 hover:bg-purple-700"
+            >
+              {mlPipelineTriggering ? 'Pipeline běží...' : '🤖 Spustit ML Pipeline'}
+            </button>
+          </div>
         </div>
       </div>
 

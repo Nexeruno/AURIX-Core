@@ -1912,3 +1912,139 @@ exports.runMlPipeline = functions
     }
   });
 
+// Admin-only manual trigger for ML Pipeline (for testing)
+exports.testMlPipeline = functions.region(REGION).https.onRequest(async (req, res) => {
+  cors(req, res, async () => {
+    try {
+      const token = req.headers.authorization?.split('Bearer ')[1];
+      if (!token) {
+        return res.status(400).json({ error: 'Token je povinný' });
+      }
+
+      const decodedToken = await verifyAuth(token);
+      if (!(await verifyAdmin(decodedToken))) {
+        return res.status(403).json({ error: '🔐 Jen admin!' });
+      }
+
+      logger.info({
+        event: 'mlPipeline_manualTest_triggered',
+        uid: decodedToken.uid,
+      });
+
+      const startTime = Date.now();
+      let usersProcessed = 0;
+      let predictionsCreated = 0;
+      let errorMessage = null;
+      let errorCode = null;
+
+      try {
+        const usersSnap = await db.collection('users').get();
+        const users = usersSnap.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
+
+        logger.info({ event: 'mlPipeline_usersLoaded', count: users.length });
+
+        for (const user of users) {
+          try {
+            const transactions = await loadUserTransactions(user.uid);
+
+            if (transactions.length === 0) {
+              logger.info({ event: 'mlPipeline_noTransactions', uid: user.uid });
+              continue;
+            }
+
+            const prediction = generateBaselinePrediction(transactions);
+            const saved = await savePredictionResults(user.uid, prediction);
+
+            if (saved) {
+              predictionsCreated++;
+              logger.info({
+                event: 'mlPipeline_predictionSaved',
+                uid: user.uid,
+                totalPredicted: prediction.totalPredictedExpense,
+                confidence: prediction.confidence,
+              });
+            }
+
+            usersProcessed++;
+          } catch (userErr) {
+            logger.warn({
+              event: 'mlPipeline_userError',
+              uid: user.uid,
+              error: userErr.message,
+            });
+          }
+        }
+
+        const durationMs = Date.now() - startTime;
+
+        // Save test run
+        await db.collection('mlRuns').add({
+          status: 'success',
+          pipelineLevel: ML_PIPELINE_LEVEL,
+          modelVersion: ML_VERSION,
+          startedAt: new Date(startTime),
+          finishedAt: new Date(),
+          usersProcessed,
+          predictionsCreated,
+          durationMs,
+          errorMessage: null,
+          errorCode: null,
+          isManualTest: true,
+          triggeredBy: decodedToken.uid,
+        });
+
+        logger.info({
+          event: 'mlPipeline_manualTest_completed',
+          usersProcessed,
+          predictionsCreated,
+          durationMs,
+        });
+
+        res.status(200).json({
+          ok: true,
+          status: 'success',
+          usersProcessed,
+          predictionsCreated,
+          durationMs,
+        });
+      } catch (err) {
+        errorMessage = err.message;
+        errorCode = err.code || 'UNKNOWN';
+        const durationMs = Date.now() - startTime;
+
+        logger.error({
+          event: 'mlPipeline_manualTest_failed',
+          errorMessage,
+          errorCode,
+          durationMs,
+        });
+
+        await db.collection('mlRuns').add({
+          status: 'failed',
+          pipelineLevel: ML_PIPELINE_LEVEL,
+          modelVersion: ML_VERSION,
+          startedAt: new Date(startTime),
+          finishedAt: new Date(),
+          usersProcessed,
+          predictionsCreated,
+          durationMs,
+          errorMessage,
+          errorCode,
+          isManualTest: true,
+          triggeredBy: decodedToken.uid,
+        });
+
+        res.status(500).json({
+          ok: false,
+          status: 'failed',
+          error: errorMessage,
+          errorCode,
+        });
+      }
+    } catch (err) {
+      logger.error('testMlPipeline error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+});
+
