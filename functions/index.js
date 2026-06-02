@@ -1364,6 +1364,7 @@ exports.aiGetAllInsights = functions.region(REGION).https.onRequest(async (req, 
 });
 
 exports.aiUpdateConfig = functions.region(REGION).https.onRequest(async (req, res) => {
+  let decodedToken = null;
   cors(req, res, async () => {
     try {
       const token = req.headers.authorization?.split('Bearer ')[1];
@@ -1373,7 +1374,7 @@ exports.aiUpdateConfig = functions.region(REGION).https.onRequest(async (req, re
         return res.status(400).json({ error: 'Token je povinný' });
       }
 
-      const decodedToken = await verifyAuth(token);
+      decodedToken = await verifyAuth(token);
       if (!(await verifyAdmin(decodedToken))) {
         await logAdminAction(decodedToken?.uid, 'aiUpdateConfig_DENIED', { reason: 'not_admin' });
         return res.status(403).json({ error: '🔐 Jen admin!' });
@@ -1676,4 +1677,238 @@ function getMostUsedTab(tabs) {
   if (max === prijmy) return 'prijmy';
   return 'unknown';
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🤖 ML PIPELINE LEVEL 1 - Simple expense prediction based on history
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const ML_VERSION = 'expense-predictor-baseline-v1';
+const ML_PIPELINE_LEVEL = 1;
+
+// Helper: Load all transactions for a user
+const loadUserTransactions = async (uid) => {
+  try {
+    const vydajeSnap = await db.collection(`users/${uid}/vydaje`).get();
+    return vydajeSnap.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      type: 'vydaj',
+      castka: Number(doc.data().castka || 0),
+      datum: doc.data().datum || new Date().toISOString().slice(0, 10),
+      kategorie: doc.data().kategorie || 'other',
+      createdAt: doc.data().createdAt,
+    })).filter(t => t.castka > 0);
+  } catch (err) {
+    logger.warn(`Failed to load transactions for ${uid}: ${err.message}`);
+    return [];
+  }
+};
+
+// Helper: Calculate monthly expense features
+const calculateExpenseFeatures = (transactions) => {
+  const monthlyExpenses = {};
+  const categoryExpenses = {};
+
+  transactions.forEach(t => {
+    const [year, month] = t.datum.split('-').slice(0, 2);
+    const monthKey = `${year}-${month}`;
+    const category = t.kategorie || 'other';
+
+    monthlyExpenses[monthKey] = (monthlyExpenses[monthKey] || 0) + t.castka;
+    categoryExpenses[category] = (categoryExpenses[category] || 0) + t.castka;
+  });
+
+  return { monthlyExpenses, categoryExpenses };
+};
+
+// Helper: Generate baseline prediction
+const generateBaselinePrediction = (transactions) => {
+  if (transactions.length === 0) {
+    return { totalPredictedExpense: 0, categories: {}, confidence: 'low' };
+  }
+
+  const { monthlyExpenses, categoryExpenses: allCategories } = calculateExpenseFeatures(transactions);
+  const months = Object.keys(monthlyExpenses).sort();
+
+  // Calculate 3-month and 6-month averages
+  const last3Months = months.slice(-3);
+  const last6Months = months.slice(-6);
+
+  const avg3m = last3Months.length > 0
+    ? last3Months.reduce((s, m) => s + monthlyExpenses[m], 0) / last3Months.length
+    : 0;
+
+  const avg6m = last6Months.length > 0
+    ? last6Months.reduce((s, m) => s + monthlyExpenses[m], 0) / last6Months.length
+    : 0;
+
+  // Simple prediction: average of 3m and 6m, with slight bias toward recent
+  const totalPredicted = avg3m > 0 ? Math.round(avg3m * 0.6 + avg6m * 0.4) : avg6m;
+
+  // Predict by category proportionally
+  const totalAll = Object.values(allCategories).reduce((s, c) => s + c, 0);
+  const categories = {};
+  Object.entries(allCategories).forEach(([cat, amount]) => {
+    categories[cat] = totalAll > 0 ? Math.round((amount / totalAll) * totalPredicted) : 0;
+  });
+
+  // Confidence: based on data consistency
+  let confidence = 'low';
+  if (last3Months.length === 3) {
+    const variance = Math.abs(monthlyExpenses[last3Months[0]] - monthlyExpenses[last3Months[2]]) / avg3m;
+    if (variance < 0.2) confidence = 'high';
+    else if (variance < 0.4) confidence = 'medium';
+  } else if (last3Months.length >= 2) {
+    confidence = 'medium';
+  }
+
+  return {
+    totalPredictedExpense: totalPredicted,
+    categories,
+    confidence,
+    features: { avg3m: Math.round(avg3m), avg6m: Math.round(avg6m), dataPoints: transactions.length },
+  };
+};
+
+// Helper: Save prediction results
+const savePredictionResults = async (uid, prediction) => {
+  try {
+    const now = new Date();
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const nextMonthStr = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}`;
+
+    const predictionData = {
+      month: nextMonthStr,
+      totalPredictedExpense: prediction.totalPredictedExpense,
+      categories: prediction.categories,
+      confidence: prediction.confidence,
+      modelType: 'average-baseline',
+      modelVersion: ML_VERSION,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    await db.collection(`users/${uid}/mlPredictions`).add(predictionData);
+    return true;
+  } catch (err) {
+    logger.error(`Failed to save prediction for ${uid}: ${err.message}`);
+    return false;
+  }
+};
+
+// Scheduled function: Run ML pipeline every 3 days
+exports.runMlPipeline = functions
+  .region(REGION)
+  .pubsub.schedule('every 3 days').onRun(async () => {
+    const startTime = Date.now();
+
+    logger.info({
+      event: 'mlPipeline_started',
+      pipelineLevel: ML_PIPELINE_LEVEL,
+      modelVersion: ML_VERSION,
+    });
+
+    let usersProcessed = 0;
+    let predictionsCreated = 0;
+    let errorMessage = null;
+    let errorCode = null;
+
+    try {
+      // Load all users
+      const usersSnap = await db.collection('users').get();
+      const users = usersSnap.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
+
+      logger.info({ event: 'mlPipeline_usersLoaded', count: users.length });
+
+      // Process each user
+      for (const user of users) {
+        try {
+          const transactions = await loadUserTransactions(user.uid);
+
+          if (transactions.length === 0) {
+            logger.info({ event: 'mlPipeline_noTransactions', uid: user.uid });
+            continue;
+          }
+
+          const prediction = generateBaselinePrediction(transactions);
+          const saved = await savePredictionResults(user.uid, prediction);
+
+          if (saved) {
+            predictionsCreated++;
+            logger.info({
+              event: 'mlPipeline_predictionSaved',
+              uid: user.uid,
+              totalPredicted: prediction.totalPredictedExpense,
+              confidence: prediction.confidence,
+            });
+          }
+
+          usersProcessed++;
+        } catch (userErr) {
+          logger.warn({
+            event: 'mlPipeline_userError',
+            uid: user.uid,
+            error: userErr.message,
+          });
+        }
+      }
+
+      const durationMs = Date.now() - startTime;
+
+      // Save successful run
+      await db.collection('mlRuns').add({
+        status: 'success',
+        pipelineLevel: ML_PIPELINE_LEVEL,
+        modelVersion: ML_VERSION,
+        startedAt: new Date(startTime),
+        finishedAt: new Date(),
+        usersProcessed,
+        predictionsCreated,
+        durationMs,
+        errorMessage: null,
+        errorCode: null,
+      });
+
+      logger.info({
+        event: 'mlPipeline_completed',
+        pipelineLevel: ML_PIPELINE_LEVEL,
+        usersProcessed,
+        predictionsCreated,
+        durationMs,
+      });
+
+      return { status: 'success', usersProcessed, predictionsCreated };
+    } catch (err) {
+      errorMessage = err.message;
+      errorCode = err.code || 'UNKNOWN';
+      const durationMs = Date.now() - startTime;
+
+      logger.error({
+        event: 'mlPipeline_failed',
+        pipelineLevel: ML_PIPELINE_LEVEL,
+        errorMessage,
+        errorCode,
+        durationMs,
+      });
+
+      // Save failed run
+      try {
+        await db.collection('mlRuns').add({
+          status: 'failed',
+          pipelineLevel: ML_PIPELINE_LEVEL,
+          modelVersion: ML_VERSION,
+          startedAt: new Date(startTime),
+          finishedAt: new Date(),
+          usersProcessed,
+          predictionsCreated,
+          durationMs,
+          errorMessage,
+          errorCode,
+        });
+      } catch (logErr) {
+        logger.error({ event: 'mlPipeline_logError', error: logErr.message });
+      }
+
+      throw err;
+    }
+  });
 

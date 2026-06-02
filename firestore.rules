@@ -116,5 +116,21 @@ service cloud.firestore {
       allow read: if isAdmin(request.auth.uid);
       allow write: if false;  // Jen Cloud Functions
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // 🤖 ML PIPELINE - Expense predictions and run logs
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    // ML Predictions — user čte svoje predikce, CF píše
+    match /users/{uid}/mlPredictions/{document=**} {
+      allow read: if isOwner(uid);
+      allow write: if false;  // Jen Cloud Functions (Admin SDK)
+    }
+
+    // ML Run Logs — jen admin čte, CF píše
+    match /mlRuns/{document=**} {
+      allow read: if isAdmin(request.auth.uid);
+      allow write: if false;  // Jen Cloud Functions (Admin SDK)
+    }
   }
 }

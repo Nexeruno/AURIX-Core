@@ -3,6 +3,7 @@ import { AIAnalyzePanel } from './AIAnalyzePanel';
 import { AIControlPanel } from './AIControlPanel';
 import { AILearningPanel } from './AILearningPanel';
 import { AILearningPanel as LearningPanel } from './LearningPanel';
+import { MLPredictionPanel } from './MLPredictionPanel';
 
 export const AIPanel = () => {
   const [aiTab, setAiTab] = useState('analyze');
@@ -50,12 +51,23 @@ export const AIPanel = () => {
         >
           📈 Učení
         </button>
+        <button
+          onClick={() => setAiTab('predictions')}
+          className={`px-5 py-2 rounded-lg font-medium transition-all text-sm ${
+            aiTab === 'predictions'
+              ? 'bg-purple-500 text-white shadow-md'
+              : 'bg-light-bg dark:bg-dark-bg text-light-text dark:text-dark-text hover:bg-light-border dark:hover:bg-dark-border'
+          }`}
+        >
+          🤖 Predikce
+        </button>
       </div>
 
       {aiTab === 'analyze' && <AIAnalyzePanel />}
       {aiTab === 'control' && <AIControlPanel />}
       {aiTab === 'learning' && <AILearningPanel />}
       {aiTab === 'reports' && <LearningPanel />}
+      {aiTab === 'predictions' && <MLPredictionPanel />}
     </div>
   );
 };
