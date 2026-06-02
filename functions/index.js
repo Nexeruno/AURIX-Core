@@ -882,6 +882,84 @@ exports.hourlyHealthMonitor = functions
   });
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// 📊 LEARNING REPORTS - Generate "Co se naučila" snapshots with time windows
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const generateLearningReport = async (triggeredBy) => {
+  const now = new Date();
+  const timeWindows = {
+    '5min': 5 * 60 * 1000,
+    '30min': 30 * 60 * 1000,
+    '1h': 60 * 60 * 1000,
+    '2h': 2 * 60 * 60 * 1000,
+    '4h': 4 * 60 * 60 * 1000,
+    '6h': 6 * 60 * 60 * 1000,
+    '8h': 8 * 60 * 60 * 1000,
+    '12h': 12 * 60 * 60 * 1000,
+    '24h': 24 * 60 * 60 * 1000,
+  };
+
+  const windowData = {};
+
+  try {
+    for (const [label, offsetMs] of Object.entries(timeWindows)) {
+      const startTime = new Date(now.getTime() - offsetMs);
+
+      try {
+        const sessionsSnap = await db.collectionGroup('sessions')
+          .where('startTime', '>=', startTime)
+          .limit(500)
+          .get();
+
+        const sessions = sessionsSnap.docs.map(d => d.data());
+        const uniqueUsers = new Set(sessions.map(s => s.uid).filter(Boolean));
+        let vydaje = 0, prijmy = 0;
+        const categoryCount = {};
+
+        sessions.forEach(s => {
+          if (s.vydajeCount) vydaje += s.vydajeCount;
+          if (s.prijmyCount) prijmy += s.prijmyCount;
+        });
+
+        const topCategories = Object.entries(categoryCount)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 3)
+          .map(([name, count]) => ({ name, count }));
+
+        windowData[label] = {
+          usersActive: uniqueUsers.size,
+          sessions: sessions.length,
+          vydaje,
+          prijmy,
+          topCategories,
+        };
+      } catch (err) {
+        console.warn(`Error processing ${label}:`, err);
+        windowData[label] = { usersActive: 0, sessions: 0, vydaje: 0, prijmy: 0, topCategories: [] };
+      }
+    }
+
+    const reportDoc = {
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      triggeredBy,
+      timeWindows: windowData,
+      summary: {
+        totalVydaje: Object.values(windowData).reduce((s, w) => s + w.vydaje, 0),
+        totalPrijmy: Object.values(windowData).reduce((s, w) => s + w.prijmy, 0),
+        usersAnalyzed: windowData['24h']?.usersActive || 0,
+      },
+    };
+
+    const reportRef = await db.collection('aiLearningReports').add(reportDoc);
+    console.log(`✓ Learning report created: ${reportRef.id}`);
+    return reportRef.id;
+  } catch (err) {
+    console.error('❌ Learning report error:', err);
+    throw err;
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // 🤖 AI DATA ANALYSIS - Analyze user behavior every 10 hours
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1014,6 +1092,13 @@ exports.aiAnalyzeUsers = functions
       }
 
       console.log(`✅ AI analýza hotova. Analyzováno ${analyzedCount} uživatelů.`);
+
+      try {
+        await generateLearningReport('scheduled');
+      } catch (err) {
+        console.error('Learning report error:', err);
+      }
+
       return { success: true, analyzed: analyzedCount };
     } catch (err) {
       console.error('❌ aiAnalyzeUsers error:', err);
@@ -1202,6 +1287,74 @@ exports.aiUpdateConfig = functions.region(REGION).https.onRequest(async (req, re
   });
 });
 
+exports.aiDeleteLearningReport = functions.region(REGION).https.onRequest((req, res) => {
+  return cors(req, res, async () => {
+    let decodedToken = null;
+    try {
+      const token = req.headers.authorization?.split('Bearer ')[1];
+      const { reportId } = req.body;
+
+      if (!token || !reportId) {
+        return res.status(400).json({ error: 'Token a reportId povinné' });
+      }
+
+      decodedToken = await verifyAuth(token);
+      if (!(await verifyAdmin(decodedToken))) {
+        return res.status(403).json({ error: 'Admin only' });
+      }
+
+      const rateLimited = await checkAIRateLimit(decodedToken.uid, 'deleteReport', 100);
+      if (!rateLimited) {
+        return res.status(429).json({ error: 'Rate limited' });
+      }
+
+      await db.collection('aiLearningReports').doc(reportId).delete();
+      await logAdminAction(decodedToken.uid, 'aiDeleteLearningReport', { reportId });
+
+      res.status(200).json({ ok: true });
+    } catch (err) {
+      console.error('aiDeleteLearningReport error:', err);
+      await logAdminAction(decodedToken?.uid, 'aiDeleteLearningReport_ERROR', { error: err.message });
+      res.status(500).json({ error: err.message });
+    }
+  });
+});
+
+exports.aiCleanupLearningReports = functions
+  .region(REGION)
+  .pubsub.schedule('0 */6 * * *')
+  .timeZone('Europe/Prague')
+  .onRun(async () => {
+    try {
+      console.log('🧹 Cleaning learning reports...');
+      const seventyTwoHoursAgo = new Date(Date.now() - 72 * 60 * 60 * 1000);
+
+      const oldReports = await db.collection('aiLearningReports')
+        .where('createdAt', '<', seventyTwoHoursAgo)
+        .limit(500)
+        .get();
+
+      if (oldReports.empty) {
+        return { success: true, deleted: 0 };
+      }
+
+      const batch = db.batch();
+      let deleteCount = 0;
+
+      oldReports.docs.forEach(doc => {
+        batch.delete(doc.ref);
+        deleteCount++;
+      });
+
+      await batch.commit();
+      console.log(`✓ Deleted ${deleteCount} old learning reports`);
+      return { success: true, deleted: deleteCount };
+    } catch (err) {
+      console.error('❌ aiCleanupLearningReports error:', err);
+      return { success: false, error: err.message };
+    }
+  });
+
 exports.aiTriggerAnalysis = functions.region(REGION).https.onRequest((req, res) => {
   return cors(req, res, async () => {
     let decodedToken = null;
@@ -1345,10 +1498,18 @@ exports.aiTriggerAnalysis = functions.region(REGION).https.onRequest((req, res) 
         }
       }
 
-      await logAdminAction(decodedToken.uid, 'aiTriggerAnalysis_COMPLETE', { analyzed: analyzedCount, summary });
+      let reportId = null;
+      try {
+        reportId = await generateLearningReport('manual');
+      } catch (err) {
+        console.error('Learning report error:', err);
+      }
+
+      await logAdminAction(decodedToken.uid, 'aiTriggerAnalysis_COMPLETE', { analyzed: analyzedCount, summary, reportId });
       res.status(200).json({
         ok: true,
         analyzed: analyzedCount,
+        reportId,
         summary: {
           totalVydaje: summary.totalVydaje,
           totalPrijmy: summary.totalPrijmy,
