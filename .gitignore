@@ -36,3 +36,7 @@ functions/.runtimeconfig.json
 
 # Kubernetes secrets (generated from example)
 k8s/secret.yaml
+
+# Test files
+test-*.js
+test-*.png
