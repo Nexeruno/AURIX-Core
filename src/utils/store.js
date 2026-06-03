@@ -130,9 +130,7 @@ export const useAppStore = create((set) => ({
 
 // Activity tracker - comprehensive user activity tracking with idle detection
 let activityTimeout;
-let tabVisibleTimeout;
 let idleCheckInterval;
-let lastSessionStart;
 let lastTabVisibility = document.hidden;
 let lastActivityTime = Date.now(); // Track actual user interaction time
 
@@ -177,7 +175,7 @@ export const initActivityTracker = () => {
         });
       } else if (!isTabHidden && timeSinceLastActivity < IDLE_TIMEOUT_MS) {
         // Tab is visible and recent activity exists → mark as online
-        const { updateDoc, serverTimestamp } = await import('firebase/firestore');
+        const { updateDoc } = await import('firebase/firestore');
         await updateDoc(doc(db, 'users', currentUid), {
           deviceStatus: 'active',
           isOnline: true,
@@ -224,7 +222,6 @@ export const initActivityTracker = () => {
       if (isNowVisible && !lastTabVisibility) {
         // Tab became visible - user returned
         lastActivityTime = Date.now();
-        lastSessionStart = new Date();
         await updateDoc(doc(db, 'users', currentUid), {
           lastActivity: serverTimestamp(),
           lastSessionStart: serverTimestamp(),
@@ -285,7 +282,6 @@ export const initActivityTracker = () => {
       const currentUid = auth.currentUser?.uid;
       if (!currentUid) return;
       const { updateDoc, serverTimestamp } = await import('firebase/firestore');
-      lastSessionStart = new Date();
       lastActivityTime = Date.now();
       await updateDoc(doc(db, 'users', currentUid), {
         lastActivity: serverTimestamp(),

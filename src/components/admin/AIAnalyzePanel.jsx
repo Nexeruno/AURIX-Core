@@ -165,7 +165,7 @@ export const AIAnalyzePanel = () => {
 
   useEffect(() => {
     fetchAllInsights();
-  }, []);
+  }, [fetchAllInsights]);
 
   const formatMinutes = (ms) => Math.round(ms / 60000);
   const formatSeconds = (ms) => Math.round(ms / 1000);
