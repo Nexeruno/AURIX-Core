@@ -13,6 +13,8 @@ export const MLPredictionPanel = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [showHidden, setShowHidden] = useState(false);
   const [expandedPred, setExpandedPred] = useState(null);
+  const [showLevel2, setShowLevel2] = useState(false);
+  const [activePredictionLevel, setActivePredictionLevel] = useState(1);
 
   const checkAdmin = async () => {
     try {
@@ -192,17 +194,30 @@ export const MLPredictionPanel = () => {
           <div className="flex justify-between items-center mb-3">
             <h3 className="text-lg font-semibold">🤖 Předpovědi výdajů</h3>
             {isAdmin && (
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={showHidden}
-                  onChange={(e) => setShowHidden(e.target.checked)}
-                  className="w-4 h-4"
-                />
-                <span className="text-light-textMuted dark:text-dark-textMuted">
-                  Zobrazit skryté
-                </span>
-              </label>
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showHidden}
+                    onChange={(e) => setShowHidden(e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-light-textMuted dark:text-dark-textMuted">
+                    Zobrazit skryté
+                  </span>
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer bg-purple-100 dark:bg-purple-900/30 px-3 py-1 rounded">
+                  <input
+                    type="checkbox"
+                    checked={showLevel2}
+                    onChange={(e) => setShowLevel2(e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-purple-700 dark:text-purple-300 font-medium">
+                    Level 2 (Shadow)
+                  </span>
+                </label>
+              </div>
             )}
           </div>
 
@@ -244,6 +259,10 @@ export const MLPredictionPanel = () => {
                 {predictions
                   .filter(pred => pred.uid === selectedUserId)
                   .filter(pred => showHidden || !pred.hidden)
+                  .filter(pred => {
+                    const level = pred.pipelineLevel || 1;
+                    return showLevel2 ? level === 2 : level === 1;
+                  })
                   .map(pred => {
                     const isExpanded = expandedPred === `${pred.uid}-${pred.id}`;
                     const predKey = `${pred.uid}-${pred.id}`;
@@ -288,6 +307,7 @@ export const MLPredictionPanel = () => {
                               year: 'numeric',
                             })}
                             {pred.hidden && <span className="ml-2 text-xs bg-gray-500 text-white px-2 py-0.5 rounded">SKRYTO</span>}
+                            {pred.shadowMode && <span className="ml-2 text-xs bg-orange-500 text-white px-2 py-0.5 rounded">🔄 SHADOW MODE</span>}
                           </td>
                           <td className="py-2 px-3 text-right font-semibold text-red-600 dark:text-red-400">
                             {pred.totalPredictedExpense.toLocaleString('cs-CZ')} Kč
@@ -449,18 +469,44 @@ export const MLPredictionPanel = () => {
         </div>
       )}
 
-      {/* Info Section */}
-      <div className="card border-l-4 border-purple-500 bg-purple-50 dark:bg-purple-950">
-        <h4 className="font-semibold text-purple-900 dark:text-purple-200 mb-2">
-          🤖 O ML Pipeline (Level 1)
-        </h4>
-        <ul className="text-sm text-purple-800 dark:text-purple-300 space-y-1">
-          <li>• Běží každé 3 dny automaticky</li>
-          <li>• Používá 3-měsíční a 6-měsíční průměry</li>
-          <li>• Predikuje výdaje na příští měsíc</li>
-          <li>• Jistota závisí na konzistenci vašich výdajů</li>
-          <li>• Model: baseline average (bez ML algoritmů)</li>
-        </ul>
+      {/* Info Sections */}
+      <div className="space-y-4">
+        {/* Level 1 Info */}
+        <div className="card border-l-4 border-purple-500 bg-purple-50 dark:bg-purple-950">
+          <h4 className="font-semibold text-purple-900 dark:text-purple-200 mb-2">
+            🤖 O ML Pipeline (Level 1)
+          </h4>
+          <ul className="text-sm text-purple-800 dark:text-purple-300 space-y-1">
+            <li>• Běží každé 3 dny automaticky</li>
+            <li>• Používá 3-měsíční a 6-měsíční průměry</li>
+            <li>• Predikuje výdaje na příští měsíc</li>
+            <li>• Jistota závisí na konzistenci vašich výdajů</li>
+            <li>• Model: baseline average (bez ML algoritmů)</li>
+          </ul>
+        </div>
+
+        {/* Level 2 Shadow Mode Info */}
+        <div className="card border-l-4 border-orange-500 bg-orange-50 dark:bg-orange-950">
+          <div className="flex items-start gap-3 mb-2">
+            <span className="text-2xl">🔄</span>
+            <div>
+              <h4 className="font-semibold text-orange-900 dark:text-orange-200">
+                Level 2 ML Pipeline (Shadow Mode)
+              </h4>
+              <p className="text-xs text-orange-700 dark:text-orange-300 mt-0.5">
+                Experimentální – běží v pozadí bez vlivu na produkční predikce
+              </p>
+            </div>
+          </div>
+          <ul className="text-sm text-orange-800 dark:text-orange-300 space-y-1 ml-8">
+            <li>• RandomForestRegressor trénovaný na vašich datech</li>
+            <li>• Feature engineering: trendy, kategorie, sezónnost</li>
+            <li>• Porovnání s Level 1 – měří přesnost</li>
+            <li>• Fallback na baseline, když málo dat</li>
+            <li>• Zatím nenahrazuje Level 1 v UI (shadow mode)</li>
+            <li>• Aktivace až po ověření kvality</li>
+          </ul>
+        </div>
       </div>
     </div>
   );
