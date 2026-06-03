@@ -14,7 +14,6 @@ export const MLPredictionPanel = () => {
   const [showHidden, setShowHidden] = useState(false);
   const [expandedPred, setExpandedPred] = useState(null);
   const [showLevel2, setShowLevel2] = useState(false);
-  const [activePredictionLevel, setActivePredictionLevel] = useState(1);
 
   const checkAdmin = async () => {
     try {

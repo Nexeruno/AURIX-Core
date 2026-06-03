@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { firebaseConfig } from '../../config/firebase-config';
 import { auth, db } from '../../utils/firebase';
 import { collection, getDocs } from 'firebase/firestore';
@@ -25,7 +25,7 @@ export const AIAnalyzePanel = () => {
     return diffDays;
   };
 
-  const fetchAllInsights = async () => {
+  const fetchAllInsights = useCallback(async () => {
     setLoading(true);
     try {
       const idToken = await auth.currentUser?.getIdToken();
@@ -136,7 +136,7 @@ export const AIAnalyzePanel = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedUid]);
 
   const fetchUserInsights = async (uid) => {
     try {
