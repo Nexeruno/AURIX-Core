@@ -3459,11 +3459,35 @@ exports.runLevel2ShadowPipeline = functions.region(REGION).https.onRequest(async
     const usersSnapshot = await usersRef.get();
     const userIds = usersSnapshot.docs.map(doc => doc.id);
 
+    // Update status with total user count
+    await updatePipelineStage(runId, 'loading_users', {
+      usersTotal: userIds.length,
+      usersProcessed: 0,
+      usersSkipped: 0,
+      predictionsCreated: 0,
+      feedbackRecordsUsed: 0,
+      manualFeedbackRecordsUsed: 0,
+      autoFeedbackRecordsUsed: 0,
+      errorCount: 0,
+    });
     logger.info(`[L2_SHADOW] Starting shadow pipeline for ${userIds.length} users`);
+    await logMlDebug({ runId, level: 'info', source: 'l2_shadow_pipeline', stage: 'loading_users', message: `Starting pipeline for ${userIds.length} users` });
 
     // Process each user
     for (const uid of userIds) {
       try {
+        // Update progress stage
+        await updatePipelineStage(runId, 'processing_user', {
+          usersTotal: userIds.length,
+          usersProcessed,
+          usersSkipped,
+          predictionsCreated,
+          feedbackRecordsUsed: trainingDataUsedCount,
+          manualFeedbackRecordsUsed: manualFeedbackUsedCount,
+          autoFeedbackRecordsUsed: autoFeedbackUsedCount,
+          errorCount: errors.length,
+        });
+
         // Get user's latest Level 1 prediction
         const level1PredQuery = await db.collection('users').doc(uid)
           .collection('mlPredictions')
@@ -3662,17 +3686,63 @@ exports.runLevel2ShadowPipeline = functions.region(REGION).https.onRequest(async
 
       } catch (userError) {
         logger.error(`[L2_SHADOW] Error processing user ${uid}:`, userError);
-        errors.push({ uid, error: userError.message });
-        usersProcessed++;
+        const errPreview = { userId: uid, stage: 'processing_user', message: userError.message };
+        errors.push(errPreview);
+        usersSkipped++;
+        // Log per-user error without stopping pipeline
+        await logMlDebug({
+          runId,
+          level: 'error',
+          source: 'l2_shadow_pipeline',
+          stage: 'processing_user',
+          message: `Error processing user: ${userError.message}`,
+          userId: uid,
+          details: { errorType: userError.name },
+        });
       }
     }
 
-    // Save ML run record
+    // Finalize
     const finishTime = admin.firestore.Timestamp.now();
     const durationMs = (finishTime.toMillis() - startTime.toMillis());
 
+    // Determine final status
+    let finalStatus;
+    if (errors.length === 0) {
+      finalStatus = 'success';
+    } else if (predictionsCreated > 0) {
+      finalStatus = 'partial_success';
+    } else {
+      finalStatus = 'failed';
+    }
+
+    // Update pipeline status document
+    await finalizePipelineRun(finalStatus, durationMs, {
+      stage: finalStatus === 'failed' ? 'failed' : 'completed',
+      progress: {
+        usersTotal: userIds.length,
+        usersProcessed,
+        usersSkipped,
+        predictionsCreated,
+        feedbackRecordsUsed: trainingDataUsedCount,
+        manualFeedbackRecordsUsed: manualFeedbackUsedCount,
+        autoFeedbackRecordsUsed: autoFeedbackUsedCount,
+        errorCount: errors.length,
+      },
+    });
+
+    await logMlDebug({
+      runId,
+      level: errors.length > 0 ? 'warning' : 'info',
+      source: 'l2_shadow_pipeline',
+      stage: 'completed',
+      message: `Pipeline finished: ${finalStatus}. Users: ${usersProcessed}, Predictions: ${predictionsCreated}, Errors: ${errors.length}`,
+      details: { durationMs, finalStatus },
+    });
+
+    // Save ML run record
     const runRecord = {
-      status: errors.length === 0 ? 'success' : 'success_with_errors',
+      status: finalStatus,
       pipelineLevel: 2,
       mode: 'shadow',
       // ⚠️ EXPLICIT METADATA: SIMPLIFIED SHADOW BASELINE - NOT ACTUAL ML MODEL
@@ -3696,14 +3766,17 @@ exports.runLevel2ShadowPipeline = functions.region(REGION).https.onRequest(async
       startedAt: startTime,
       finishedAt: finishTime,
       durationMs: durationMs,
+      usersTotal: userIds.length,
       usersProcessed: usersProcessed,
+      usersSkipped,
       predictionsCreated: predictionsCreated,
       fallbackUsed: fallbackUsed > 0,
       fallbackCount: fallbackUsed,
       errorCount: errors.length,
-      errors: errors.slice(0, 10), // Keep first 10 errors only
+      errorsPreview: errors.slice(0, 10),
       triggeredBy: decodedToken.uid,
       triggeredAt: new Date().toISOString(),
+      runId,
     };
 
     await db.collection('mlRuns').add(runRecord);
@@ -3961,6 +4034,7 @@ exports.adminGenerateL2AutoFeedback = functions.region(REGION).https.onRequest(a
 // ═══════════════════════════════════════════════════════════════════════════════
 
 exports.adminGetMlSystemHealth = functions.region(REGION).https.onRequest(async (req, res) => {
+  cors(req, res, async () => {
   try {
     const auth = req.header('authorization')?.replace('Bearer ', '');
     if (!auth) return res.status(401).json({ ok: false, error: 'Unauthorized' });
@@ -3973,82 +4047,130 @@ exports.adminGetMlSystemHealth = functions.region(REGION).https.onRequest(async 
       return res.status(403).json({ ok: false, error: 'Forbidden: only admin/ml_admin' });
     }
 
-    // Get prediction settings
-    const settingsDoc = await db.collection('appConfig').doc('predictionSettings').get();
-    const settings = settingsDoc.data();
-
-    // Get pipeline status
-    const pipelineStatusDoc = await db.collection('mlPipelineStatus').doc('l2Shadow').get();
-    const pipelineStatus = pipelineStatusDoc.exists ? pipelineStatusDoc.data() : null;
-
-    // Get recent ML runs
-    const mlRunsSnap = await db.collectionGroup('mlRuns')
-      .orderBy('startedAt', 'desc')
-      .limit(5)
-      .get();
-    const recentRuns = mlRunsSnap.docs.map(doc => ({
-      id: doc.id,
-      userId: doc.ref.parent.parent.id,
-      ...doc.data(),
-    }));
-
-    // Get recent errors from mlDebugLogs
-    const recentErrorsSnap = await db.collection('mlDebugLogs')
-      .where('level', '==', 'error')
-      .orderBy('createdAt', 'desc')
-      .limit(5)
-      .get();
-    const recentErrors = recentErrorsSnap.docs.map(doc => doc.data());
-
-    // Count total feedback
-    const manualFeedbackSnap = await db.collection('trainingData')
-      .where('type', '==', 'l2_manual_feedback')
-      .where('status', '==', 'approved')
-      .get();
-    const totalManualFeedback = manualFeedbackSnap.size;
-
-    const autoFeedbackSnap = await db.collection('trainingData')
-      .where('type', '==', 'l2_auto_feedback')
-      .where('status', '==', 'approved')
-      .get();
-    const totalAutoFeedback = autoFeedbackSnap.size;
-
-    // Get latest manual feedback
-    let latestManualFeedback = null;
-    if (manualFeedbackSnap.size > 0) {
-      const sorted = manualFeedbackSnap.docs.sort((a, b) => {
-        const aTime = a.data().createdAt?.toMillis() || 0;
-        const bTime = b.data().createdAt?.toMillis() || 0;
-        return bTime - aTime;
-      });
-      latestManualFeedback = {
-        ...sorted[0].data(),
-        id: sorted[0].id,
-      };
+    // Test Firestore read/write
+    let firestoreReadable = false;
+    let firestoreWritable = false;
+    try {
+      await db.collection('appConfig').doc('predictionSettings').get();
+      firestoreReadable = true;
+      const testRef = db.collection('_healthCheck').doc('test');
+      await testRef.set({ ts: admin.firestore.FieldValue.serverTimestamp() });
+      await testRef.delete();
+      firestoreWritable = true;
+    } catch (fsErr) {
+      logger.warn('[HEALTH] Firestore test failed:', fsErr.message);
     }
+
+    // Get prediction settings (graceful)
+    let settings = null;
+    let predictionSettingsExists = false;
+    try {
+      const settingsDoc = await db.collection('appConfig').doc('predictionSettings').get();
+      if (settingsDoc.exists) {
+        settings = settingsDoc.data();
+        predictionSettingsExists = true;
+      }
+    } catch (e) { logger.warn('[HEALTH] settings read failed:', e.message); }
+
+    // Get pipeline status (graceful)
+    let pipelineStatus = null;
+    try {
+      const pipelineDoc = await db.collection('mlPipelineStatus').doc('l2Shadow').get();
+      if (pipelineDoc.exists) {
+        pipelineStatus = pipelineDoc.data();
+      }
+    } catch (e) { logger.warn('[HEALTH] pipelineStatus read failed:', e.message); }
+
+    // Get recent ML runs from top-level collection (graceful)
+    let recentRuns = [];
+    let lastL2Run = null;
+    try {
+      const mlRunsSnap = await db.collection('mlRuns')
+        .orderBy('startedAt', 'desc')
+        .limit(10)
+        .get();
+      recentRuns = mlRunsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      lastL2Run = recentRuns.length > 0 ? recentRuns[0] : null;
+    } catch (e) { logger.warn('[HEALTH] mlRuns read failed:', e.message); }
+
+    // Get recent debug logs (graceful)
+    let recentErrors = [];
+    let recentDebugLogs = [];
+    let recentErrorCount = 0;
+    try {
+      const logsSnap = await db.collection('mlDebugLogs')
+        .orderBy('createdAt', 'desc')
+        .limit(50)
+        .get();
+      recentDebugLogs = logsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      recentErrors = recentDebugLogs.filter(l => l.level === 'error');
+      recentErrorCount = recentErrors.length;
+    } catch (e) { logger.warn('[HEALTH] mlDebugLogs read failed:', e.message); }
+
+    // Feedback counts (graceful)
+    let manualFeedbackCount = 0;
+    let autoFeedbackCount = 0;
+    let latestManualFeedbackAt = null;
+    let latestAutoFeedbackAt = null;
+    try {
+      const manualSnap = await db.collection('trainingData')
+        .where('type', '==', 'l2_manual_feedback')
+        .where('status', '==', 'approved')
+        .get();
+      manualFeedbackCount = manualSnap.size;
+      if (manualSnap.size > 0) {
+        const latest = manualSnap.docs.sort((a, b) => {
+          return (b.data().createdAt?.toMillis() || 0) - (a.data().createdAt?.toMillis() || 0);
+        })[0];
+        latestManualFeedbackAt = latest.data().createdAt;
+      }
+
+      const autoSnap = await db.collection('trainingData')
+        .where('type', '==', 'l2_auto_feedback')
+        .where('status', '==', 'approved')
+        .get();
+      autoFeedbackCount = autoSnap.size;
+      if (autoSnap.size > 0) {
+        const latest = autoSnap.docs.sort((a, b) => {
+          return (b.data().createdAt?.toMillis() || 0) - (a.data().createdAt?.toMillis() || 0);
+        })[0];
+        latestAutoFeedbackAt = latest.data().createdAt;
+      }
+    } catch (e) { logger.warn('[HEALTH] feedback count failed:', e.message); }
 
     res.status(200).json({
       ok: true,
-      health: {
-        firebaseProjectId: 'evidence-vydaju',
-        predictionSettingsExists: settings != null,
-        l2ShadowEnabled: settings?.level2ShadowMode === true,
-        l2Enabled: settings?.level2Enabled === true,
-        activePredictionLevel: settings?.activePredictionLevel,
-      },
+      success: true,
+      cloudFunctionsReachable: true,
+      firestoreReadable,
+      firestoreWritable,
+      firebaseProjectId: 'evidence-vydaju',
+      predictionSettingsExists,
+      predictionSettings: settings ? {
+        activePredictionLevel: settings.activePredictionLevel,
+        level2Enabled: settings.level2Enabled,
+        level2ShadowMode: settings.level2ShadowMode,
+        fallbackEnabled: settings.fallbackEnabled,
+        updatedAt: settings.updatedAt,
+      } : null,
+      l2ShadowEnabled: settings?.level2ShadowMode === true,
       pipelineStatus,
+      lastL2Run,
       recentRuns,
-      recentErrors,
-      feedbackStats: {
-        totalManualFeedback,
-        totalAutoFeedback,
-        latestManualFeedback,
+      feedbackSummary: {
+        manualFeedbackCount,
+        autoFeedbackCount,
+        latestManualFeedbackAt,
+        latestAutoFeedbackAt,
       },
-      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      recentErrorCount,
+      recentErrors: recentErrors.slice(0, 5),
+      recentDebugLogs: recentDebugLogs.slice(0, 50),
     });
   } catch (err) {
     logger.error('adminGetMlSystemHealth error:', err);
     res.status(500).json({ ok: false, error: err.message });
   }
+  });
 });
 

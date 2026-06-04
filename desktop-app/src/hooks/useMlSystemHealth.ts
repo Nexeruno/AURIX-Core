@@ -1,54 +1,93 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useAuth } from '@/auth/AuthProvider'
 
-export interface MlDebugLog {
-  level: string
-  source: string
-  stage: string
-  message: string
-  userId?: string
-  details?: any
-  createdAt?: any
+export interface PipelineProgress {
+  usersTotal: number
+  usersProcessed: number
+  usersSkipped: number
+  predictionsCreated: number
+  feedbackRecordsUsed: number
+  manualFeedbackRecordsUsed: number
+  autoFeedbackRecordsUsed: number
+  errorCount: number
 }
 
 export interface PipelineStatus {
-  status: string
+  status: 'idle' | 'running' | 'completed' | 'partial_success' | 'failed'
   stage: string
   startedAt?: any
   updatedAt?: any
   finishedAt?: any
   durationMs?: number
-  progress?: {
-    usersTotal: number
-    usersProcessed: number
-    usersSkipped: number
-    predictionsCreated: number
-    feedbackRecordsUsed: number
-    manualFeedbackRecordsUsed: number
-    autoFeedbackRecordsUsed: number
-    errorCount: number
-  }
+  progress?: PipelineProgress
   lastError?: any
+  runId?: string
+}
+
+export interface MlRun {
+  id: string
+  status: string
+  pipelineLevel: number
+  mode: string
+  usersTotal?: number
+  usersProcessed: number
+  usersSkipped?: number
+  predictionsCreated: number
+  fallbackCount?: number
+  trainingDataRecordsUsed?: number
+  manualFeedbackRecordsUsed?: number
+  autoFeedbackRecordsUsed?: number
+  usersWithTrainingData?: number
+  averageFinalCorrectionFactor?: number
+  errorCount: number
+  errorsPreview?: Array<{ userId: string; stage: string; message: string }>
+  durationMs?: number
+  startedAt?: any
+  finishedAt?: any
+  triggeredBy?: string
+  runId?: string
+}
+
+export interface MlDebugLog {
+  id?: string
+  runId?: string
+  level: 'info' | 'warning' | 'error'
+  source: string
+  stage: string
+  message: string
+  userId?: string
+  details?: Record<string, unknown>
+  createdAt?: any
 }
 
 export interface MlSystemHealth {
   ok: boolean
-  firebaseProjectId: string
-  predictionSettingsExists: boolean
-  predictionSettings?: any
+  success?: boolean
   cloudFunctionsReachable?: boolean
   firestoreReadable?: boolean
   firestoreWritable?: boolean
+  firebaseProjectId?: string
+  predictionSettingsExists?: boolean
+  predictionSettings?: {
+    activePredictionLevel: number
+    level2Enabled: boolean
+    level2ShadowMode: boolean
+    fallbackEnabled: boolean
+    updatedAt?: any
+  }
   l2ShadowEnabled?: boolean
   pipelineStatus?: PipelineStatus
-  recentRuns?: any[]
+  lastL2Run?: MlRun | null
+  recentRuns?: MlRun[]
+  feedbackSummary?: {
+    manualFeedbackCount: number
+    autoFeedbackCount: number
+    latestManualFeedbackAt?: any
+    latestAutoFeedbackAt?: any
+  }
+  recentErrorCount?: number
   recentErrors?: MlDebugLog[]
   recentDebugLogs?: MlDebugLog[]
-  feedbackStats?: {
-    totalManualFeedback: number
-    totalAutoFeedback: number
-    latestManualFeedback: any
-  }
   error?: string
 }
 
@@ -57,15 +96,16 @@ export function useMlSystemHealth() {
   const [health, setHealth] = useState<MlSystemHealth | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [lastLoaded, setLastLoaded] = useState<Date | null>(null)
 
   const loadHealth = useCallback(async () => {
     setLoading(true)
-    setError(null)
 
     try {
       const token = await getIdToken()
       if (!window.ipcApi) {
-        throw new Error('IPC API not available')
+        setError('IPC API not available — running in Electron?')
+        return
       }
 
       const result = await window.ipcApi.callCloudFunction(
@@ -74,11 +114,12 @@ export function useMlSystemHealth() {
         {}
       )
 
-      if (result?.ok === true) {
-        setHealth(result)
+      if (result?.ok === true || result?.success === true) {
+        setHealth(result as MlSystemHealth)
         setError(null)
+        setLastLoaded(new Date())
       } else {
-        setError(result?.error || 'Failed to load ML system health')
+        setError(result?.error || 'adminGetMlSystemHealth returned ok:false')
         setHealth(null)
       }
     } catch (err) {
@@ -92,9 +133,9 @@ export function useMlSystemHealth() {
 
   useEffect(() => {
     loadHealth()
-    const interval = setInterval(loadHealth, 15000) // Refresh every 15s
+    const interval = setInterval(loadHealth, 15000)
     return () => clearInterval(interval)
   }, [loadHealth])
 
-  return { health, loading, error, reload: loadHealth }
+  return { health, loading, error, lastLoaded, reload: loadHealth }
 }
