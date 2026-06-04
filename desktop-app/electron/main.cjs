@@ -49,11 +49,32 @@ ipcMain.handle("getPipelineStatus", async (event) => {
 });
 
 ipcMain.handle("callCloudFunction", async (event, functionName, idToken, data) => {
-  return {
-    success: true,
-    message: `Cloud Function ${functionName} called successfully`,
-    data: data,
-  };
+  try {
+    const projectId = 'evidence-vydaju';
+    const url = `https://europe-west1-${projectId}.cloudfunctions.net/${functionName}`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...data, idToken }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        ok: false,
+        error: errorData.error || `Cloud Function returned ${response.status}`,
+      };
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (err) {
+    return {
+      ok: false,
+      error: err.message || 'Failed to call Cloud Function',
+    };
+  }
 });
 
 ipcMain.handle("clearLocalCache", async (event) => {

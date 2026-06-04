@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { collection, query, where, orderBy, limit, onSnapshot, DocumentData } from 'firebase/firestore'
+import { collection, query, where, orderBy, limit, onSnapshot, DocumentData, doc } from 'firebase/firestore'
 import { db } from '@/config/firebase'
 
 interface UseFirestoreOptions {
@@ -84,4 +84,75 @@ export function useMlMetrics() {
 export function useActiveSessions() {
   const constraints = [where('isActive', '==', true)]
   return useFirestore('userSessions', constraints)
+}
+
+export interface PredictionSettings {
+  id?: string
+  activePredictionLevel: number
+  level2Enabled: boolean
+  level2ShadowMode: boolean
+  fallbackEnabled: boolean
+  createdAt?: any
+  updatedAt?: any
+  updatedBy?: string
+}
+
+export function useAppConfig() {
+  const [data, setData] = useState<PredictionSettings | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
+
+  useEffect(() => {
+    let isMounted = true
+    let timeoutId: any
+
+    try {
+      const docRef = doc(db, 'appConfig', 'predictionSettings')
+      const unsubscribe = onSnapshot(docRef, (snapshot) => {
+        if (!isMounted) return
+
+        if (snapshot.exists()) {
+          setData({ id: snapshot.id, ...snapshot.data() } as PredictionSettings)
+        } else {
+          setData(null)
+        }
+        setLoading(false)
+        clearTimeout(timeoutId)
+      }, (err: any) => {
+        if (!isMounted) return
+        setError(err instanceof Error ? err : new Error('Failed to fetch appConfig'))
+        setLoading(false)
+      })
+
+      timeoutId = setTimeout(() => {
+        if (isMounted && loading) {
+          setLoading(false)
+          setError(new Error('Loading timeout'))
+        }
+      }, 10000)
+
+      return () => {
+        isMounted = false
+        clearTimeout(timeoutId)
+        unsubscribe()
+      }
+    } catch (err) {
+      if (!isMounted) return
+      setError(err instanceof Error ? err : new Error('Failed to fetch appConfig'))
+      setLoading(false)
+    }
+  }, [])
+
+  return { data, loading, error }
+}
+
+export interface MlRun {
+  id?: string
+  timestamp?: number
+  startedAt?: any
+  level?: number
+  status?: string
+  accuracy?: number
+  processingTime?: number
+  message?: string
 }

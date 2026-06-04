@@ -52,7 +52,7 @@ export function TrainingPage() {
       const token = await getIdToken()
 
       if (!window.ipcApi) {
-        setListError('Training backend is not available. Cloud Function adminGetTrainingData is required.')
+        setListError('Training backend is not deployed yet.')
         return
       }
 
@@ -68,10 +68,20 @@ export function TrainingPage() {
       )
 
       if (!response.ok) {
-        throw new Error(response.error || 'Failed to load training data')
+        const errorMsg = response.error || 'Unknown error'
+
+        // Determine specific error type
+        if (errorMsg.includes('not a function') || errorMsg.includes('not deployed')) {
+          setListError('Training backend is not deployed yet.')
+        } else if (errorMsg.includes('Forbidden') || errorMsg.includes('permission')) {
+          setListError('You do not have permission to view training data.')
+        } else {
+          setListError('Training data could not be loaded.')
+        }
+        return
       }
 
-      if (response.items) {
+      if (response.items && response.items.length > 0) {
         setTrainingList(
           response.items.map((item: any) => ({
             ...item,
@@ -83,7 +93,15 @@ export function TrainingPage() {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to load training data'
-      setListError(message)
+
+      // Check for specific error types
+      if (message.includes('not available') || message.includes('IPC')) {
+        setListError('Training backend is not deployed yet.')
+      } else if (message.includes('permission') || message.includes('Forbidden')) {
+        setListError('You do not have permission to view training data.')
+      } else {
+        setListError(message)
+      }
       console.error('loadTrainingData error:', error)
     } finally {
       setListLoading(false)

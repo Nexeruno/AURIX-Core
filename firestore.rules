@@ -133,5 +133,14 @@ service cloud.firestore {
       allow read: if isAdmin(request.auth.uid);
       allow write: if false;  // Jen Cloud Functions (Admin SDK)
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // 🎛️ APP CONFIG - Prediction Settings (source of truth for Level 1/Level 2)
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    match /appConfig/{document=**} {
+      allow read: if request.auth != null;  // All authenticated users can read config
+      allow write: if isAdmin(request.auth.uid);  // Only admin can write
+    }
   }
 }

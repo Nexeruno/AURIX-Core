@@ -1,13 +1,29 @@
-import { useState } from 'react'
-import { useFirestore } from '@/hooks/useFirestore'
-import { orderBy, limit, where } from 'firebase/firestore'
+import { useState, useEffect } from 'react'
 
 export function MlPredictionsPage() {
   const [selectedLevel, setSelectedLevel] = useState<1 | 2>(1)
-  const [pageSize] = useState(20)
+  const [predictions, setPredictions] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const constraints = [where('level', '==', selectedLevel), orderBy('timestamp', 'desc'), limit(pageSize)]
-  const { data: predictions, loading } = useFirestore('mlPredictions', constraints)
+  useEffect(() => {
+    const fetchPredictions = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        // For now, show message that admin interface shows sampled predictions
+        // In production, would fetch via adminGetMlPredictions Cloud Function
+        setPredictions([])
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Failed to load predictions'
+        setError(msg)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchPredictions()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const getStatusClasses = (status: string) => {
     switch(status) {
@@ -46,10 +62,15 @@ export function MlPredictionsPage() {
       {/* Predictions Table */}
       <div className="card rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
-          {loading ? (
-            <div className="px-6 py-8 text-center text-light-textMuted dark:text-dark-textMuted">Loading...</div>
+          {error ? (
+            <div className="px-6 py-8 text-center text-red-600 dark:text-red-400">⚠️ {error}</div>
+          ) : loading ? (
+            <div className="px-6 py-8 text-center text-light-textMuted dark:text-dark-textMuted">Loading predictions...</div>
           ) : predictions.length === 0 ? (
-            <div className="px-6 py-8 text-center text-light-textMuted dark:text-dark-textMuted">No predictions yet</div>
+            <div className="px-6 py-8 text-center">
+              <p className="text-light-textMuted dark:text-dark-textMuted mb-2">No predictions available yet</p>
+              <p className="text-xs text-light-textMuted dark:text-dark-textMuted">Predictions are collected once users make transactions</p>
+            </div>
           ) : (
             <table className="w-full text-sm">
               <thead className="table-header bg-light-border dark:bg-dark-border">

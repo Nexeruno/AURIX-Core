@@ -99,12 +99,58 @@ export function useMlPipelineControl() {
     }
   }, [])
 
+  const getPredictionSettings = useCallback(async (idToken: string) => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      if (!window.ipcApi) {
+        throw new Error('IPC API not available')
+      }
+      return await window.ipcApi.callCloudFunction(
+        'adminGetPredictionSettings',
+        idToken,
+        {}
+      )
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('Unknown error')
+      setError(error)
+      throw error
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const updatePredictionSettings = useCallback(async (idToken: string, settings: any) => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      if (!window.ipcApi) {
+        throw new Error('IPC API not available')
+      }
+      return await window.ipcApi.callCloudFunction(
+        'adminUpdatePredictionSettings',
+        idToken,
+        settings
+      )
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('Unknown error')
+      setError(error)
+      throw error
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
   return {
     runLevel2Pipeline,
     getPipelineStatus,
     clearLocalCache,
     activateLevel2,
     rollbackToLevel1,
+    getPredictionSettings,
+    updatePredictionSettings,
     loading,
     error,
   }

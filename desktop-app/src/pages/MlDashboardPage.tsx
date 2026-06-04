@@ -1,17 +1,8 @@
-import { useMlMetrics, useMlRuns } from '@/hooks/useFirestore'
+import { useAppConfig, useMlRuns } from '@/hooks/useFirestore'
 
 export function MlDashboardPage() {
-  const metrics = useMlMetrics()
+  const { data: settings, loading: settingsLoading } = useAppConfig()
   const { data: recentRuns, loading: runsLoading, error: runsError } = useMlRuns(10)
-
-  const getStatusColor = (status: string) => {
-    switch(status) {
-      case 'active': return 'text-green-600'
-      case 'shadow': return 'text-blue-600'
-      case 'rollback': return 'text-orange-600'
-      default: return 'text-light-textMuted dark:text-dark-textMuted'
-    }
-  }
 
   const getRunStatusClasses = (status: string) => {
     switch(status) {
@@ -19,12 +10,6 @@ export function MlDashboardPage() {
       case 'failed': return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
       default: return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
     }
-  }
-
-  const statusEmoji = {
-    'active': '✅',
-    'shadow': '🔄',
-    'rollback': '↩️'
   }
 
   return (
@@ -40,15 +25,22 @@ export function MlDashboardPage() {
         </div>
         <div className="card rounded-lg p-6">
           <p className="text-sm text-light-textMuted dark:text-dark-textMuted">Level 2 Status</p>
-          <p className={`text-2xl font-bold mt-2 ${getStatusColor(metrics?.level2Status as string)}`}>
-            {statusEmoji[metrics?.level2Status as keyof typeof statusEmoji] || '⚠️'} {metrics?.level2Status || 'Unknown'}
+          <p className={`text-2xl font-bold mt-2 ${
+            settings?.activePredictionLevel === 2 ? 'text-green-600' :
+            settings?.level2ShadowMode ? 'text-blue-600' :
+            'text-orange-600'
+          }`}>
+            {settingsLoading ? '⏳' :
+             settings?.activePredictionLevel === 2 ? '✅ Active' :
+             settings?.level2ShadowMode ? '🔄 Shadow' :
+             '↩️ Disabled'}
           </p>
           <p className="text-xs mt-2 text-light-textMuted dark:text-dark-textMuted">ML model</p>
         </div>
         <div className="card rounded-lg p-6">
-          <p className="text-sm text-light-textMuted dark:text-dark-textMuted">Shadow Accuracy</p>
+          <p className="text-sm text-light-textMuted dark:text-dark-textMuted">Configuration Status</p>
           <p className="text-2xl font-bold mt-2 text-blue-500 dark:text-blue-400">
-            {metrics?.shadowAccuracy ? `${(metrics.shadowAccuracy * 100).toFixed(1)}%` : 'N/A'}
+            {settingsLoading ? 'Loading...' : '✅ Ready'}
           </p>
         </div>
       </div>
@@ -56,16 +48,22 @@ export function MlDashboardPage() {
       {/* ML Stats */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="card rounded-lg p-6">
-          <p className="text-sm text-light-textMuted dark:text-dark-textMuted">Total Level 1 Runs</p>
-          <p className="text-3xl font-bold mt-2 text-light-text dark:text-dark-text">{metrics?.totalRunsLevel1 || 0}</p>
+          <p className="text-sm text-light-textMuted dark:text-dark-textMuted">Recent Runs (L1)</p>
+          <p className="text-3xl font-bold mt-2 text-light-text dark:text-dark-text">
+            {runsLoading ? '...' : recentRuns.filter((r: any) => r.level === 1).length}
+          </p>
         </div>
         <div className="card rounded-lg p-6">
-          <p className="text-sm text-light-textMuted dark:text-dark-textMuted">Total Level 2 Runs</p>
-          <p className="text-3xl font-bold mt-2 text-light-text dark:text-dark-text">{metrics?.totalRunsLevel2 || 0}</p>
+          <p className="text-sm text-light-textMuted dark:text-dark-textMuted">Recent Runs (L2)</p>
+          <p className="text-3xl font-bold mt-2 text-light-text dark:text-dark-text">
+            {runsLoading ? '...' : recentRuns.filter((r: any) => r.level === 2).length}
+          </p>
         </div>
         <div className="card rounded-lg p-6">
-          <p className="text-sm text-light-textMuted dark:text-dark-textMuted">Training Size</p>
-          <p className="text-sm mt-2 text-light-textMuted dark:text-dark-textMuted">See Training Data page</p>
+          <p className="text-sm text-light-textMuted dark:text-dark-textMuted">Configuration</p>
+          <p className="text-sm mt-2 text-light-textMuted dark:text-dark-textMuted">
+            {settingsLoading ? 'Loading...' : `Level ${settings?.activePredictionLevel || '1'} Active`}
+          </p>
         </div>
       </div>
 
@@ -121,10 +119,16 @@ export function MlDashboardPage() {
         </div>
       </div>
 
-      {/* ML Controls - TODO: Fáze 3 */}
+      {/* ML Model Control */}
       <div className="card rounded-lg p-6">
-        <h2 className="text-lg font-semibold mb-4 text-light-text dark:text-dark-text">ML Pipeline Control</h2>
-        <p className="mb-4 text-light-textMuted dark:text-dark-textMuted">🔧 Coming in Fáze 3: Run Level 2, toggle shadow mode, model rollback</p>
+        <h2 className="text-lg font-semibold mb-2 text-light-text dark:text-dark-text">ML Model Control</h2>
+        <p className="mb-4 text-light-textMuted dark:text-dark-textMuted">Manage Level 1, Level 2, Shadow Mode and model activation.</p>
+        <a
+          href="/ml/control"
+          className="inline-block px-6 py-3 bg-blue-600 dark:bg-blue-700 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-800 font-semibold transition-colors duration-200"
+        >
+          Open ML Model Control
+        </a>
       </div>
     </div>
   )

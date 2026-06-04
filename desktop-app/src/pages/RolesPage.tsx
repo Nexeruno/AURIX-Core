@@ -124,29 +124,34 @@ export function RolesPage() {
         </div>
       </div>
 
-      {/* Role Summary */}
+      {/* Role Summary with Descriptions */}
       <div className="card rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-light-text dark:text-dark-text mb-4">Role Summary</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
-            <p className="text-blue-600 dark:text-blue-400 text-sm font-semibold">Read Permissions</p>
-            <p className="text-2xl font-bold text-blue-900 dark:text-blue-300 mt-2">
-              {currentRole.permissions.filter(p => p.action === 'read').length}
-            </p>
-          </div>
-          <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-700">
-            <p className="text-green-600 dark:text-green-400 text-sm font-semibold">Write Permissions</p>
-            <p className="text-2xl font-bold text-green-900 dark:text-green-300 mt-2">
-              {currentRole.permissions.filter(p => p.action === 'write').length}
-            </p>
-          </div>
-          <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-700">
-            <p className="text-red-600 dark:text-red-400 text-sm font-semibold">Delete Permissions</p>
-            <p className="text-2xl font-bold text-red-900 dark:text-red-300 mt-2">
-              {currentRole.permissions.filter(p => p.action === 'delete').length}
-            </p>
-          </div>
-        </div>
+        <h3 className="text-lg font-semibold text-light-text dark:text-dark-text mb-4">Role Description</h3>
+        {selectedRole === 'user' && (
+          <p className="text-light-textMuted dark:text-dark-textMuted leading-relaxed">
+            <span className="font-semibold text-light-text dark:text-dark-text">Viewer:</span> Může vidět vlastní přehled, zapisovat vlastní příjmy a výdaje a měnit vzhled aplikace.
+          </p>
+        )}
+        {selectedRole === 'analyst' && (
+          <p className="text-light-textMuted dark:text-dark-textMuted leading-relaxed">
+            <span className="font-semibold text-light-text dark:text-dark-text">Analyst:</span> Může číst analytická data, ML predikce a reporty. Nemůže měnit uživatele, role ani systémové nastavení.
+          </p>
+        )}
+        {selectedRole === 'admin' && (
+          <p className="text-light-textMuted dark:text-dark-textMuted leading-relaxed">
+            <span className="font-semibold text-light-text dark:text-dark-text">Admin:</span> Může spravovat uživatele, role, audit trail, konfiguraci systému a základní provoz aplikace.
+          </p>
+        )}
+        {selectedRole === 'ml_admin' && (
+          <p className="text-light-textMuted dark:text-dark-textMuted leading-relaxed">
+            <span className="font-semibold text-light-text dark:text-dark-text">ML Admin:</span> Může spravovat ML dashboard, training data, modely, shadow mode a aktivaci Level 2.
+          </p>
+        )}
+        {selectedRole === 'developer' && (
+          <p className="text-light-textMuted dark:text-dark-textMuted leading-relaxed">
+            <span className="font-semibold text-light-text dark:text-dark-text">Developer:</span> Může vidět technické logy, diagnostiku a vývojové informace. Produkční nastavení mění jen s admin oprávněním.
+          </p>
+        )}
       </div>
 
       {/* Role Assignment Info */}

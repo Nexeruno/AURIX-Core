@@ -2950,3 +2950,163 @@ exports.adminRollbackToLevel1 = functions
     });
   });
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// PREDICTION SETTINGS - Source of truth for ML model state (Level 1 vs Level 2)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+exports.adminGetPredictionSettings = functions.https.onRequest(async (req, res) => {
+  try {
+    const auth = req.header('authorization')?.replace('Bearer ', '');
+    if (!auth) return res.status(401).json({ error: 'Unauthorized' });
+
+    const decodedToken = await admin.auth().verifyIdToken(auth);
+    const userDoc = await db.collection('users').doc(decodedToken.uid).get();
+    const userRole = userDoc.data()?.role;
+
+    if (!['admin', 'ml_admin'].includes(userRole)) {
+      return res.status(403).json({ error: 'Forbidden: insufficient role' });
+    }
+
+    // Get or create default prediction settings
+    let settingsDoc = await db.collection('appConfig').doc('predictionSettings').get();
+
+    if (!settingsDoc.exists) {
+      // Create default settings
+      const defaults = {
+        activePredictionLevel: 1,
+        level2Enabled: false,
+        level2ShadowMode: false,
+        fallbackEnabled: true,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedBy: decodedToken.uid,
+      };
+      await db.collection('appConfig').doc('predictionSettings').set(defaults);
+      settingsDoc = await db.collection('appConfig').doc('predictionSettings').get();
+    }
+
+    res.status(200).json({ ok: true, data: settingsDoc.data() });
+  } catch (err) {
+    logger.error('adminGetPredictionSettings error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+exports.adminUpdatePredictionSettings = functions.https.onRequest(async (req, res) => {
+  try {
+    const auth = req.header('authorization')?.replace('Bearer ', '');
+    if (!auth) return res.status(401).json({ error: 'Unauthorized' });
+
+    const decodedToken = await admin.auth().verifyIdToken(auth);
+    const userDoc = await db.collection('users').doc(decodedToken.uid).get();
+    const userRole = userDoc.data()?.role;
+
+    if (!['admin', 'ml_admin'].includes(userRole)) {
+      return res.status(403).json({ error: 'Forbidden: insufficient role' });
+    }
+
+    const { activePredictionLevel, level2Enabled, level2ShadowMode, fallbackEnabled } = req.body;
+
+    // Validate
+    if (activePredictionLevel !== 1 && activePredictionLevel !== 2) {
+      return res.status(400).json({ error: 'Invalid activePredictionLevel' });
+    }
+
+    // Update settings
+    await db.collection('appConfig').doc('predictionSettings').update({
+      activePredictionLevel,
+      level2Enabled: level2Enabled ?? false,
+      level2ShadowMode: level2ShadowMode ?? false,
+      fallbackEnabled: fallbackEnabled ?? true,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedBy: decodedToken.uid,
+    });
+
+    // Log to audit trail
+    await db.collection('_auditLog').add({
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      action: 'UPDATE_PREDICTION_SETTINGS',
+      uid: decodedToken.uid,
+      role: userRole,
+      details: { activePredictionLevel, level2Enabled, level2ShadowMode, fallbackEnabled },
+      ip: req.ip,
+    });
+
+    res.status(200).json({ ok: true, message: 'Prediction settings updated' });
+  } catch (err) {
+    logger.error('adminUpdatePredictionSettings error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ML RUNS - Get all ML pipeline runs for admin dashboard
+// ═══════════════════════════════════════════════════════════════════════════════
+
+exports.adminGetMlRuns = functions.https.onRequest(async (req, res) => {
+  try {
+    const auth = req.header('authorization')?.replace('Bearer ', '');
+    if (!auth) return res.status(401).json({ error: 'Unauthorized' });
+
+    const decodedToken = await admin.auth().verifyIdToken(auth);
+    const userDoc = await db.collection('users').doc(decodedToken.uid).get();
+    const userRole = userDoc.data()?.role;
+
+    if (!['admin', 'ml_admin'].includes(userRole)) {
+      return res.status(403).json({ error: 'Forbidden: insufficient role' });
+    }
+
+    const limit = req.query.limit ? parseInt(req.query.limit) : 10;
+    const runs = await db
+      .collection('mlRuns')
+      .orderBy('startedAt', 'desc')
+      .limit(limit)
+      .get();
+
+    const data = runs.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    res.status(200).json({ ok: true, data });
+  } catch (err) {
+    logger.error('adminGetMlRuns error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ML PREDICTIONS - Get predictions for all users or specific user
+// ═══════════════════════════════════════════════════════════════════════════════
+
+exports.adminGetMlPredictions = functions.https.onRequest(async (req, res) => {
+  try {
+    const auth = req.header('authorization')?.replace('Bearer ', '');
+    if (!auth) return res.status(401).json({ error: 'Unauthorized' });
+
+    const decodedToken = await admin.auth().verifyIdToken(auth);
+    const userDoc = await db.collection('users').doc(decodedToken.uid).get();
+    const userRole = userDoc.data()?.role;
+
+    if (!['admin', 'ml_admin'].includes(userRole)) {
+      return res.status(403).json({ error: 'Forbidden: insufficient role' });
+    }
+
+    const targetUserId = req.query.uid;
+    if (!targetUserId) {
+      return res.status(400).json({ error: 'uid query parameter required' });
+    }
+
+    const limit = req.query.limit ? parseInt(req.query.limit) : 20;
+    const predictions = await db
+      .collection('users')
+      .doc(targetUserId)
+      .collection('mlPredictions')
+      .orderBy('timestamp', 'desc')
+      .limit(limit)
+      .get();
+
+    const data = predictions.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    res.status(200).json({ ok: true, data });
+  } catch (err) {
+    logger.error('adminGetMlPredictions error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+

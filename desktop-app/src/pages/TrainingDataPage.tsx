@@ -14,46 +14,41 @@ interface TrainingData {
 
 export function TrainingDataPage() {
   const constraints = [orderBy('createdAt', 'desc'), limit(100)]
-  const { data: trainingData, loading } = useFirestore<TrainingData>('mlTrainingData', constraints)
+  const { data: trainingData, loading } = useFirestore<TrainingData>('trainingData', constraints)
 
   const [selectedType, setSelectedType] = useState<'all' | 'manual' | 'automated' | 'production'>('all')
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
+  const [exportModalOpen, setExportModalOpen] = useState(false)
   const [statusMessage, setStatusMessage] = useState('')
 
   const filteredData = trainingData.filter((item: TrainingData) =>
     selectedType === 'all' || item.type === selectedType
   )
 
-  const handleExportData = async () => {
+  const handleExportPDF = async () => {
     try {
-      setStatusMessage('Exporting training data...')
-
-      // TODO: Call Cloud Function adminExportMlTrainingDataset
-      // For now, mock CSV generation
-      const csv = [
-        ['Input', 'Expected Output', 'Type', 'Validated', 'Created At'].join(','),
-        ...filteredData.map((d: TrainingData) =>
-          [
-            typeof d.input === 'string' ? d.input : JSON.stringify(d.input),
-            typeof d.expectedOutput === 'string' ? d.expectedOutput : JSON.stringify(d.expectedOutput),
-            d.type,
-            d.validated ? 'Yes' : 'No',
-            new Date(d.createdAt).toISOString()
-          ].join(',')
-        )
-      ].join('\n')
-
-      const blob = new Blob([csv], { type: 'text/csv' })
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `training-data-${Date.now()}.csv`
-      a.click()
-
-      setStatusMessage('✅ Data exported successfully')
+      setStatusMessage('Exporting as PDF...')
+      setStatusMessage('PDF export is not implemented yet.')
+      setExportModalOpen(false)
     } catch (error) {
       setStatusMessage(`❌ Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
+  }
+
+  const handleExportWord = async () => {
+    try {
+      setStatusMessage('Exporting as Word...')
+
+      // For now, show not implemented
+      setStatusMessage('Word export is not implemented yet.')
+      setExportModalOpen(false)
+    } catch (error) {
+      setStatusMessage(`❌ Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
+  const handleExportData = () => {
+    setExportModalOpen(true)
   }
 
   const handleValidateData = async () => {
@@ -242,6 +237,41 @@ export function TrainingDataPage() {
                 Import
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Export Format Modal */}
+      {exportModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-light-card dark:bg-dark-card rounded-lg p-8 max-w-md border border-light-border dark:border-dark-border">
+            <h3 className="text-xl font-bold text-light-text dark:text-dark-text mb-4">📄 Choose export format</h3>
+            <p className="text-light-textMuted dark:text-dark-textMuted mb-6">Select how you want to export the training data</p>
+
+            <div className="space-y-3 mb-6">
+              <button
+                onClick={handleExportPDF}
+                className="w-full p-4 text-left border-2 border-light-border dark:border-dark-border rounded-lg hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors duration-200"
+              >
+                <p className="font-semibold text-light-text dark:text-dark-text">📊 PDF table</p>
+                <p className="text-xs text-light-textMuted dark:text-dark-textMuted mt-1">Vhodné pro tisk, tabulkový přehled, neupravitelné</p>
+              </button>
+
+              <button
+                onClick={handleExportWord}
+                className="w-full p-4 text-left border-2 border-light-border dark:border-dark-border rounded-lg hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors duration-200"
+              >
+                <p className="font-semibold text-light-text dark:text-dark-text">📝 Word document</p>
+                <p className="text-xs text-light-textMuted dark:text-dark-textMuted mt-1">Vhodné pro další úpravy, editovatelný dokument</p>
+              </button>
+            </div>
+
+            <button
+              onClick={() => setExportModalOpen(false)}
+              className="w-full px-4 py-2 border border-light-border dark:border-dark-border rounded-lg text-light-text dark:text-dark-text hover:bg-light-bg dark:hover:bg-dark-bg font-semibold transition-colors duration-200"
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}

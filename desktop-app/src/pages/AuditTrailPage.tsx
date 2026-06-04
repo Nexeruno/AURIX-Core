@@ -21,7 +21,7 @@ export function AuditTrailPage() {
       const token = await getIdToken()
 
       if (!window.ipcApi) {
-        setError(new Error('Audit Trail backend is not available. Cloud Function adminGetAuditTrail is required.'))
+        setError(new Error('IPC API not available'))
         return
       }
 
@@ -37,10 +37,20 @@ export function AuditTrailPage() {
       )
 
       if (!response.ok) {
-        throw new Error(response.error || 'Failed to load audit logs')
+        const errorMsg = response.error || 'Unknown error'
+
+        // Determine specific error type
+        if (errorMsg.includes('not a function') || errorMsg.includes('not deployed')) {
+          setError(new Error('Audit Trail backend is not deployed yet.'))
+        } else if (errorMsg.includes('Forbidden') || errorMsg.includes('permission')) {
+          setError(new Error('You do not have permission to view audit logs.'))
+        } else {
+          setError(new Error('Audit logs could not be loaded.'))
+        }
+        return
       }
 
-      if (response.items) {
+      if (response.items && response.items.length > 0) {
         const logsWithDates = response.items.map((item: any) => ({
           ...item,
           timestamp: item.timestamp ? new Date(item.timestamp) : new Date(),
@@ -51,7 +61,15 @@ export function AuditTrailPage() {
       }
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : 'Failed to load audit logs'
-      setError(new Error(errMsg))
+
+      // Check for specific error types
+      if (errMsg.includes('not available') || errMsg.includes('IPC')) {
+        setError(new Error('Audit Trail backend is not deployed yet.'))
+      } else if (errMsg.includes('permission') || errMsg.includes('Forbidden')) {
+        setError(new Error('You do not have permission to view audit logs.'))
+      } else {
+        setError(new Error(errMsg))
+      }
       console.error('loadAuditLogs error:', err)
     } finally {
       setLoading(false)
