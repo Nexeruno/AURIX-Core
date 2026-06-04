@@ -3988,7 +3988,7 @@ exports.adminGetMlSystemHealth = functions.region(REGION).https.onRequest(async 
       .get();
     const recentRuns = mlRunsSnap.docs.map(doc => ({
       id: doc.id,
-      userId: doc.ref.parent.parent!.id,
+      userId: doc.ref.parent.parent.id,
       ...doc.data(),
     }));
 

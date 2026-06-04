@@ -331,14 +331,119 @@ export function MlControlPage() {
         </div>
       )}
 
+      {/* ─── L2 Pipeline Live Status ──────────────────────────────────────── */}
+      {health?.pipelineStatus && (
+        <div className={`card rounded-lg p-6 space-y-4 border-2 ${
+          health.pipelineStatus.status === 'running' ? 'border-yellow-500' :
+          health.pipelineStatus.status === 'completed' ? 'border-green-500' :
+          health.pipelineStatus.status === 'partial_success' ? 'border-orange-500' :
+          health.pipelineStatus.status === 'failed' ? 'border-red-500' :
+          'border-gray-500'
+        }`}>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-light-text dark:text-dark-text">⚡ L2 Pipeline Live Status</h2>
+            <span className={`px-3 py-1 rounded-full text-sm font-bold ${
+              health.pipelineStatus.status === 'running' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300' :
+              health.pipelineStatus.status === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' :
+              health.pipelineStatus.status === 'partial_success' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300' :
+              health.pipelineStatus.status === 'failed' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' :
+              'bg-gray-100 text-gray-700'
+            }`}>
+              {health.pipelineStatus.status.toUpperCase()}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="bg-light-border dark:bg-dark-border rounded p-3">
+              <p className="text-xs text-light-textMuted dark:text-dark-textMuted">Stage</p>
+              <p className="text-sm font-mono font-semibold text-light-text dark:text-dark-text">{health.pipelineStatus.stage}</p>
+            </div>
+            <div className="bg-light-border dark:bg-dark-border rounded p-3">
+              <p className="text-xs text-light-textMuted dark:text-dark-textMuted">Duration</p>
+              <p className="text-sm font-semibold text-light-text dark:text-dark-text">
+                {health.pipelineStatus.durationMs ? `${(health.pipelineStatus.durationMs / 1000).toFixed(1)}s` : 'Running...'}
+              </p>
+            </div>
+            <div className="bg-light-border dark:bg-dark-border rounded p-3">
+              <p className="text-xs text-light-textMuted dark:text-dark-textMuted">Users Processed</p>
+              <p className="text-sm font-semibold text-light-text dark:text-dark-text">
+                {health.pipelineStatus.progress?.usersProcessed || 0}/{health.pipelineStatus.progress?.usersTotal || 0}
+              </p>
+            </div>
+            <div className="bg-light-border dark:bg-dark-border rounded p-3">
+              <p className="text-xs text-light-textMuted dark:text-dark-textMuted">Predictions</p>
+              <p className="text-sm font-semibold text-light-text dark:text-dark-text">{health.pipelineStatus.progress?.predictionsCreated || 0}</p>
+            </div>
+          </div>
+
+          {health.pipelineStatus.progress && health.pipelineStatus.progress.usersTotal > 0 && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs">
+                <span className="text-light-textMuted dark:text-dark-textMuted">Progress</span>
+                <span className="font-semibold text-light-text dark:text-dark-text">
+                  {Math.round((health.pipelineStatus.progress.usersProcessed / health.pipelineStatus.progress.usersTotal) * 100)}%
+                </span>
+              </div>
+              <div className="w-full bg-light-border dark:bg-dark-border rounded-full h-2">
+                <div
+                  className={`h-2 rounded-full transition-all ${
+                    health.pipelineStatus.status === 'running' ? 'bg-yellow-500' :
+                    health.pipelineStatus.status === 'completed' ? 'bg-green-500' :
+                    health.pipelineStatus.status === 'failed' ? 'bg-red-500' :
+                    'bg-blue-500'
+                  }`}
+                  style={{ width: `${(health.pipelineStatus.progress.usersProcessed / health.pipelineStatus.progress.usersTotal) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {health.pipelineStatus.progress && health.pipelineStatus.progress.errorCount > 0 && (
+            <div className="bg-red-50 dark:bg-red-950/20 rounded p-3 border border-red-300 dark:border-red-700">
+              <p className="text-sm font-semibold text-red-700 dark:text-red-300">
+                ⚠️ {health.pipelineStatus.progress.errorCount} Error{health.pipelineStatus.progress.errorCount !== 1 ? 's' : ''}
+              </p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-3 border-t border-light-border dark:border-dark-border text-xs">
+            <div>
+              <span className="text-light-textMuted dark:text-dark-textMuted">Feedback Used</span>
+              <p className="font-semibold text-light-text dark:text-dark-text">{health.pipelineStatus.progress?.feedbackRecordsUsed || 0}</p>
+            </div>
+            <div>
+              <span className="text-light-textMuted dark:text-dark-textMuted">Manual FB</span>
+              <p className="font-semibold text-light-text dark:text-dark-text">{health.pipelineStatus.progress?.manualFeedbackRecordsUsed || 0}</p>
+            </div>
+            <div>
+              <span className="text-light-textMuted dark:text-dark-textMuted">Auto FB</span>
+              <p className="font-semibold text-light-text dark:text-dark-text">{health.pipelineStatus.progress?.autoFeedbackRecordsUsed || 0}</p>
+            </div>
+            <div>
+              <span className="text-light-textMuted dark:text-dark-textMuted">Started</span>
+              <p className="font-semibold text-light-text dark:text-dark-text text-xs">
+                {health.pipelineStatus.startedAt ? new Date(health.pipelineStatus.startedAt).toLocaleTimeString().split(':').slice(0, 2).join(':') : '—'}
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={reloadHealth}
+            className="w-full px-3 py-2 rounded text-sm bg-blue-600 dark:bg-blue-700 text-white hover:bg-blue-700 font-semibold transition-colors"
+          >
+            🔄 Refresh Pipeline Status
+          </button>
+        </div>
+      )}
+
       {/* ─── System Health Dashboard ─────────────────────────────────────── */}
       <div className="card rounded-lg p-6 space-y-4 border-2 border-blue-400 dark:border-blue-600">
-        <h2 className="text-lg font-semibold text-light-text dark:text-dark-text">📊 ML System Health</h2>
+        <h2 className="text-lg font-semibold text-light-text dark:text-dark-text">📊 System Health</h2>
 
         {healthLoading ? (
           <p className="text-sm text-light-textMuted">Loading system health...</p>
         ) : healthError ? (
-          <p className="text-sm text-red-600 dark:text-red-400">⚠️ {healthError}</p>
+          <p className="text-sm text-red-600 dark:text-red-400">❌ {healthError}</p>
         ) : health ? (
           <div className="space-y-3">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -348,19 +453,19 @@ export function MlControlPage() {
               </div>
               <div className="bg-light-border dark:bg-dark-border rounded p-3">
                 <p className="text-xs text-light-textMuted dark:text-dark-textMuted">L2 Enabled</p>
-                <p className={`text-sm font-semibold ${health.health.l2Enabled ? 'text-green-600' : 'text-red-600'}`}>
-                  {health.health.l2Enabled ? '✅ Yes' : '❌ No'}
+                <p className={`text-sm font-semibold ${health?.l2ShadowEnabled ? 'text-green-600' : 'text-red-600'}`}>
+                  {health?.l2ShadowEnabled ? '✅ Yes' : '❌ No'}
                 </p>
               </div>
               <div className="bg-light-border dark:bg-dark-border rounded p-3">
                 <p className="text-xs text-light-textMuted dark:text-dark-textMuted">L2 Shadow</p>
-                <p className={`text-sm font-semibold ${health.health.l2ShadowEnabled ? 'text-blue-600' : 'text-gray-600'}`}>
-                  {health.health.l2ShadowEnabled ? '🔵 ON' : '⚫ OFF'}
+                <p className={`text-sm font-semibold ${health?.l2ShadowEnabled ? 'text-blue-600' : 'text-gray-600'}`}>
+                  {health?.l2ShadowEnabled ? '🔵 ON' : '⚫ OFF'}
                 </p>
               </div>
               <div className="bg-light-border dark:bg-dark-border rounded p-3">
                 <p className="text-xs text-light-textMuted dark:text-dark-textMuted">Active Level</p>
-                <p className="text-sm font-semibold text-light-text dark:text-dark-text">L{health.health.activePredictionLevel}</p>
+                <p className="text-sm font-semibold text-light-text dark:text-dark-text">L{health?.predictionSettings?.activePredictionLevel ?? 1}</p>
               </div>
             </div>
 
@@ -368,16 +473,16 @@ export function MlControlPage() {
             <div className="grid grid-cols-3 gap-3 pt-3 border-t border-light-border dark:border-dark-border">
               <div>
                 <p className="text-xs text-light-textMuted dark:text-dark-textMuted">Manual Feedback</p>
-                <p className="text-2xl font-bold text-blue-600">{health.feedbackStats.totalManualFeedback}</p>
+                <p className="text-2xl font-bold text-blue-600">{health?.feedbackStats?.totalManualFeedback ?? 0}</p>
               </div>
               <div>
                 <p className="text-xs text-light-textMuted dark:text-dark-textMuted">Auto Feedback</p>
-                <p className="text-2xl font-bold text-purple-600">{health.feedbackStats.totalAutoFeedback}</p>
+                <p className="text-2xl font-bold text-purple-600">{health?.feedbackStats?.totalAutoFeedback ?? 0}</p>
               </div>
               <div>
                 <p className="text-xs text-light-textMuted dark:text-dark-textMuted">Total Feedback</p>
                 <p className="text-2xl font-bold text-green-600">
-                  {health.feedbackStats.totalManualFeedback + health.feedbackStats.totalAutoFeedback}
+                  {(health?.feedbackStats?.totalManualFeedback ?? 0) + (health?.feedbackStats?.totalAutoFeedback ?? 0)}
                 </p>
               </div>
             </div>
@@ -682,14 +787,14 @@ export function MlControlPage() {
 {JSON.stringify({
   predictionSettings: settings,
   mlHealth: {
-    l2ShadowEnabled: health?.health.l2ShadowEnabled,
-    l2Enabled: health?.health.l2Enabled,
-    activePredictionLevel: health?.health.activePredictionLevel,
+    l2ShadowEnabled: health?.l2ShadowEnabled,
+    l2Enabled: health?.predictionSettings?.level2Enabled,
+    activePredictionLevel: health?.predictionSettings?.activePredictionLevel,
   },
   pipelineStatus: health?.pipelineStatus,
   feedbackCounts: {
-    manual: health?.feedbackStats.totalManualFeedback,
-    auto: health?.feedbackStats.totalAutoFeedback,
+    manual: health?.feedbackStats?.totalManualFeedback,
+    auto: health?.feedbackStats?.totalAutoFeedback,
   },
   derivedState: { l1Status, l2Status, shadowModeOn, isL2Active, isL2Shadow },
   uiState: {
