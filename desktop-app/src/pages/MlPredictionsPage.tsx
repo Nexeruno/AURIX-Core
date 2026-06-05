@@ -17,6 +17,12 @@ interface L2ShadowPrediction {
   confidenceScore?: number
   createdAt?: any
   isRealMlModel?: boolean
+  aiProfileUsed?: boolean
+  aiProfileVersion?: string
+  personalizedAdjustmentFactor?: number
+  personalizedConfidenceAdjustment?: number
+  appliedProfileAdjustments?: string[]
+  personalizedExplanation?: string
 }
 
 export function MlPredictionsPage() {
@@ -177,6 +183,30 @@ export function MlPredictionsPage() {
                           </div>
                         ) : (
                           <p className="text-xs text-light-textMuted dark:text-dark-textMuted">No training data yet</p>
+                        )}
+
+                        {pred.aiProfileUsed && (
+                          <div className="bg-purple-100 dark:bg-purple-900/30 border border-purple-300 dark:border-purple-700 rounded p-2">
+                            <p className="text-xs font-semibold text-purple-700 dark:text-purple-300 mb-1">🧠 AI Profile Applied</p>
+                            <p className="text-xs text-purple-600 dark:text-purple-200">
+                              Adjustment: {(pred.personalizedAdjustmentFactor || 1).toFixed(2)}x
+                              {(pred.personalizedConfidenceAdjustment ?? 0) !== 0 && ` (confidence ${(pred.personalizedConfidenceAdjustment || 0) > 0 ? '+' : ''}${pred.personalizedConfidenceAdjustment}%)`}
+                            </p>
+                            {pred.personalizedExplanation && (
+                              <p className="text-xs text-purple-600 dark:text-purple-200 italic mt-1">
+                                {pred.personalizedExplanation}
+                              </p>
+                            )}
+                            {pred.appliedProfileAdjustments && pred.appliedProfileAdjustments.length > 0 && (
+                              <div className="text-xs text-purple-600 dark:text-purple-200 mt-1 flex flex-wrap gap-1">
+                                {pred.appliedProfileAdjustments.map((adj) => (
+                                  <span key={adj} className="px-1.5 py-0.5 bg-purple-200 dark:bg-purple-800 rounded text-xs">
+                                    {adj}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         )}
 
                         {isAdmin && (

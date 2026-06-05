@@ -3594,6 +3594,62 @@ exports.runLevel2ShadowPipeline = functions.region(REGION).https.onRequest(async
         //   - Call ml-pipeline/src/main.py with RandomForest training
         //   - Integrate trainingData collections for labeled examples
         //   - Implement actual feature engineering and model evaluation
+
+        // Load AI profile for personalized adjustments
+        let aiProfile = null;
+        let personalizedAdjustmentFactor = 1.0;
+        let personalizedConfidenceAdjustment = 0;
+        let appliedProfileAdjustments = [];
+        let profileExplanation = '';
+        try {
+          const profileDoc = await db.collection('users').doc(uid).collection('aiProfile').doc('summary').get();
+          if (profileDoc.exists) {
+            aiProfile = profileDoc.data();
+
+            // Apply personalized adjustments based on profile
+            // 1. Expense volatility → adjust confidence
+            if (aiProfile.expenseVolatility > 0.5) {
+              personalizedConfidenceAdjustment -= 10;
+              appliedProfileAdjustments.push('reduced_confidence_high_volatility');
+            } else if (aiProfile.expenseVolatility < 0.2) {
+              personalizedConfidenceAdjustment += 5;
+              appliedProfileAdjustments.push('boosted_confidence_low_volatility');
+            }
+
+            // 2. Trend → adjust variation
+            if (Math.abs(aiProfile.features?.monthOverMonthExpenseTrend || 0) > 0.15) {
+              personalizedAdjustmentFactor += (aiProfile.features?.monthOverMonthExpenseTrend || 0) * 0.5;
+              appliedProfileAdjustments.push('adjusted_for_spending_trend');
+            }
+
+            // 3. Income regularity → adjust confidence
+            if (aiProfile.incomeRegularity > 0.8) {
+              personalizedConfidenceAdjustment += 5;
+              appliedProfileAdjustments.push('boosted_confidence_stable_income');
+            }
+
+            // 4. Feedback adjusted bias → direct adjustment
+            if (Math.abs(aiProfile.feedbackAdjustedBias) > 0.05) {
+              personalizedAdjustmentFactor *= (1 + aiProfile.feedbackAdjustedBias);
+              appliedProfileAdjustments.push('applied_feedback_bias');
+            }
+
+            // Build explanation
+            const parts = [];
+            if (aiProfile.expenseVolatility > 0.5) parts.push('high expense variability');
+            else if (aiProfile.expenseVolatility < 0.2) parts.push('predictable spending');
+            if (aiProfile.incomeRegularity > 0.8) parts.push('stable income');
+            if (Math.abs(aiProfile.features?.monthOverMonthExpenseTrend || 0) > 0.15) {
+              const trend = (aiProfile.features?.monthOverMonthExpenseTrend || 0) > 0 ? 'increasing' : 'decreasing';
+              parts.push(`${trend} spending trend`);
+            }
+            if (aiProfile.feedbackAdjustedBias !== 0) parts.push('feedback-adjusted');
+            profileExplanation = parts.length > 0 ? `User profile: ${parts.join(', ')}` : '';
+          }
+        } catch (err) {
+          logger.warn(`[L2_SHADOW] Failed to load AI profile for ${uid}:`, err.message);
+        }
+
         let shadowPrediction = null;
 
         if (transactions.length >= 10 && level1Pred) {
@@ -3602,6 +3658,12 @@ exports.runLevel2ShadowPipeline = functions.region(REGION).https.onRequest(async
           // Apply weighted correction factor if available
           if (trainingDataUsed) {
             variation *= finalCorrectionFactor;
+          }
+          // Apply personalized AI profile adjustment
+          if (aiProfile) {
+            variation *= personalizedAdjustmentFactor;
+            // Clamp to reasonable range [0.8, 1.2] to avoid extreme predictions
+            variation = Math.max(0.8, Math.min(1.2, variation));
           }
           shadowPrediction = {
             // Core prediction data
@@ -3629,6 +3691,13 @@ exports.runLevel2ShadowPipeline = functions.region(REGION).https.onRequest(async
             autoCorrectionFactor: autoRecords.length > 0 ? Math.round(autoCorrectionFactor * 100) / 100 : 1.0,
             finalCorrectionFactor: trainingDataUsed ? Math.round(finalCorrectionFactor * 100) / 100 : 1.0,
             incomeDataUsed: true,
+            // AI Profile personalization (rule-based, NOT full ML)
+            aiProfileUsed: aiProfile ? true : false,
+            aiProfileVersion: aiProfile?.profileVersion || null,
+            personalizedAdjustmentFactor: Math.round(personalizedAdjustmentFactor * 100) / 100,
+            personalizedConfidenceAdjustment,
+            appliedProfileAdjustments: appliedProfileAdjustments,
+            personalizedExplanation: profileExplanation,
             // Metrics
             fallbackUsed: false,
             metrics: {
@@ -3660,6 +3729,13 @@ exports.runLevel2ShadowPipeline = functions.region(REGION).https.onRequest(async
             trainingDataUsed: false,
             trainingDataCount: 0,
             incomeDataUsed: false,
+            // AI Profile personalization (rule-based, NOT full ML)
+            aiProfileUsed: false,
+            aiProfileVersion: null,
+            personalizedAdjustmentFactor: 1.0,
+            personalizedConfidenceAdjustment: 0,
+            appliedProfileAdjustments: [],
+            personalizedExplanation: 'Fallback: insufficient data for personalization',
             // Metrics
             fallbackUsed: true,
             fallbackReason: transactions.length < 10 ? 'insufficient_data' : 'no_level1_prediction',
