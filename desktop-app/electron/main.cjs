@@ -253,3 +253,40 @@ ipcMain.handle("generateAllAiProfiles", async (event, idToken) => {
     };
   }
 });
+
+ipcMain.handle("regenerateStaleProfiles", async (event, idToken) => {
+  const projectId = 'evidence-vydaju';
+  const functionName = 'adminRegenerateStaleProfiles';
+  const url = `https://europe-west1-${projectId}.cloudfunctions.net/${functionName}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${idToken}`,
+      },
+      body: JSON.stringify({}),
+    });
+
+    const responseText = await response.text();
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch {
+      result = { raw: responseText };
+    }
+
+    if (!response.ok) {
+      const errMsg = result?.error || `Cloud Function ${functionName} returned HTTP ${response.status}`;
+      return { ok: false, error: errMsg };
+    }
+
+    return result;
+  } catch (err) {
+    return {
+      ok: false,
+      error: err.message || 'Failed to call Cloud Function',
+    };
+  }
+});

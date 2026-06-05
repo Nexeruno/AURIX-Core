@@ -38,6 +38,7 @@ export interface IpcApi {
   clearLocalCache: () => Promise<void>
   generateAiProfile: (idToken: string, userId: string) => Promise<any>
   generateAllAiProfiles: (idToken: string) => Promise<any>
+  regenerateStaleProfiles: (idToken: string) => Promise<any>
 }
 
 declare global {

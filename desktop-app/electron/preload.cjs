@@ -13,4 +13,6 @@ contextBridge.exposeInMainWorld("ipcApi", {
     ipcRenderer.invoke("generateAiProfile", idToken, userId),
   generateAllAiProfiles: (idToken) =>
     ipcRenderer.invoke("generateAllAiProfiles", idToken),
+  regenerateStaleProfiles: (idToken) =>
+    ipcRenderer.invoke("regenerateStaleProfiles", idToken),
 });

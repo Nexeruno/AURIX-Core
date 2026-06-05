@@ -4755,4 +4755,139 @@ exports.adminGetAiProfile = functions.region(REGION).https.onRequest(async (req,
   });
 });
 
+// Regenerate all stale AI profiles (admin bulk action)
+exports.adminRegenerateStaleProfiles = functions.region(REGION).https.onRequest(async (req, res) => {
+  cors(req, res, async () => {
+    try {
+      const auth = req.header('authorization')?.replace('Bearer ', '');
+      if (!auth) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+
+      const decodedToken = await admin.auth().verifyIdToken(auth);
+      const callerDoc = await db.collection('users').doc(decodedToken.uid).get();
+      if (!['admin', 'ml_admin'].includes(callerDoc.data()?.role)) {
+        return res.status(403).json({ ok: false, error: 'Forbidden' });
+      }
+
+      // Get all users
+      const usersSnap = await db.collection('users').get();
+      const staleUserIds = [];
+      const results = {
+        regenerated: 0,
+        skipped: 0,
+        failed: 0,
+        errors: [],
+      };
+
+      // Check each user's profile for staleness
+      for (const userDoc of usersSnap.docs) {
+        try {
+          const profileDoc = await db.collection('users').doc(userDoc.id).collection('aiProfile').doc('summary').get();
+
+          if (!profileDoc.exists) {
+            results.skipped++;
+            continue;
+          }
+
+          const profile = profileDoc.data();
+
+          // Check if stale
+          const generatedAt = profile.generatedAt?.toDate ? profile.generatedAt.toDate() : profile.generatedAt;
+          const staleness = await checkAiProfileStaleness(userDoc.id, generatedAt);
+
+          if (staleness.profileStale) {
+            staleUserIds.push(userDoc.id);
+          } else {
+            results.skipped++;
+          }
+        } catch (err) {
+          logger.warn(`[STALE_CHECK] Failed for user ${userDoc.id}:`, err.message);
+          results.skipped++;
+        }
+      }
+
+      // Regenerate all stale profiles
+      for (const uid of staleUserIds) {
+        try {
+          const features = await extractUserFeatures(uid);
+
+          // Load last transaction and feedback timestamps
+          const vydaje = await db.collection('users').doc(uid).collection('vydaje')
+            .orderBy('datum', 'desc')
+            .limit(1)
+            .get();
+          const lastVydaj = vydaje.docs[0]?.data();
+
+          const prijmy = await db.collection('users').doc(uid).collection('prijmy')
+            .orderBy('datum', 'desc')
+            .limit(1)
+            .get();
+          const lastPrijmy = prijmy.docs[0]?.data();
+
+          const vydajDate = lastVydaj?.datum ? new Date(lastVydaj.datum) : null;
+          const prijmyDate = lastPrijmy?.datum ? new Date(lastPrijmy.datum) : null;
+          const lastTransactionAt = [vydajDate, prijmyDate]
+            .filter(d => d !== null)
+            .sort((a, b) => b.getTime() - a.getTime())[0] || null;
+
+          const feedback = await db.collection('trainingData')
+            .where('userId', '==', uid)
+            .where('status', '==', 'approved')
+            .orderBy('createdAt', 'desc')
+            .limit(1)
+            .get();
+          const lastFeedbackAt = feedback.docs[0]?.data()?.createdAt || null;
+
+          const expenseData = Object.values(features.categoryTotals12m);
+          const medianExpense = expenseData.length > 0
+            ? expenseData.sort((a, b) => a - b)[Math.floor(expenseData.length / 2)]
+            : 0;
+
+          const profile = {
+            userId: uid,
+            generatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            sourceDataUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            profileStale: false,
+            staleReason: [],
+            lastTransactionAt: lastTransactionAt ? admin.firestore.Timestamp.fromDate(lastTransactionAt) : null,
+            lastFeedbackAt: lastFeedbackAt || null,
+            dataCoverageMonths: 12,
+            transactionCount: Object.values(features.categoryTotals12m).length,
+            expenseCount: Object.values(features.categoryTotals12m).reduce((a, b) => a + b, 0) > 0 ? 12 : 0,
+            incomeCount: features.avgIncome12m > 0 ? 12 : 0,
+            avgMonthlyExpense: Math.round(features.avgExpense12m),
+            avgMonthlyIncome: Math.round(features.avgIncome12m),
+            medianMonthlyExpense: Math.round(medianExpense),
+            medianMonthlyIncome: Math.round(features.avgIncome12m * 0.95),
+            topExpenseCategories: features.topExpenseCategories || [],
+            topIncomeCategories: ['Salary'],
+            expenseVolatility: Math.round(features.volatilityScore * 100) / 100,
+            incomeRegularity: Math.round(features.regularityScore * 100) / 100,
+            savingsTrend: Math.round(features.monthOverMonthIncomeTrend * 100) / 100,
+            dominantSpendingPattern: features.largestExpenseCategory || 'Mixed',
+            seasonalitySignals: 'Low seasonality detected',
+            feedbackAdjustedBias: features.avgFinalCorrectionFactor - 1.0,
+            confidenceScore: Math.min(100, Math.round(Math.max(0, (features.feedbackCount * 10 + 60)))),
+            profileVersion: '1.0',
+            humanReadableExplanation: '',
+            features,
+          };
+
+          profile.humanReadableExplanation = generateHumanReadableExplanation(profile);
+
+          await db.collection('users').doc(uid).collection('aiProfile').doc('summary').set(profile);
+          results.regenerated++;
+        } catch (err) {
+          logger.error(`[REGENERATE_STALE] Failed for user ${uid}:`, err.message);
+          results.failed++;
+          results.errors.push({ userId: uid, error: err.message });
+        }
+      }
+
+      res.status(200).json({ ok: true, ...results });
+    } catch (err) {
+      logger.error('adminRegenerateStaleProfiles error:', err);
+      res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+});
 

@@ -92,6 +92,7 @@ export function AiProfilesPage() {
   const [loadingUsers, setLoadingUsers] = useState(true)
   const [generatingAll, setGeneratingAll] = useState(false)
   const [generatingUser, setGeneratingUser] = useState<string | null>(null)
+  const [regeneratingStale, setRegeneratingStale] = useState(false)
   const [statusMsg, setStatusMsg] = useState<{ text: string; ok: boolean } | null>(null)
   const [rawFeaturesOpen, setRawFeaturesOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -197,6 +198,30 @@ export function AiProfilesPage() {
     }
   }
 
+  // ── Regenerate all stale profiles ─────────────────────────────────────────
+  const handleRegenerateStale = async () => {
+    setRegeneratingStale(true)
+    setStatusMsg(null)
+    try {
+      const token = await getIdToken()
+      if (!window.ipcApi) throw new Error('IPC API not available')
+      const result = await window.ipcApi.regenerateStaleProfiles(token)
+      if (result?.ok) {
+        const msg = `✅ Regenerated ${result.regenerated || 0} stale profiles. Skipped: ${result.skipped || 0}. Failed: ${result.failed || 0}. Refreshing...`
+        setStatusMsg({ text: msg, ok: true })
+        // Reload profiles after regeneration
+        const token2 = await getIdToken()
+        await loadProfilesForUsers(users, token2)
+      } else {
+        throw new Error(result?.error || 'Regenerate stale failed')
+      }
+    } catch (err) {
+      setStatusMsg({ text: `❌ ${err instanceof Error ? err.message : String(err)}`, ok: false })
+    } finally {
+      setRegeneratingStale(false)
+    }
+  }
+
   // ── Filtered users ────────────────────────────────────────────────────────
   const filteredUsers = users.filter((u) => {
     if (!searchQuery) return true
@@ -251,21 +276,33 @@ export function AiProfilesPage() {
       )}
 
       {/* B. Toolbar */}
-      <div className="card rounded-lg p-4 flex flex-wrap items-center gap-3">
-        <button
-          onClick={handleGenerateAll}
-          disabled={generatingAll || loadingUsers || users.length === 0}
-          className="px-4 py-2 rounded-lg bg-blue-600 dark:bg-blue-700 text-white font-semibold text-sm hover:bg-blue-700 disabled:opacity-50"
-        >
-          {generatingAll ? '⏳ Generating all...' : '🔄 Generate All Profiles'}
-        </button>
-        <button
-          onClick={loadUsers}
-          disabled={loadingUsers}
-          className="px-4 py-2 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold text-sm hover:bg-slate-300 disabled:opacity-50"
-        >
-          {loadingUsers ? '⏳ Loading...' : '↺ Refresh'}
-        </button>
+      {(() => {
+        const staleCount = Object.values(profiles).filter(p => p && p.profileStale === true).length
+        return (
+          <div className="card rounded-lg p-4 flex flex-wrap items-center gap-3">
+            {staleCount > 0 && (
+              <button
+                onClick={handleRegenerateStale}
+                disabled={regeneratingStale || loadingUsers}
+                className="px-4 py-2 rounded-lg bg-amber-600 dark:bg-amber-700 text-white font-semibold text-sm hover:bg-amber-700 disabled:opacity-50 animate-pulse"
+              >
+                {regeneratingStale ? '⏳ Regenerating stale...' : `🔄 Regenerate ${staleCount} Stale Profile${staleCount !== 1 ? 's' : ''}`}
+              </button>
+            )}
+            <button
+              onClick={handleGenerateAll}
+              disabled={generatingAll || loadingUsers || users.length === 0}
+              className="px-4 py-2 rounded-lg bg-blue-600 dark:bg-blue-700 text-white font-semibold text-sm hover:bg-blue-700 disabled:opacity-50"
+            >
+              {generatingAll ? '⏳ Generating all...' : '🔄 Generate All Profiles'}
+            </button>
+            <button
+              onClick={loadUsers}
+              disabled={loadingUsers}
+              className="px-4 py-2 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold text-sm hover:bg-slate-300 disabled:opacity-50"
+            >
+              {loadingUsers ? '⏳ Loading...' : '↺ Refresh'}
+            </button>
         <input
           type="text"
           placeholder="Search by name, email, UID..."
@@ -273,10 +310,12 @@ export function AiProfilesPage() {
           onChange={(e) => setSearchQuery(e.target.value)}
           className="px-3 py-2 rounded-lg text-sm bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border text-light-text dark:text-dark-text ml-auto w-64"
         />
-        <span className="text-xs text-light-textMuted dark:text-dark-textMuted">
-          {users.length} users · {Object.keys(profiles).length} profiles
-        </span>
-      </div>
+            <span className="text-xs text-light-textMuted dark:text-dark-textMuted">
+              {users.length} users · {Object.keys(profiles).length} profiles
+            </span>
+          </div>
+        )
+      })()}
 
       {/* C. Debug Info */}
       {(() => {
@@ -396,13 +435,23 @@ export function AiProfilesPage() {
                         View Detail
                       </button>
                     )}
-                    <button
-                      onClick={() => handleGenerateProfile(u)}
-                      disabled={isGenerating || generatingAll}
-                      className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-blue-600 dark:bg-blue-700 text-white hover:bg-blue-700 disabled:opacity-50"
-                    >
-                      {isGenerating ? '⏳' : hasProfile ? '↺ Regenerate' : '⚙️ Generate'}
-                    </button>
+                    {profile?.profileStale ? (
+                      <button
+                        onClick={() => handleGenerateProfile(u)}
+                        disabled={isGenerating || generatingAll}
+                        className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-amber-600 dark:bg-amber-700 text-white hover:bg-amber-700 disabled:opacity-50 animate-pulse"
+                      >
+                        {isGenerating ? '⏳' : '🔄 Regenerate Now'}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleGenerateProfile(u)}
+                        disabled={isGenerating || generatingAll}
+                        className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-blue-600 dark:bg-blue-700 text-white hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        {isGenerating ? '⏳' : hasProfile ? '↺ Regenerate' : '⚙️ Generate'}
+                      </button>
+                    )}
                   </div>
                 </div>
               )
