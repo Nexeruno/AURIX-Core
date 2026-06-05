@@ -9,6 +9,7 @@ export function AuditTrailPage() {
   const [allLogs, setAllLogs] = useState<AuditLog[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null)
 
   useEffect(() => {
     loadAuditLogs()
@@ -31,7 +32,7 @@ export function AuditTrailPage() {
         {
           limit: 100,
           offset: 0,
-          adminUid: selectedAdmin !== 'all' ? selectedAdmin : undefined,
+          adminId: selectedAdmin !== 'all' ? selectedAdmin : undefined,
           action: selectedAction !== 'all' ? selectedAction : undefined,
         }
       )
@@ -51,11 +52,7 @@ export function AuditTrailPage() {
       }
 
       if (response.items && response.items.length > 0) {
-        const logsWithDates = response.items.map((item: any) => ({
-          ...item,
-          timestamp: item.timestamp ? new Date(item.timestamp) : new Date(),
-        }))
-        setAllLogs(logsWithDates)
+        setAllLogs(response.items as AuditLog[])
       } else {
         setAllLogs([])
       }
@@ -76,13 +73,20 @@ export function AuditTrailPage() {
     }
   }
 
-  const filteredLogs = allLogs.filter((log: any) => {
-    const adminMatch = selectedAdmin === 'all' || log.adminUid === selectedAdmin
+  const filteredLogs = allLogs.filter((log: AuditLog) => {
+    const adminMatch = selectedAdmin === 'all' || log.adminId === selectedAdmin
     const actionMatch = selectedAction === 'all' || log.action === selectedAction
     return adminMatch && actionMatch
   })
 
-  const actions = Array.from(new Set(allLogs.map((l: any) => l.action)))
+  const formatTs = (ts: number | any): string => {
+    if (!ts) return '—'
+    if (typeof ts === 'number') return new Date(ts).toLocaleString()
+    if (ts instanceof Date) return ts.toLocaleString()
+    return String(ts)
+  }
+
+  const actions = Array.from(new Set(allLogs.map((l: AuditLog) => l.action)))
 
   return (
     <div className="space-y-6">
@@ -99,7 +103,7 @@ export function AuditTrailPage() {
               className="select-field rounded-lg"
             >
               <option value="all">All Admins</option>
-              {Array.from(new Set(allLogs.map((l: any) => l.adminUid))).map((uid) => (
+              {Array.from(new Set(allLogs.map((l: any) => l.adminId))).map((uid) => (
                 <option key={uid} value={uid}>{uid}</option>
               ))}
             </select>
@@ -120,61 +124,47 @@ export function AuditTrailPage() {
         </div>
       </div>
 
-      {/* Audit Log Table */}
-      <div className="card rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          {error ? (
-            <div className="px-6 py-8 text-center">
-              <div className="text-red-600 dark:text-red-400 font-semibold mb-2">⚠️ Error loading audit trail</div>
-              <p className="text-sm text-light-textMuted dark:text-dark-textMuted">{error.message}</p>
-            </div>
-          ) : loading ? (
-            <div className="px-6 py-8 text-center text-light-textMuted dark:text-dark-textMuted">Loading...</div>
-          ) : filteredLogs.length === 0 ? (
-            <div className="px-6 py-8 text-center text-light-textMuted dark:text-dark-textMuted">No audit logs found</div>
-          ) : (
-            <table className="w-full text-sm">
-              <thead className="table-header bg-light-border dark:bg-dark-border">
-                <tr>
-                  <th className="px-6 py-3 text-left font-semibold text-light-text dark:text-dark-text">Timestamp</th>
-                  <th className="px-6 py-3 text-left font-semibold text-light-text dark:text-dark-text">Admin</th>
-                  <th className="px-6 py-3 text-left font-semibold text-light-text dark:text-dark-text">Action</th>
-                  <th className="px-6 py-3 text-left font-semibold text-light-text dark:text-dark-text">Resource</th>
-                  <th className="px-6 py-3 text-left font-semibold text-light-text dark:text-dark-text">Status</th>
-                  <th className="px-6 py-3 text-left font-semibold text-light-text dark:text-dark-text">Details</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredLogs.map((log: any) => (
-                  <tr key={log.id} className="table-row">
-                    <td className="px-6 py-4 text-light-text dark:text-dark-text whitespace-nowrap text-xs">
-                      {log.timestamp instanceof Date ? log.timestamp.toLocaleString() : new Date(log.timestamp).toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 text-light-text dark:text-dark-text">
-                      <div className="text-sm">{log.adminUid}</div>
-                    </td>
-                    <td className="px-6 py-4 text-light-text dark:text-dark-text font-semibold">{log.action}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-light-textMuted dark:text-dark-textMuted">
-                          {JSON.stringify(log.details || {})}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded text-xs font-semibold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400`}>
-                        success
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-light-textMuted dark:text-dark-textMuted text-xs max-w-xs truncate" title={JSON.stringify(log.details)}>
-                      ✅ Success
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+      {/* Audit Log List */}
+      <div className="card rounded-lg p-6">
+        {error ? (
+          <div className="text-center">
+            <div className="text-red-600 dark:text-red-400 font-semibold mb-2">⚠️ Error loading audit trail</div>
+            <p className="text-sm text-light-textMuted dark:text-dark-textMuted">{error.message}</p>
+          </div>
+        ) : loading ? (
+          <div className="text-center text-light-textMuted dark:text-dark-textMuted">Loading...</div>
+        ) : filteredLogs.length === 0 ? (
+          <div className="text-center text-light-textMuted dark:text-dark-textMuted">No audit logs found</div>
+        ) : (
+          <div className="space-y-2">
+            {filteredLogs.map((log: any) => (
+              <div
+                key={log.id}
+                className="flex items-start gap-3 p-3 bg-light-border dark:bg-dark-border/40 rounded-lg border border-light-border dark:border-dark-border hover:bg-light-border/80 dark:hover:bg-dark-border/60 transition-colors"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className="px-2 py-0.5 rounded text-xs font-semibold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
+                      ✅ {log.action}
+                    </span>
+                    <span className="text-xs text-light-textMuted dark:text-dark-textMuted">
+                      {formatTs(log.timestamp)}
+                    </span>
+                  </div>
+                  <p className="text-sm text-light-text dark:text-dark-text break-words">
+                    <strong>Admin:</strong> {log.adminId}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSelectedLog(log)}
+                  className="px-3 py-1 rounded text-xs font-semibold bg-blue-600 dark:bg-blue-700 text-white hover:bg-blue-700 shrink-0 whitespace-nowrap"
+                >
+                  View
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Statistics */}
@@ -186,7 +176,7 @@ export function AuditTrailPage() {
         <div className="card rounded-lg p-4">
           <p className="text-light-textMuted dark:text-dark-textMuted text-xs">Unique Admins</p>
           <p className="text-3xl font-bold text-light-text dark:text-dark-text mt-2">
-            {Array.from(new Set(allLogs.map((l: any) => l.adminUid))).length}
+            {Array.from(new Set(allLogs.map((l: AuditLog) => l.adminId))).length}
           </p>
         </div>
       </div>
@@ -197,6 +187,79 @@ export function AuditTrailPage() {
           <span className="font-semibold">📋 Note:</span> Audit trail is stored for 90 days. Export data regularly for compliance.
         </p>
       </div>
+
+      {/* Audit Log Detail Modal */}
+      {selectedLog && (
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-light-card dark:bg-dark-card rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto border border-light-border dark:border-dark-border">
+            <div className="sticky top-0 bg-light-border dark:bg-dark-border px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="px-2 py-0.5 rounded text-xs font-semibold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
+                  ✅ {selectedLog.action}
+                </span>
+                <h3 className="text-lg font-bold text-light-text dark:text-dark-text">Audit Log Details</h3>
+              </div>
+              <button
+                onClick={() => setSelectedLog(null)}
+                className="text-light-textMuted dark:text-dark-textMuted hover:text-light-text dark:hover:text-dark-text text-2xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Timestamp */}
+              <div>
+                <p className="text-xs text-light-textMuted dark:text-dark-textMuted uppercase tracking-wide font-semibold mb-1">Timestamp</p>
+                <p className="text-sm text-light-text dark:text-dark-text font-mono">
+                  {formatTs(selectedLog.timestamp)}
+                </p>
+              </div>
+
+              {/* Admin */}
+              <div>
+                <p className="text-xs text-light-textMuted dark:text-dark-textMuted uppercase tracking-wide font-semibold mb-1">Admin User ID</p>
+                <p className="text-sm text-light-text dark:text-dark-text font-mono bg-light-bg dark:bg-dark-bg px-3 py-2 rounded break-all">{selectedLog.adminId}</p>
+              </div>
+
+              {/* Action */}
+              <div>
+                <p className="text-xs text-light-textMuted dark:text-dark-textMuted uppercase tracking-wide font-semibold mb-1">Action</p>
+                <p className="text-sm text-light-text dark:text-dark-text font-semibold">{selectedLog.action}</p>
+              </div>
+
+              {/* Resource */}
+              <div>
+                <p className="text-xs text-light-textMuted dark:text-dark-textMuted uppercase tracking-wide font-semibold mb-1">Resource</p>
+                <p className="text-sm text-light-text dark:text-dark-text">
+                  {selectedLog.details && typeof selectedLog.details === 'object'
+                    ? Object.entries(selectedLog.details).map(([k, v]) => `${k}: ${v}`).join(' • ')
+                    : JSON.stringify(selectedLog.details) || '—'}
+                </p>
+              </div>
+
+              {/* Details */}
+              {selectedLog.details && Object.keys(selectedLog.details).length > 0 && (
+                <div>
+                  <p className="text-xs text-light-textMuted dark:text-dark-textMuted uppercase tracking-wide font-semibold mb-1">Full Details</p>
+                  <pre className="text-xs bg-slate-900 dark:bg-slate-950 text-slate-100 p-3 rounded overflow-auto max-h-64">
+                    {JSON.stringify(selectedLog.details, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+
+            <div className="sticky bottom-0 bg-light-border dark:bg-dark-border px-6 py-3 flex gap-2">
+              <button
+                onClick={() => setSelectedLog(null)}
+                className="flex-1 px-4 py-2 rounded-lg bg-light-bg dark:bg-dark-bg text-light-text dark:text-dark-text hover:bg-light-border dark:hover:bg-dark-border font-semibold transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
