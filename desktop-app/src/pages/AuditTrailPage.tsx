@@ -136,11 +136,11 @@ export function AuditTrailPage() {
         ) : filteredLogs.length === 0 ? (
           <div className="text-center text-light-textMuted dark:text-dark-textMuted">No audit logs found</div>
         ) : (
-          <div className="space-y-1">
+          <div className="space-y-3">
             {filteredLogs.map((log: any) => (
               <div
                 key={log.id}
-                className="flex items-center gap-2 p-2 bg-light-border dark:bg-dark-border/40 rounded border border-light-border dark:border-dark-border hover:bg-light-border/80 dark:hover:bg-dark-border/60 transition-colors"
+                className="flex items-center gap-3 p-3 bg-light-border dark:bg-dark-border/40 rounded border border-light-border dark:border-dark-border hover:bg-light-border/80 dark:hover:bg-dark-border/60 transition-colors"
               >
                 <p className="text-base text-light-text dark:text-dark-text truncate min-w-0">
                   <strong>Admin:</strong> {log.adminId}
