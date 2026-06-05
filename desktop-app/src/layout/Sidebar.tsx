@@ -11,6 +11,7 @@ import {
   Settings,
   Database,
   BookOpen,
+  Brain,
 } from 'lucide-react'
 
 const menuItems = [
@@ -29,6 +30,7 @@ const menuItems = [
   // Fáze 5
   { label: 'Training', path: '/training', icon: BookOpen },
   { label: 'Training Data', path: '/ml/training-data', icon: Database },
+  { label: 'AI Profiles', path: '/ai-profiles', icon: Brain },
   { label: 'Settings', path: '/settings', icon: Settings },
 ]
 

@@ -17,6 +17,7 @@ import { AuditTrailPage } from './pages/AuditTrailPage'
 import { TrainingPage } from './pages/TrainingPage'
 import { TrainingDataPage } from './pages/TrainingDataPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { AiProfilesPage } from './pages/AiProfilesPage'
 
 export function App() {
   return (
@@ -47,6 +48,7 @@ export function App() {
             <Route path="users" element={<UsersPage />} />
             <Route path="roles" element={<RolesPage />} />
             <Route path="audit-trail" element={<AuditTrailPage />} />
+            <Route path="ai-profiles" element={<AiProfilesPage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>
 

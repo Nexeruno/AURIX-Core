@@ -1,283 +1,520 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/auth/AuthProvider'
 import { useUserRole } from '@/hooks/useUserRole'
-import { useAiProfiles } from '@/hooks/useAiProfiles'
 import type { AiProfile } from '@/types/aiProfile'
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function formatTs(ts: any): string {
+  if (!ts) return '—'
+  try {
+    if (typeof ts.toDate === 'function') return ts.toDate().toLocaleString()
+    if (ts.seconds) return new Date(ts.seconds * 1000).toLocaleString()
+    if (ts._seconds) return new Date(ts._seconds * 1000).toLocaleString()
+    const d = new Date(ts)
+    return isNaN(d.getTime()) ? '—' : d.toLocaleString()
+  } catch { return '—' }
+}
+
+function fmtCurrency(n: number): string {
+  return isNaN(n) ? '—' : `${Math.round(n).toLocaleString()} Kč`
+}
+
+function fmtPct(n: number): string {
+  return isNaN(n) ? '—' : `${(n * 100).toFixed(1)}%`
+}
+
+function fmtFactor(n: number): string {
+  return isNaN(n) ? '—' : `${n.toFixed(2)}x`
+}
+
+function ConfidenceBadge({ score }: { score: number }) {
+  const cls = score >= 80 ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
+    : score >= 50 ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300'
+    : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
+  const label = score >= 80 ? 'High' : score >= 50 ? 'Medium' : 'Low'
+  return (
+    <span className={`px-2 py-0.5 rounded text-xs font-semibold ${cls}`}>
+      {label} ({score}%)
+    </span>
+  )
+}
+
+function StatCell({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="bg-light-bg dark:bg-dark-bg rounded p-3">
+      <p className="text-xs text-light-textMuted dark:text-dark-textMuted uppercase tracking-wide mb-0.5">{label}</p>
+      <p className="text-sm font-semibold text-light-text dark:text-dark-text">{value}</p>
+    </div>
+  )
+}
+
+// ─── Interface for user list entry ───────────────────────────────────────────
+
+interface UserEntry {
+  uid: string
+  email?: string
+  displayName?: string
+  role?: string
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
 export function AiProfilesPage() {
-  const { user } = useAuth()
+  const { user, getIdToken } = useAuth()
   const { role: userRole } = useUserRole(user)
-  const { generateProfile, generateAllProfiles, loading } = useAiProfiles()
 
-  const [users, setUsers] = useState<{ uid: string; displayName: string; email: string }[]>([])
+  const [users, setUsers] = useState<UserEntry[]>([])
   const [profiles, setProfiles] = useState<Record<string, AiProfile>>({})
-  const [selectedProfile, setSelectedProfile] = useState<AiProfile | null>(null)
-  const [loadingProfiles, setLoadingProfiles] = useState(false)
-  const [statusMessage, setStatusMessage] = useState('')
+  const [selectedProfile, setSelectedProfile] = useState<{ user: UserEntry; profile: AiProfile } | null>(null)
+  const [loadingUsers, setLoadingUsers] = useState(true)
+  const [generatingAll, setGeneratingAll] = useState(false)
   const [generatingUser, setGeneratingUser] = useState<string | null>(null)
+  const [statusMsg, setStatusMsg] = useState<{ text: string; ok: boolean } | null>(null)
+  const [rawFeaturesOpen, setRawFeaturesOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
-  const isAdmin = userRole && ['admin', 'ml_admin'].includes(userRole)
+  const isAdmin = userRole === 'admin' || userRole === 'ml_admin'
 
-  // Load users (placeholder - would fetch from Cloud Function or Firestore)
-  useEffect(() => {
-    loadUsers()
-  }, [])
+  // ── Load users via adminGetAuditTrail-style: use callCloudFunction ──────────
+  const loadUsers = useCallback(async () => {
+    setLoadingUsers(true)
+    try {
+      const token = await getIdToken()
+      if (!window.ipcApi) throw new Error('IPC API not available')
 
-  const loadUsers = async () => {
-    // Placeholder - in production would call Cloud Function to get users
-    setUsers([
-      { uid: 'user1', displayName: 'John Doe', email: 'john@example.com' },
-      { uid: 'user2', displayName: 'Jane Smith', email: 'jane@example.com' },
-    ])
+      // Use existing adminGetPredictionSettings to verify connection, then
+      // load users list from Cloud Function
+      const result = await window.ipcApi.callCloudFunction('adminGetAllUsers', token, { limit: 100 })
+
+      if (result?.ok && result.users) {
+        setUsers(result.users as UserEntry[])
+        // Load existing profiles for each user
+        loadProfilesForUsers(result.users as UserEntry[], token)
+      } else {
+        // Fallback: use a direct Firestore read via health check path
+        setUsers([])
+        setStatusMsg({ text: 'Could not load users: ' + (result?.error || 'Unknown error'), ok: false })
+      }
+    } catch (err) {
+      setStatusMsg({ text: `Failed to load users: ${err instanceof Error ? err.message : String(err)}`, ok: false })
+      setUsers([])
+    } finally {
+      setLoadingUsers(false)
+    }
+  }, [getIdToken])
+
+  const loadProfilesForUsers = async (userList: UserEntry[], token: string) => {
+    if (!window.ipcApi) return
+    const loaded: Record<string, AiProfile> = {}
+    // Load profiles in parallel batches
+    await Promise.allSettled(userList.map(async (u) => {
+      try {
+        const result = await window.ipcApi!.callCloudFunction('adminGetAiProfile', token, { userId: u.uid })
+        if (result?.ok && result.profile) {
+          loaded[u.uid] = result.profile as AiProfile
+        }
+      } catch {
+        // no profile yet
+      }
+    }))
+    setProfiles(loaded)
   }
 
-  const handleGenerateProfile = async (userId: string) => {
-    setGeneratingUser(userId)
+  useEffect(() => {
+    if (isAdmin) loadUsers()
+  }, [isAdmin, loadUsers])
+
+  // ── Generate single profile ───────────────────────────────────────────────
+  const handleGenerateProfile = async (u: UserEntry) => {
+    setGeneratingUser(u.uid)
+    setStatusMsg(null)
     try {
-      const profile = await generateProfile(userId)
-      setProfiles((prev) => ({ ...prev, [userId]: profile }))
-      setStatusMessage(`✅ Profile generated for user ${userId}`)
+      const token = await getIdToken()
+      if (!window.ipcApi) throw new Error('IPC API not available')
+      const result = await window.ipcApi.generateAiProfile(token, u.uid)
+      if (result?.ok && result.profile) {
+        setProfiles((prev) => ({ ...prev, [u.uid]: result.profile as AiProfile }))
+        setStatusMsg({ text: `✅ Profile generated for ${u.email || u.uid}`, ok: true })
+      } else {
+        throw new Error(result?.error || 'Generate failed')
+      }
     } catch (err) {
-      setStatusMessage(`❌ Failed to generate profile: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      setStatusMsg({ text: `❌ ${err instanceof Error ? err.message : String(err)}`, ok: false })
     } finally {
       setGeneratingUser(null)
     }
   }
 
+  // ── Generate all profiles ─────────────────────────────────────────────────
   const handleGenerateAll = async () => {
-    setLoadingProfiles(true)
+    setGeneratingAll(true)
+    setStatusMsg(null)
     try {
-      const result = await generateAllProfiles()
-      setStatusMessage(`✅ Generated ${result.generated} profiles (${result.failed} failed)`)
+      const token = await getIdToken()
+      if (!window.ipcApi) throw new Error('IPC API not available')
+      const result = await window.ipcApi.generateAllAiProfiles(token)
+      if (result?.ok) {
+        setStatusMsg({ text: `✅ Generated ${result.generated} profiles (${result.failed} failed). Refreshing...`, ok: true })
+        // Reload profiles after generation
+        const token2 = await getIdToken()
+        await loadProfilesForUsers(users, token2)
+      } else {
+        throw new Error(result?.error || 'Generate all failed')
+      }
     } catch (err) {
-      setStatusMessage(`❌ Failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      setStatusMsg({ text: `❌ ${err instanceof Error ? err.message : String(err)}`, ok: false })
     } finally {
-      setLoadingProfiles(false)
+      setGeneratingAll(false)
     }
   }
 
+  // ── Filtered users ────────────────────────────────────────────────────────
+  const filteredUsers = users.filter((u) => {
+    if (!searchQuery) return true
+    const q = searchQuery.toLowerCase()
+    return (
+      u.uid.toLowerCase().includes(q) ||
+      (u.email || '').toLowerCase().includes(q) ||
+      (u.displayName || '').toLowerCase().includes(q)
+    )
+  })
+
+  // ─── Access guard ─────────────────────────────────────────────────────────
   if (!isAdmin) {
     return (
-      <div className="p-6">
-        <h1 className="text-2xl font-bold text-red-600">Access Denied</h1>
-        <p className="text-light-textMuted mt-2">Only admin/ml_admin can view AI Profiles.</p>
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-xl font-bold text-red-600 dark:text-red-400">Access Denied</p>
+          <p className="text-sm text-light-textMuted dark:text-dark-textMuted mt-2">
+            AI Profiles is only available to admin / ml_admin.
+          </p>
+        </div>
       </div>
     )
   }
 
+  // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
+
+      {/* A. Header */}
       <div>
-        <h1 className="text-3xl font-bold text-light-text dark:text-dark-text">Personal AI Profiles</h1>
-        <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
-          🧠 Per-user feature layers for future ML personalization. Current L2 predictions use simplified baseline.
-        </p>
+        <h1 className="text-3xl font-bold text-light-text dark:text-dark-text">AI Profiles</h1>
+        <div className="mt-2 space-y-1">
+          <p className="text-xs text-blue-600 dark:text-blue-400">
+            🧠 Per-user AI profile / feature layer — prepares data for future personalized ML.
+          </p>
+          <p className="text-xs text-amber-600 dark:text-amber-400">
+            ⚠️ Current L2 prediction engine is still simplified baseline. Profiles do not yet affect live predictions.
+          </p>
+        </div>
       </div>
 
-      {statusMessage && (
-        <div className={`p-4 rounded-lg text-sm ${
-          statusMessage.startsWith('✅')
+      {/* Status message */}
+      {statusMsg && (
+        <div className={`p-3 rounded-lg text-sm ${
+          statusMsg.ok
             ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
             : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
         }`}>
-          {statusMessage}
+          {statusMsg.text}
         </div>
       )}
 
-      {/* Actions */}
-      <div className="card rounded-lg p-6 space-y-3">
-        <div>
-          <p className="text-sm font-semibold text-light-text dark:text-dark-text mb-3">Batch Operations</p>
-          <button
-            onClick={handleGenerateAll}
-            disabled={loadingProfiles}
-            className="px-4 py-2 rounded-lg bg-blue-600 dark:bg-blue-700 text-white hover:bg-blue-700 disabled:opacity-50 font-semibold text-sm"
-          >
-            {loadingProfiles ? '⏳ Generating all profiles...' : '🔄 Generate All AI Profiles'}
-          </button>
-        </div>
-        <p className="text-xs text-light-textMuted dark:text-dark-textMuted">
-          Generates AI profiles for all users. Extracts features from transactions, calculates statistics, and stores summaries.
-        </p>
+      {/* B. Toolbar */}
+      <div className="card rounded-lg p-4 flex flex-wrap items-center gap-3">
+        <button
+          onClick={handleGenerateAll}
+          disabled={generatingAll || loadingUsers || users.length === 0}
+          className="px-4 py-2 rounded-lg bg-blue-600 dark:bg-blue-700 text-white font-semibold text-sm hover:bg-blue-700 disabled:opacity-50"
+        >
+          {generatingAll ? '⏳ Generating all...' : '🔄 Generate All Profiles'}
+        </button>
+        <button
+          onClick={loadUsers}
+          disabled={loadingUsers}
+          className="px-4 py-2 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold text-sm hover:bg-slate-300 disabled:opacity-50"
+        >
+          {loadingUsers ? '⏳ Loading...' : '↺ Refresh'}
+        </button>
+        <input
+          type="text"
+          placeholder="Search by name, email, UID..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="px-3 py-2 rounded-lg text-sm bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border text-light-text dark:text-dark-text ml-auto w-64"
+        />
+        <span className="text-xs text-light-textMuted dark:text-dark-textMuted">
+          {users.length} users · {Object.keys(profiles).length} profiles
+        </span>
       </div>
 
-      {/* Users & Profiles */}
+      {/* C. Profiles list */}
       <div className="card rounded-lg p-6">
-        <h2 className="text-xl font-semibold text-light-text dark:text-dark-text mb-4">Users & Profiles</h2>
-        <div className="space-y-2">
-          {users.length === 0 ? (
-            <p className="text-sm text-light-textMuted dark:text-dark-textMuted">No users loaded.</p>
-          ) : (
-            users.map((u) => (
-              <div
-                key={u.uid}
-                className="flex items-center justify-between p-3 bg-light-border dark:bg-dark-border/40 rounded-lg border border-light-border dark:border-dark-border"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-light-text dark:text-dark-text">{u.displayName}</p>
-                  <p className="text-xs text-light-textMuted dark:text-dark-textMuted">{u.email}</p>
-                  {profiles[u.uid] && (
-                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                      ✓ Profile: {profiles[u.uid]?.confidenceScore}% confidence
-                    </p>
+        {loadingUsers ? (
+          <p className="text-sm text-light-textMuted dark:text-dark-textMuted text-center py-8">Loading users...</p>
+        ) : filteredUsers.length === 0 ? (
+          <div className="text-center py-8 space-y-2">
+            <p className="text-light-textMuted dark:text-dark-textMuted">
+              {users.length === 0 ? 'No users found. Make sure adminGetAllUsers Cloud Function is deployed.' : 'No users match your search.'}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredUsers.map((u) => {
+              const profile = profiles[u.uid]
+              const hasProfile = !!profile
+              const isGenerating = generatingUser === u.uid
+              return (
+                <div
+                  key={u.uid}
+                  className="flex items-start gap-4 p-4 bg-light-border dark:bg-dark-border/40 rounded-lg border border-light-border dark:border-dark-border"
+                >
+                  {/* Left: user + profile info */}
+                  <div className="flex-1 min-w-0 space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold text-base text-light-text dark:text-dark-text">
+                        {u.displayName || u.email || u.uid}
+                      </p>
+                      {hasProfile ? (
+                        <ConfidenceBadge score={profile.confidenceScore} />
+                      ) : (
+                        <span className="px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
+                          No profile
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-light-textMuted dark:text-dark-textMuted font-mono">{u.uid}</p>
+                    {u.email && u.displayName && (
+                      <p className="text-xs text-light-textMuted dark:text-dark-textMuted">{u.email}</p>
+                    )}
+                    {hasProfile && (
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-light-textMuted dark:text-dark-textMuted">
+                        <span>Avg expense: <strong className="text-light-text dark:text-dark-text">{fmtCurrency(profile.avgMonthlyExpense)}/m</strong></span>
+                        <span>Avg income: <strong className="text-light-text dark:text-dark-text">{fmtCurrency(profile.avgMonthlyIncome)}/m</strong></span>
+                        <span>Coverage: <strong className="text-light-text dark:text-dark-text">{profile.dataCoverageMonths}m</strong></span>
+                        <span>Generated: <strong className="text-light-text dark:text-dark-text">{formatTs(profile.generatedAt)}</strong></span>
+                      </div>
+                    )}
+                    {hasProfile && profile.topExpenseCategories?.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {profile.topExpenseCategories.map((cat) => (
+                          <span key={cat} className="px-2 py-0.5 rounded-full text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300">
+                            {cat}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {hasProfile && profile.humanReadableExplanation && (
+                      <p className="text-xs italic text-light-textMuted dark:text-dark-textMuted truncate max-w-xl">
+                        "{profile.humanReadableExplanation}"
+                      </p>
+                    )}
+                    {!hasProfile && (
+                      <p className="text-xs text-light-textMuted dark:text-dark-textMuted italic">No AI profile generated yet.</p>
+                    )}
+                  </div>
+
+                  {/* Right: actions */}
+                  <div className="flex flex-col gap-2 shrink-0">
+                    {hasProfile && (
+                      <button
+                        onClick={() => setSelectedProfile({ user: u, profile })}
+                        className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-green-600 dark:bg-green-700 text-white hover:bg-green-700"
+                      >
+                        View Detail
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleGenerateProfile(u)}
+                      disabled={isGenerating || generatingAll}
+                      className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-blue-600 dark:bg-blue-700 text-white hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {isGenerating ? '⏳' : hasProfile ? '↺ Regenerate' : '⚙️ Generate'}
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* D. Detail Modal */}
+      {selectedProfile && (() => {
+        const { user: u, profile: p } = selectedProfile
+        return (
+          <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 p-4">
+            <div className="bg-light-card dark:bg-dark-card rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto border border-light-border dark:border-dark-border">
+              {/* Header */}
+              <div className="sticky top-0 bg-light-border dark:bg-dark-border px-6 py-4 flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-light-text dark:text-dark-text">
+                    AI Profile: {u.displayName || u.email || u.uid}
+                  </h3>
+                  <p className="text-xs font-mono text-light-textMuted dark:text-dark-textMuted">{u.uid}</p>
+                </div>
+                <button onClick={() => { setSelectedProfile(null); setRawFeaturesOpen(false) }}
+                  className="text-2xl text-light-textMuted hover:text-light-text dark:hover:text-dark-text">✕</button>
+              </div>
+
+              <div className="p-6 space-y-6">
+
+                {/* Explanation */}
+                <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                  <p className="text-sm text-blue-700 dark:text-blue-300 italic">"{p.humanReadableExplanation || '—'}"</p>
+                </div>
+
+                {/* Profile metadata */}
+                <div>
+                  <h4 className="text-sm font-semibold text-light-text dark:text-dark-text mb-2">Profile Metadata</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <StatCell label="Confidence" value={<ConfidenceBadge score={p.confidenceScore} /> as any} />
+                    <StatCell label="Version" value={p.profileVersion} />
+                    <StatCell label="Coverage" value={`${p.dataCoverageMonths} months`} />
+                    <StatCell label="Generated" value={formatTs(p.generatedAt)} />
+                    <StatCell label="Transactions" value={p.transactionCount} />
+                    <StatCell label="Expense records" value={p.expenseCount} />
+                    <StatCell label="Income records" value={p.incomeCount} />
+                    <StatCell label="Feedback count" value={p.feedbackCount ?? p.features?.feedbackCount ?? '—'} />
+                  </div>
+                </div>
+
+                {/* Monthly summary */}
+                <div>
+                  <h4 className="text-sm font-semibold text-light-text dark:text-dark-text mb-2">Monthly Summary</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <StatCell label="Avg expense 3m" value={fmtCurrency(p.features?.avgExpense3m ?? 0)} />
+                    <StatCell label="Avg expense 6m" value={fmtCurrency(p.features?.avgExpense6m ?? 0)} />
+                    <StatCell label="Avg expense 12m" value={fmtCurrency(p.avgMonthlyExpense)} />
+                    <StatCell label="Avg income 3m" value={fmtCurrency(p.features?.avgIncome3m ?? 0)} />
+                    <StatCell label="Avg income 6m" value={fmtCurrency(p.features?.avgIncome6m ?? 0)} />
+                    <StatCell label="Avg income 12m" value={fmtCurrency(p.avgMonthlyIncome)} />
+                    <StatCell label="Median expense" value={fmtCurrency(p.medianMonthlyExpense)} />
+                    <StatCell label="Median income" value={fmtCurrency(p.medianMonthlyIncome)} />
+                  </div>
+                </div>
+
+                {/* Category analysis */}
+                <div>
+                  <h4 className="text-sm font-semibold text-light-text dark:text-dark-text mb-2">Category Analysis</h4>
+                  <div className="space-y-2">
+                    <div>
+                      <p className="text-xs text-light-textMuted dark:text-dark-textMuted mb-1">Top Expense Categories</p>
+                      <div className="flex flex-wrap gap-2">
+                        {(p.topExpenseCategories || []).map((cat) => (
+                          <span key={cat} className="px-2 py-1 rounded-full text-xs font-semibold bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300">
+                            {cat}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    {p.features?.categoryTotals12m && Object.keys(p.features.categoryTotals12m).length > 0 && (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs mt-2">
+                          <thead className="bg-light-border dark:bg-dark-border">
+                            <tr>
+                              <th className="px-3 py-2 text-left">Category</th>
+                              <th className="px-3 py-2 text-right">Total 12m</th>
+                              <th className="px-3 py-2 text-right">Avg/month</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {Object.entries(p.features.categoryTotals12m)
+                              .sort((a, b) => b[1] - a[1])
+                              .map(([cat, total]) => (
+                                <tr key={cat} className="border-b border-light-border dark:border-dark-border">
+                                  <td className="px-3 py-2 text-light-text dark:text-dark-text">{cat}</td>
+                                  <td className="px-3 py-2 text-right font-semibold text-light-text dark:text-dark-text">{fmtCurrency(total)}</td>
+                                  <td className="px-3 py-2 text-right text-light-textMuted dark:text-dark-textMuted">
+                                    {fmtCurrency(p.features.categoryAverages12m?.[cat] ?? total / 12)}
+                                  </td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Behavior signals */}
+                <div>
+                  <h4 className="text-sm font-semibold text-light-text dark:text-dark-text mb-2">Behavior & Pattern Signals</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <StatCell label="Expense trend MoM" value={fmtPct(p.features?.monthOverMonthExpenseTrend ?? 0)} />
+                    <StatCell label="Income trend MoM" value={fmtPct(p.features?.monthOverMonthIncomeTrend ?? 0)} />
+                    <StatCell label="Expense volatility" value={fmtPct(p.expenseVolatility)} />
+                    <StatCell label="Income regularity" value={fmtPct(p.incomeRegularity)} />
+                    <StatCell label="Savings trend" value={fmtPct(p.savingsTrend)} />
+                    <StatCell label="Dominant pattern" value={p.dominantSpendingPattern || '—'} />
+                    <StatCell label="Seasonality" value={p.seasonalitySignals || '—'} />
+                  </div>
+                </div>
+
+                {/* Feedback calibration */}
+                <div>
+                  <h4 className="text-sm font-semibold text-light-text dark:text-dark-text mb-2">Feedback Calibration</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <StatCell label="Adjusted bias" value={fmtPct(p.feedbackAdjustedBias)} />
+                    <StatCell label="Manual factor" value={fmtFactor(p.features?.avgManualCorrectionFactor ?? 1)} />
+                    <StatCell label="Auto factor" value={fmtFactor(p.features?.avgAutoCorrectionFactor ?? 1)} />
+                    <StatCell label="Final factor" value={fmtFactor(p.features?.avgFinalCorrectionFactor ?? 1)} />
+                  </div>
+                  <p className="text-xs text-light-textMuted dark:text-dark-textMuted mt-2">
+                    Final factor = weighted average: 2× manual + 1× auto. A factor of 1.05x means the model has been adjusted to predict 5% higher than the baseline.
+                  </p>
+                </div>
+
+                {/* Raw features */}
+                <div>
+                  <button
+                    onClick={() => setRawFeaturesOpen((o) => !o)}
+                    className="flex items-center gap-2 text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    {rawFeaturesOpen ? '▼' : '▶'} Raw Feature Values
+                  </button>
+                  {rawFeaturesOpen && (
+                    <pre className="mt-2 text-xs bg-slate-900 dark:bg-slate-950 text-slate-100 p-4 rounded-lg overflow-auto max-h-64">
+                      {JSON.stringify(p.features ?? {}, null, 2)}
+                    </pre>
                   )}
                 </div>
-                <div className="flex gap-2 ml-4 shrink-0">
-                  {profiles[u.uid] ? (
-                    <button
-                      onClick={() => setSelectedProfile(profiles[u.uid])}
-                      className="px-3 py-1 rounded text-xs font-semibold bg-green-600 dark:bg-green-700 text-white hover:bg-green-700"
-                    >
-                      View
-                    </button>
-                  ) : null}
-                  <button
-                    onClick={() => handleGenerateProfile(u.uid)}
-                    disabled={generatingUser === u.uid || loading}
-                    className="px-3 py-1 rounded text-xs font-semibold bg-blue-600 dark:bg-blue-700 text-white hover:bg-blue-700 disabled:opacity-50"
-                  >
-                    {generatingUser === u.uid ? '⏳' : '⚙️ Generate'}
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
 
-      {/* Detail Modal */}
-      {selectedProfile && (
-        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-light-card dark:bg-dark-card rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto border border-light-border dark:border-dark-border">
-            <div className="sticky top-0 bg-light-border dark:bg-dark-border px-6 py-4 flex justify-between items-center">
-              <h3 className="text-lg font-bold text-light-text dark:text-dark-text">
-                {selectedProfile.topExpenseCategories[0] || 'User'} Profile
-              </h3>
-              <button
-                onClick={() => setSelectedProfile(null)}
-                className="text-2xl text-light-textMuted dark:text-dark-textMuted hover:text-light-text dark:hover:text-dark-text"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              {/* Summary */}
-              <div>
-                <p className="text-sm font-semibold text-light-text dark:text-dark-text mb-2">Summary</p>
-                <p className="text-sm text-light-text dark:text-dark-text italic">
-                  "{selectedProfile.humanReadableExplanation}"
-                </p>
               </div>
 
-              {/* Key Metrics */}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                <div className="bg-light-bg dark:bg-dark-bg p-3 rounded">
-                  <p className="text-xs text-light-textMuted dark:text-dark-textMuted uppercase">Confidence</p>
-                  <p className="text-lg font-bold text-light-text dark:text-dark-text">{selectedProfile.confidenceScore}%</p>
-                </div>
-                <div className="bg-light-bg dark:bg-dark-bg p-3 rounded">
-                  <p className="text-xs text-light-textMuted dark:text-dark-textMuted uppercase">Avg Monthly Expense</p>
-                  <p className="text-lg font-bold text-light-text dark:text-dark-text">{selectedProfile.avgMonthlyExpense.toLocaleString()} Kč</p>
-                </div>
-                <div className="bg-light-bg dark:bg-dark-bg p-3 rounded">
-                  <p className="text-xs text-light-textMuted dark:text-dark-textMuted uppercase">Avg Monthly Income</p>
-                  <p className="text-lg font-bold text-light-text dark:text-dark-text">{selectedProfile.avgMonthlyIncome.toLocaleString()} Kč</p>
-                </div>
-                <div className="bg-light-bg dark:bg-dark-bg p-3 rounded">
-                  <p className="text-xs text-light-textMuted dark:text-dark-textMuted uppercase">Expense Volatility</p>
-                  <p className="text-lg font-bold text-light-text dark:text-dark-text">{(selectedProfile.expenseVolatility * 100).toFixed(1)}%</p>
-                </div>
-                <div className="bg-light-bg dark:bg-dark-bg p-3 rounded">
-                  <p className="text-xs text-light-textMuted dark:text-dark-textMuted uppercase">Income Regularity</p>
-                  <p className="text-lg font-bold text-light-text dark:text-dark-text">{(selectedProfile.incomeRegularity * 100).toFixed(1)}%</p>
-                </div>
-                <div className="bg-light-bg dark:bg-dark-bg p-3 rounded">
-                  <p className="text-xs text-light-textMuted dark:text-dark-textMuted uppercase">Feedback Count</p>
-                  <p className="text-lg font-bold text-light-text dark:text-dark-text">{selectedProfile.feedbackCount}</p>
-                </div>
+              {/* Footer */}
+              <div className="sticky bottom-0 bg-light-border dark:bg-dark-border px-6 py-3 flex gap-2">
+                <button
+                  onClick={() => handleGenerateProfile(u)}
+                  disabled={generatingUser === u.uid}
+                  className="px-4 py-2 rounded-lg bg-blue-600 dark:bg-blue-700 text-white font-semibold text-sm hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {generatingUser === u.uid ? '⏳ Regenerating...' : '↺ Regenerate Profile'}
+                </button>
+                <button
+                  onClick={() => { setSelectedProfile(null); setRawFeaturesOpen(false) }}
+                  className="flex-1 px-4 py-2 rounded-lg bg-light-bg dark:bg-dark-bg text-light-text dark:text-dark-text font-semibold text-sm hover:bg-light-border dark:hover:bg-dark-border"
+                >
+                  Close
+                </button>
               </div>
-
-              {/* Top Categories */}
-              <div>
-                <p className="text-sm font-semibold text-light-text dark:text-dark-text mb-2">Top Expense Categories</p>
-                <div className="flex flex-wrap gap-2">
-                  {selectedProfile.topExpenseCategories.map((cat) => (
-                    <span
-                      key={cat}
-                      className="px-3 py-1 rounded-full text-xs font-semibold bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"
-                    >
-                      {cat}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Features */}
-              <div>
-                <p className="text-sm font-semibold text-light-text dark:text-dark-text mb-2">Feature Values</p>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="bg-light-bg dark:bg-dark-bg p-2 rounded">
-                    <p className="text-light-textMuted">Manual Factor</p>
-                    <p className="font-mono font-semibold text-light-text dark:text-dark-text">
-                      {selectedProfile.features.avgManualCorrectionFactor.toFixed(2)}x
-                    </p>
-                  </div>
-                  <div className="bg-light-bg dark:bg-dark-bg p-2 rounded">
-                    <p className="text-light-textMuted">Auto Factor</p>
-                    <p className="font-mono font-semibold text-light-text dark:text-dark-text">
-                      {selectedProfile.features.avgAutoCorrectionFactor.toFixed(2)}x
-                    </p>
-                  </div>
-                  <div className="bg-light-bg dark:bg-dark-bg p-2 rounded">
-                    <p className="text-light-textMuted">Final Factor</p>
-                    <p className="font-mono font-semibold text-light-text dark:text-dark-text">
-                      {selectedProfile.features.avgFinalCorrectionFactor.toFixed(2)}x
-                    </p>
-                  </div>
-                  <div className="bg-light-bg dark:bg-dark-bg p-2 rounded">
-                    <p className="text-light-textMuted">Volatility</p>
-                    <p className="font-mono font-semibold text-light-text dark:text-dark-text">
-                      {(selectedProfile.features.volatilityScore * 100).toFixed(1)}%
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Generated at */}
-              <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded p-3 text-xs text-blue-700 dark:text-blue-300">
-                <p>
-                  <strong>Generated:</strong> {new Date(selectedProfile.generatedAt).toLocaleString()}
-                </p>
-                <p className="mt-1">
-                  <strong>Profile Version:</strong> {selectedProfile.profileVersion}
-                </p>
-              </div>
-            </div>
-
-            <div className="sticky bottom-0 bg-light-border dark:bg-dark-border px-6 py-3">
-              <button
-                onClick={() => setSelectedProfile(null)}
-                className="w-full px-4 py-2 rounded-lg bg-light-bg dark:bg-dark-bg text-light-text dark:text-dark-text hover:bg-light-border dark:hover:bg-dark-border font-semibold"
-              >
-                Close
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
-      {/* Info */}
-      <div className="bg-blue-50 dark:bg-blue-950/20 rounded-lg p-6 border border-blue-200 dark:border-blue-800 space-y-2">
-        <p className="text-sm text-blue-700 dark:text-blue-300">
-          <strong>📋 About AI Profiles:</strong>
-        </p>
+      {/* Info card */}
+      <div className="bg-blue-50 dark:bg-blue-950/20 rounded-lg p-5 border border-blue-200 dark:border-blue-800">
+        <p className="text-sm font-semibold text-blue-700 dark:text-blue-300 mb-2">About AI Profiles</p>
         <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1 list-disc list-inside">
-          <li>Per-user feature layer extracted from transaction history and feedback</li>
-          <li>Currently prepares data for future ML personalization models</li>
-          <li>Confidence score reflects data quality and feedback volume</li>
-          <li>Correction factors show how feedback has adjusted L2 predictions</li>
-          <li>This is not active in L2 predictions yet (L2 uses simplified baseline)</li>
+          <li>Per-user feature layer: 18 features extracted from transactions + feedback history</li>
+          <li>Stored at <code className="text-xs bg-blue-100 dark:bg-blue-900 px-1 rounded">users/{'{uid}'}/aiProfile/summary</code></li>
+          <li>Confidence score reflects data quality and feedback volume (60 base + 10 per feedback record)</li>
+          <li>Correction factors show how manual/auto feedback has adjusted L2 baseline</li>
+          <li><strong>Not yet used in live L2 predictions</strong> — L2 still uses simplified baseline</li>
+          <li>Will power real personalized ML model when Python pipeline is integrated</li>
         </ul>
       </div>
     </div>

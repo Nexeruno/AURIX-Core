@@ -4431,3 +4431,55 @@ exports.adminGenerateAllAiProfiles = functions.region(REGION).https.onRequest(as
   });
 });
 
+// Returns list of all users (uid, email, displayName, role) for admin UI
+exports.adminGetAllUsers = functions.region(REGION).https.onRequest(async (req, res) => {
+  cors(req, res, async () => {
+    try {
+      const auth = req.header('authorization')?.replace('Bearer ', '');
+      if (!auth) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+      const decodedToken = await admin.auth().verifyIdToken(auth);
+      const callerDoc = await db.collection('users').doc(decodedToken.uid).get();
+      if (!['admin', 'ml_admin'].includes(callerDoc.data()?.role)) {
+        return res.status(403).json({ ok: false, error: 'Forbidden' });
+      }
+      const usersSnap = await db.collection('users').get();
+      const users = usersSnap.docs.map(doc => ({
+        uid: doc.id,
+        email: doc.data().email || null,
+        displayName: doc.data().displayName || null,
+        role: doc.data().role || null,
+      }));
+      res.status(200).json({ ok: true, users });
+    } catch (err) {
+      logger.error('adminGetAllUsers error:', err);
+      res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+});
+
+// Returns saved AI profile for one user
+exports.adminGetAiProfile = functions.region(REGION).https.onRequest(async (req, res) => {
+  cors(req, res, async () => {
+    try {
+      const auth = req.header('authorization')?.replace('Bearer ', '');
+      if (!auth) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+      const decodedToken = await admin.auth().verifyIdToken(auth);
+      const callerDoc = await db.collection('users').doc(decodedToken.uid).get();
+      if (!['admin', 'ml_admin'].includes(callerDoc.data()?.role)) {
+        return res.status(403).json({ ok: false, error: 'Forbidden' });
+      }
+      const targetUid = req.body?.userId;
+      if (!targetUid) return res.status(400).json({ ok: false, error: 'userId required' });
+      const profileDoc = await db.collection('users').doc(targetUid).collection('aiProfile').doc('summary').get();
+      if (!profileDoc.exists) {
+        return res.status(200).json({ ok: true, profile: null });
+      }
+      res.status(200).json({ ok: true, profile: profileDoc.data() });
+    } catch (err) {
+      logger.error('adminGetAiProfile error:', err);
+      res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+});
+
+
