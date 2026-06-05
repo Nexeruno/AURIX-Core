@@ -3654,21 +3654,41 @@ exports.runLevel2ShadowPipeline = functions.region(REGION).https.onRequest(async
 
         if (transactions.length >= 10 && level1Pred) {
           // SIMPLIFIED: Create shadow prediction close to Level 1 (with small variation for testing)
+          const basePredictionAmount = level1Pred.totalPredictedExpense || 0;
           let variation = 0.95 + Math.random() * 0.1; // 95-105% of Level 1
+
           // Apply weighted correction factor if available
+          const trainingDataCorrectionFactor = trainingDataUsed ? finalCorrectionFactor : 1.0;
           if (trainingDataUsed) {
             variation *= finalCorrectionFactor;
           }
+
           // Apply personalized AI profile adjustment
+          const aiProfileAdjustmentFactor = aiProfile ? personalizedAdjustmentFactor : 1.0;
           if (aiProfile) {
             variation *= personalizedAdjustmentFactor;
             // Clamp to reasonable range [0.8, 1.2] to avoid extreme predictions
             variation = Math.max(0.8, Math.min(1.2, variation));
           }
+
+          const finalPredictedAmount = Math.round(basePredictionAmount * variation);
+
+          // Build explanation breakdown
+          const explanationBreakdown = [
+            `L1 baseline: ${basePredictionAmount.toLocaleString()} Kč`,
+          ];
+          if (trainingDataUsed) {
+            explanationBreakdown.push(`Feedback correction: ${(trainingDataCorrectionFactor).toFixed(2)}x (${manualRecords.length} manual + ${autoRecords.length} auto)`);
+          }
+          if (aiProfile) {
+            explanationBreakdown.push(`AI Profile adjustment: ${(aiProfileAdjustmentFactor).toFixed(2)}x (${appliedProfileAdjustments.join(', ') || 'base profile applied'})`);
+          }
+          explanationBreakdown.push(`Final prediction: ${finalPredictedAmount.toLocaleString()} Kč (${((variation - 1) * 100).toFixed(1)}% change)`);
+
           shadowPrediction = {
             // Core prediction data
             month: new Date().toISOString().split('T')[0].substring(0, 7),
-            totalPredictedExpense: Math.round((level1Pred.totalPredictedExpense || 0) * variation),
+            totalPredictedExpense: finalPredictedAmount,
             categories: level1Pred.categories || {},
             confidence: 'medium',
             confidenceScore: 70,
@@ -3698,6 +3718,12 @@ exports.runLevel2ShadowPipeline = functions.region(REGION).https.onRequest(async
             personalizedConfidenceAdjustment,
             appliedProfileAdjustments: appliedProfileAdjustments,
             personalizedExplanation: profileExplanation,
+            // Explainability: breakdown of how we arrived at this prediction
+            basePredictionAmount: basePredictionAmount,
+            trainingDataCorrectionFactor: Math.round(trainingDataCorrectionFactor * 100) / 100,
+            aiProfileAdjustmentFactor: Math.round(aiProfileAdjustmentFactor * 100) / 100,
+            finalPredictedAmount: finalPredictedAmount,
+            explanationBreakdown: explanationBreakdown,
             // Metrics
             fallbackUsed: false,
             metrics: {
@@ -3710,10 +3736,14 @@ exports.runLevel2ShadowPipeline = functions.region(REGION).https.onRequest(async
           };
         } else {
           // Fallback: use Level 1 as-is when insufficient data
+          const basePredictionAmount = level1Pred?.totalPredictedExpense || 0;
+          const finalPredictedAmount = basePredictionAmount;
+          const fallbackReason = transactions.length < 10 ? 'insufficient_data' : 'no_level1_prediction';
+
           shadowPrediction = {
             // Core prediction data
             month: new Date().toISOString().split('T')[0].substring(0, 7),
-            totalPredictedExpense: level1Pred?.totalPredictedExpense || 0,
+            totalPredictedExpense: finalPredictedAmount,
             categories: level1Pred?.categories || {},
             confidence: 'low',
             confidenceScore: 50,
@@ -3736,9 +3766,20 @@ exports.runLevel2ShadowPipeline = functions.region(REGION).https.onRequest(async
             personalizedConfidenceAdjustment: 0,
             appliedProfileAdjustments: [],
             personalizedExplanation: 'Fallback: insufficient data for personalization',
+            // Explainability: breakdown of how we arrived at this prediction
+            basePredictionAmount: basePredictionAmount,
+            trainingDataCorrectionFactor: 1.0,
+            aiProfileAdjustmentFactor: 1.0,
+            finalPredictedAmount: finalPredictedAmount,
+            explanationBreakdown: [
+              `Fallback mode (${fallbackReason})`,
+              `L1 baseline: ${basePredictionAmount.toLocaleString()} Kč`,
+              `No adjustments available - insufficient historical data`,
+              `Final prediction: ${finalPredictedAmount.toLocaleString()} Kč (no change)`,
+            ],
             // Metrics
             fallbackUsed: true,
-            fallbackReason: transactions.length < 10 ? 'insufficient_data' : 'no_level1_prediction',
+            fallbackReason: fallbackReason,
             metrics: {
               mae: 0,
               mape: 0,

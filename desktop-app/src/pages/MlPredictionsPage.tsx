@@ -23,6 +23,11 @@ interface L2ShadowPrediction {
   personalizedConfidenceAdjustment?: number
   appliedProfileAdjustments?: string[]
   personalizedExplanation?: string
+  basePredictionAmount?: number
+  trainingDataCorrectionFactor?: number
+  aiProfileAdjustmentFactor?: number
+  finalPredictedAmount?: number
+  explanationBreakdown?: string[]
 }
 
 export function MlPredictionsPage() {
@@ -204,6 +209,32 @@ export function MlPredictionsPage() {
                                     {adj}
                                   </span>
                                 ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Explanation Breakdown */}
+                        {pred.explanationBreakdown && pred.explanationBreakdown.length > 0 && (
+                          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded p-2">
+                            <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-2">📊 Why this prediction differs from L1</p>
+                            <div className="space-y-1">
+                              {pred.explanationBreakdown.map((line, idx) => (
+                                <p key={idx} className="text-xs text-blue-600 dark:text-blue-200">
+                                  {line}
+                                </p>
+                              ))}
+                            </div>
+                            {pred.basePredictionAmount !== undefined && pred.finalPredictedAmount !== undefined && (
+                              <div className="mt-2 pt-2 border-t border-blue-200 dark:border-blue-800">
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-blue-600 dark:text-blue-300">Base (L1):</span>
+                                  <span className="font-semibold text-blue-700 dark:text-blue-200">{pred.basePredictionAmount.toLocaleString()} Kč</span>
+                                </div>
+                                <div className="flex justify-between text-xs mt-1">
+                                  <span className="text-blue-600 dark:text-blue-300">Final (L2):</span>
+                                  <span className="font-semibold text-blue-700 dark:text-blue-200">{pred.finalPredictedAmount.toLocaleString()} Kč</span>
+                                </div>
                               </div>
                             )}
                           </div>
