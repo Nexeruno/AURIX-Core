@@ -181,9 +181,75 @@ ipcMain.handle("clearLocalCache", async (event) => {
 });
 
 ipcMain.handle("generateAiProfile", async (event, idToken, userId) => {
-  return callCloudFunction('adminGenerateAiProfile', idToken, { userId });
+  const projectId = 'evidence-vydaju';
+  const functionName = 'adminGenerateAiProfile';
+  const url = `https://europe-west1-${projectId}.cloudfunctions.net/${functionName}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${idToken}`,
+      },
+      body: JSON.stringify({ userId }),
+    });
+
+    const responseText = await response.text();
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch {
+      result = { raw: responseText };
+    }
+
+    if (!response.ok) {
+      const errMsg = result?.error || `Cloud Function ${functionName} returned HTTP ${response.status}`;
+      return { ok: false, error: errMsg };
+    }
+
+    return result;
+  } catch (err) {
+    return {
+      ok: false,
+      error: err.message || 'Failed to call Cloud Function',
+    };
+  }
 });
 
 ipcMain.handle("generateAllAiProfiles", async (event, idToken) => {
-  return callCloudFunction('adminGenerateAllAiProfiles', idToken, {});
+  const projectId = 'evidence-vydaju';
+  const functionName = 'adminGenerateAllAiProfiles';
+  const url = `https://europe-west1-${projectId}.cloudfunctions.net/${functionName}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${idToken}`,
+      },
+      body: JSON.stringify({}),
+    });
+
+    const responseText = await response.text();
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch {
+      result = { raw: responseText };
+    }
+
+    if (!response.ok) {
+      const errMsg = result?.error || `Cloud Function ${functionName} returned HTTP ${response.status}`;
+      return { ok: false, error: errMsg };
+    }
+
+    return result;
+  } catch (err) {
+    return {
+      ok: false,
+      error: err.message || 'Failed to call Cloud Function',
+    };
+  }
 });
