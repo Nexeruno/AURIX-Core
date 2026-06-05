@@ -272,7 +272,31 @@ export function AiProfilesPage() {
         </span>
       </div>
 
-      {/* C. Profiles list */}
+      {/* C. Status Summary */}
+      {(() => {
+        const fresh = Object.values(profiles).filter(p => p && p.profileStale === false).length
+        const stale = Object.values(profiles).filter(p => p && p.profileStale === true).length
+        const missing = users.length - Object.keys(profiles).length
+
+        return (
+          <div className="grid grid-cols-3 gap-4">
+            <div className="card rounded-lg p-4 border-l-4 border-green-500">
+              <p className="text-xs text-light-textMuted dark:text-dark-textMuted uppercase font-semibold">Fresh Profiles</p>
+              <p className="text-3xl font-bold text-green-600 dark:text-green-400 mt-1">✓ {fresh}</p>
+            </div>
+            <div className="card rounded-lg p-4 border-l-4 border-amber-500">
+              <p className="text-xs text-light-textMuted dark:text-dark-textMuted uppercase font-semibold">Stale Profiles</p>
+              <p className="text-3xl font-bold text-amber-600 dark:text-amber-400 mt-1">🟡 {stale}</p>
+            </div>
+            <div className="card rounded-lg p-4 border-l-4 border-gray-500">
+              <p className="text-xs text-light-textMuted dark:text-dark-textMuted uppercase font-semibold">Missing Profiles</p>
+              <p className="text-3xl font-bold text-gray-600 dark:text-gray-400 mt-1">⚪ {missing}</p>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* D. Profiles list */}
       <div className="card rounded-lg p-6">
         {loadingUsers ? (
           <p className="text-sm text-light-textMuted dark:text-dark-textMuted text-center py-8">Loading users...</p>
