@@ -19,10 +19,13 @@ interface L2ShadowPrediction {
   isRealMlModel?: boolean
   aiProfileUsed?: boolean
   aiProfileVersion?: string
+  aiProfileStatus?: 'fresh' | 'stale' | 'missing'
+  aiProfileStale?: boolean
   personalizedAdjustmentFactor?: number
   personalizedConfidenceAdjustment?: number
   appliedProfileAdjustments?: string[]
   personalizedExplanation?: string
+  predictionWarnings?: string[]
   basePredictionAmount?: number
   trainingDataCorrectionFactor?: number
   aiProfileAdjustmentFactor?: number
@@ -210,6 +213,27 @@ export function MlPredictionsPage() {
                                   </span>
                                 ))}
                               </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* AI Profile Status */}
+                        {pred.aiProfileStatus && (
+                          <div className={`rounded p-2 text-xs ${
+                            pred.aiProfileStatus === 'stale'
+                              ? 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800'
+                              : pred.aiProfileStatus === 'missing'
+                              ? 'bg-gray-50 dark:bg-gray-800/20 border border-gray-200 dark:border-gray-800'
+                              : 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
+                          }`}>
+                            {pred.aiProfileStatus === 'fresh' && (
+                              <p className="text-green-700 dark:text-green-300">✓ AI profile was fresh at prediction time</p>
+                            )}
+                            {pred.aiProfileStatus === 'stale' && (
+                              <p className="text-amber-700 dark:text-amber-300">⚠️ AI profile was stale - confidence reduced by 5%</p>
+                            )}
+                            {pred.aiProfileStatus === 'missing' && (
+                              <p className="text-gray-700 dark:text-gray-300">⚪ No AI profile available - no personalization applied</p>
                             )}
                           </div>
                         )}

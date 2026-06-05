@@ -3597,14 +3597,36 @@ exports.runLevel2ShadowPipeline = functions.region(REGION).https.onRequest(async
 
         // Load AI profile for personalized adjustments
         let aiProfile = null;
+        let aiProfileStatus = 'missing';  // missing | fresh | stale
+        let aiProfileStale = false;
+        let aiProfileGeneratedAt = null;
+        let aiProfileLastTransactionAt = null;
+        let aiProfileLastFeedbackAt = null;
         let personalizedAdjustmentFactor = 1.0;
         let personalizedConfidenceAdjustment = 0;
         let appliedProfileAdjustments = [];
         let profileExplanation = '';
+        let predictionWarnings = [];
+
         try {
           const profileDoc = await db.collection('users').doc(uid).collection('aiProfile').doc('summary').get();
           if (profileDoc.exists) {
             aiProfile = profileDoc.data();
+            aiProfileGeneratedAt = aiProfile.generatedAt;
+            aiProfileLastTransactionAt = aiProfile.lastTransactionAt;
+            aiProfileLastFeedbackAt = aiProfile.lastFeedbackAt;
+
+            // Check freshness
+            const generatedAt = aiProfile.generatedAt?.toDate ? aiProfile.generatedAt.toDate() : aiProfile.generatedAt;
+            const staleness = await checkAiProfileStaleness(uid, generatedAt);
+            aiProfileStale = staleness.profileStale;
+            aiProfileStatus = staleness.profileStale ? 'stale' : 'fresh';
+
+            // If stale, reduce confidence slightly
+            if (staleness.profileStale) {
+              personalizedConfidenceAdjustment -= 5;
+              predictionWarnings.push('ai_profile_stale');
+            }
 
             // Apply personalized adjustments based on profile
             // 1. Expense volatility → adjust confidence
@@ -3682,6 +3704,11 @@ exports.runLevel2ShadowPipeline = functions.region(REGION).https.onRequest(async
           }
           if (aiProfile) {
             explanationBreakdown.push(`AI Profile adjustment: ${(aiProfileAdjustmentFactor).toFixed(2)}x (${appliedProfileAdjustments.join(', ') || 'base profile applied'})`);
+            if (aiProfileStale) {
+              explanationBreakdown.push('⚠️ AI profile was stale at prediction time.');
+            }
+          } else {
+            explanationBreakdown.push('No AI profile was available, so no personalized profile adjustment was applied.');
           }
           explanationBreakdown.push(`Final prediction: ${finalPredictedAmount.toLocaleString()} Kč (${((variation - 1) * 100).toFixed(1)}% change)`);
 
@@ -3714,10 +3741,17 @@ exports.runLevel2ShadowPipeline = functions.region(REGION).https.onRequest(async
             // AI Profile personalization (rule-based, NOT full ML)
             aiProfileUsed: aiProfile ? true : false,
             aiProfileVersion: aiProfile?.profileVersion || null,
+            aiProfileStatus: aiProfileStatus,  // 'fresh' | 'stale' | 'missing'
+            aiProfileStale: aiProfileStale,
+            aiProfileGeneratedAt: aiProfileGeneratedAt,
+            aiProfileLastTransactionAt: aiProfileLastTransactionAt,
+            aiProfileLastFeedbackAt: aiProfileLastFeedbackAt,
             personalizedAdjustmentFactor: Math.round(personalizedAdjustmentFactor * 100) / 100,
             personalizedConfidenceAdjustment,
             appliedProfileAdjustments: appliedProfileAdjustments,
             personalizedExplanation: profileExplanation,
+            // Warnings (stale profile, etc.)
+            predictionWarnings: predictionWarnings,
             // Explainability: breakdown of how we arrived at this prediction
             basePredictionAmount: basePredictionAmount,
             trainingDataCorrectionFactor: Math.round(trainingDataCorrectionFactor * 100) / 100,
@@ -3762,10 +3796,16 @@ exports.runLevel2ShadowPipeline = functions.region(REGION).https.onRequest(async
             // AI Profile personalization (rule-based, NOT full ML)
             aiProfileUsed: false,
             aiProfileVersion: null,
+            aiProfileStatus: aiProfileStatus,
+            aiProfileStale: aiProfileStale,
+            aiProfileGeneratedAt: aiProfileGeneratedAt,
+            aiProfileLastTransactionAt: aiProfileLastTransactionAt,
+            aiProfileLastFeedbackAt: aiProfileLastFeedbackAt,
             personalizedAdjustmentFactor: 1.0,
             personalizedConfidenceAdjustment: 0,
             appliedProfileAdjustments: [],
             personalizedExplanation: 'Fallback: insufficient data for personalization',
+            predictionWarnings: predictionWarnings,
             // Explainability: breakdown of how we arrived at this prediction
             basePredictionAmount: basePredictionAmount,
             trainingDataCorrectionFactor: 1.0,
