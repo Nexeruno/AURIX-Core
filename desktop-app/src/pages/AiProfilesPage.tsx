@@ -272,7 +272,24 @@ export function AiProfilesPage() {
         </span>
       </div>
 
-      {/* C. Status Summary */}
+      {/* C. Debug Info */}
+      {(() => {
+        const sampleProfile = Object.values(profiles)[0]
+        return (
+          <div className="bg-slate-100 dark:bg-slate-800 rounded-lg p-3 text-xs text-slate-700 dark:text-slate-300 font-mono overflow-auto max-h-32">
+            <p>Loaded profiles: {Object.keys(profiles).length} / {users.length}</p>
+            {sampleProfile && (
+              <>
+                <p>Sample profile.profileStale: {String(sampleProfile.profileStale)}</p>
+                <p>Sample profile.staleReason: {JSON.stringify(sampleProfile.staleReason)}</p>
+              </>
+            )}
+            {!sampleProfile && <p>No profiles loaded yet. Check Cloud Function.</p>}
+          </div>
+        )
+      })()}
+
+      {/* D. Status Summary */}
       {(() => {
         const fresh = Object.values(profiles).filter(p => p && p.profileStale === false).length
         const stale = Object.values(profiles).filter(p => p && p.profileStale === true).length
