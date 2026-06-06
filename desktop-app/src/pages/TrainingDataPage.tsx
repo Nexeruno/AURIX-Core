@@ -167,10 +167,9 @@ export function TrainingDataPage() {
     }
 
     // ── 2. Training feedback (trainingData collection) ──────────────────────
+    // Global training data - same for all users, not per-user
     try {
-      const feedbackQuery = uid
-        ? query(collection(db, 'trainingData'), where('userId', '==', uid), where('type', 'in', ['l2_manual_feedback', 'l2_auto_feedback']))
-        : query(collection(db, 'trainingData'), where('type', 'in', ['l2_manual_feedback', 'l2_auto_feedback']))
+      const feedbackQuery = query(collection(db, 'trainingData'), where('type', 'in', ['l2_manual_feedback', 'l2_auto_feedback']))
       const trainingSnap = await getDocs(feedbackQuery)
       const feedbackRecords: TrainingDataRecord[] = trainingSnap.docs.map(doc => {
         const data = doc.data()
