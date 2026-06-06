@@ -60,7 +60,7 @@ interface L2Prediction {
 
 export function TrainingDataPage() {
   const { user } = useAuth()
-  const { role: userRole } = useUserRole(user)
+  const { role: userRole, loading: roleLoading } = useUserRole(user)
   const isAdmin = userRole && ['admin', 'ml_admin'].includes(userRole)
   const { users, usersLoading, selectedUserId, selectedUser, selectUser } = useAdminUserSelector()
 
@@ -83,13 +83,18 @@ export function TrainingDataPage() {
 
   // Reload when selected user changes
   useEffect(() => {
+    // Wait for role to load before checking permissions
+    if (roleLoading) return
+
     if (!user || !isAdmin) {
       setError('Only admin/ml_admin can view training data')
       return
     }
+
+    setError(null)
     if (!effectiveUid) return
     loadData()
-  }, [user, userRole, effectiveUid]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user, userRole, effectiveUid, roleLoading]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadData = async () => {
     setLoading(true)
@@ -247,7 +252,20 @@ export function TrainingDataPage() {
     invalidRecords: rawTransactions.filter(t => !t.mlEligible).length,
   }
 
-  if (!userRole || !['admin', 'ml_admin'].includes(userRole)) {
+  // Wait for role to load
+  if (roleLoading) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-3xl font-bold text-light-text dark:text-dark-text">ML Training Data</h1>
+        <div className="p-4 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+          Loading...
+        </div>
+      </div>
+    )
+  }
+
+  // Check permissions after role has loaded
+  if (!isAdmin) {
     return (
       <div className="space-y-6">
         <h1 className="text-3xl font-bold text-light-text dark:text-dark-text">ML Training Data</h1>
