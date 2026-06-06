@@ -89,6 +89,9 @@ export function TrainingDataPage() {
   const [searchText, setSearchText] = useState('')
   const [statusMessage] = useState<string>('')
 
+  // Filter state for Training Data
+  const [trainingStatusFilter, setTrainingStatusFilter] = useState<'all' | 'pending' | 'approved' | 'excluded'>('all')
+
   // Reload when selected user changes
   useEffect(() => {
     // Wait for role to load before checking permissions
@@ -354,6 +357,17 @@ export function TrainingDataPage() {
     .filter(t => selectedMonth === '' || t.datum.startsWith(selectedMonth))
     .filter(t => searchText === '' || t.nazev?.includes(searchText) || t.popis?.includes(searchText) || t.userId.includes(searchText))
 
+  const filteredTrainingData = trainingData.filter(td => {
+    if (trainingStatusFilter === 'excluded') {
+      return td.excludedFromLearning === true
+    } else if (trainingStatusFilter === 'approved') {
+      return !td.excludedFromLearning && td.status === 'approved'
+    } else if (trainingStatusFilter === 'pending') {
+      return !td.excludedFromLearning && td.status !== 'approved'
+    }
+    return true // 'all'
+  })
+
   // Calculate stats
   const stats = {
     totalUsers: new Set(rawTransactions.map(t => t.userId)).size,
@@ -585,6 +599,50 @@ export function TrainingDataPage() {
           L2 model learning from feedback. Manual (weight 2x) and Auto (weight 1x) for calibration.
         </p>
 
+        {/* Status filter buttons */}
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setTrainingStatusFilter('all')}
+            className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+              trainingStatusFilter === 'all'
+                ? 'bg-blue-600 text-white'
+                : 'bg-light-border dark:bg-dark-border text-light-text dark:text-dark-text hover:bg-light-border/80 dark:hover:bg-dark-border/80'
+            }`}
+          >
+            All ({trainingData.length})
+          </button>
+          <button
+            onClick={() => setTrainingStatusFilter('pending')}
+            className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+              trainingStatusFilter === 'pending'
+                ? 'bg-orange-600 text-white'
+                : 'bg-light-border dark:bg-dark-border text-light-text dark:text-dark-text hover:bg-light-border/80 dark:hover:bg-dark-border/80'
+            }`}
+          >
+            Pending ({trainingData.filter(td => !td.excludedFromLearning && td.status !== 'approved').length})
+          </button>
+          <button
+            onClick={() => setTrainingStatusFilter('approved')}
+            className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+              trainingStatusFilter === 'approved'
+                ? 'bg-green-600 text-white'
+                : 'bg-light-border dark:bg-dark-border text-light-text dark:text-dark-text hover:bg-light-border/80 dark:hover:bg-dark-border/80'
+            }`}
+          >
+            Approved ({trainingData.filter(td => !td.excludedFromLearning && td.status === 'approved').length})
+          </button>
+          <button
+            onClick={() => setTrainingStatusFilter('excluded')}
+            className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+              trainingStatusFilter === 'excluded'
+                ? 'bg-yellow-600 text-white'
+                : 'bg-light-border dark:bg-dark-border text-light-text dark:text-dark-text hover:bg-light-border/80 dark:hover:bg-dark-border/80'
+            }`}
+          >
+            Excluded ({trainingData.filter(td => td.excludedFromLearning === true).length})
+          </button>
+        </div>
+
         {successMessage && (
           <div className="p-3 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-sm">
             {successMessage}
@@ -593,9 +651,9 @@ export function TrainingDataPage() {
 
         {loading ? (
           <div className="text-center py-8 text-light-textMuted">Loading feedback...</div>
-        ) : trainingData.length === 0 ? (
+        ) : filteredTrainingData.length === 0 ? (
           <div className="text-center py-8 text-light-textMuted">
-            <p>No training feedback yet.</p>
+            <p>{trainingStatusFilter === 'all' ? 'No training feedback yet.' : `No ${trainingStatusFilter} training feedback.`}</p>
             <p className="text-xs mt-1">Add manual feedback via ML Predictions → Add Feedback, or run auto-feedback generation in ML Model Control.</p>
           </div>
         ) : (
@@ -614,7 +672,7 @@ export function TrainingDataPage() {
                 </tr>
               </thead>
               <tbody>
-                {trainingData.map(td => (
+                {filteredTrainingData.map(td => (
                   <tr
                     key={td.id}
                     className={`border-b border-light-border dark:border-dark-border ${
