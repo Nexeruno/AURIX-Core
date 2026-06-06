@@ -78,6 +78,7 @@ export function TrainingDataPage() {
   const [predictionsError, setPredictionsError] = useState<string | null>(null)
   const [approvingId, setApprovingId] = useState<string | null>(null)
   const [restoringId, setRestoringId] = useState<string | null>(null)
+  const [excludingId, setExcludingId] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   // Filter states for Raw Transactions
@@ -291,6 +292,38 @@ export function TrainingDataPage() {
       alert(`Error: ${err instanceof Error ? err.message : 'Failed to restore'}`)
     } finally {
       setRestoringId(null)
+    }
+  }
+
+  const handleExcludeRecord = async (record: TrainingDataRecord) => {
+    setExcludingId(record.id)
+    try {
+      const token = await getIdToken()
+      if (!window.ipcApi) throw new Error('IPC API not available')
+
+      const result = await window.ipcApi.callCloudFunction(
+        'adminExcludeTrainingRecordFromLearning',
+        token,
+        { recordId: record.id, reason: 'Excluded from admin UI' }
+      )
+
+      if (result?.ok) {
+        setSuccessMessage(`✅ Record excluded: ${record.month} (${record.type === 'l2_manual_feedback' ? 'Manual' : 'Auto'})`)
+        // Update local state to mark as excluded
+        setTrainingData(trainingData.map(td =>
+          td.id === record.id
+            ? { ...td, excludedFromLearning: true, excludedAt: new Date(), excludedBy: 'admin', exclusionReason: 'Excluded from admin UI' }
+            : td
+        ))
+        // Clear success message after 4 seconds
+        setTimeout(() => setSuccessMessage(null), 4000)
+      } else {
+        alert(`Error: ${result?.error || 'Failed to exclude record'}`)
+      }
+    } catch (err) {
+      alert(`Error: ${err instanceof Error ? err.message : 'Failed to exclude'}`)
+    } finally {
+      setExcludingId(null)
     }
   }
 
@@ -625,12 +658,21 @@ export function TrainingDataPage() {
                               {approvingId === td.id ? 'Approving...' : 'Approve'}
                             </button>
                           )}
+                          {isAdmin && !td.excludedFromLearning && (
+                            <button
+                              onClick={() => handleExcludeRecord(td)}
+                              disabled={excludingId === td.id}
+                              className="px-2 py-0.5 rounded text-xs bg-yellow-600 text-white hover:bg-yellow-700 disabled:opacity-50 transition-colors whitespace-nowrap"
+                            >
+                              {excludingId === td.id ? 'Excluding...' : 'Exclude'}
+                            </button>
+                          )}
                         </div>
                         {isAdmin && td.excludedFromLearning && (
                           <button
                             onClick={() => handleRestoreRecord(td)}
                             disabled={restoringId === td.id}
-                            className="px-2 py-0.5 rounded text-xs bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors whitespace-nowrap self-start"
+                            className="px-2 py-0.5 rounded text-xs bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors whitespace-nowrap"
                           >
                             {restoringId === td.id ? 'Restoring...' : 'Restore to learning'}
                           </button>
