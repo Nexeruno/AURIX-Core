@@ -3812,18 +3812,20 @@ exports.runLevel2ShadowPipeline = functions.region(REGION).https.onRequest(async
           .where('userId', '==', uid)
           .where('type', '==', 'l2_manual_feedback')
           .where('status', '==', 'approved')
-          .where('excludedFromLearning', '!=', true)
           .get();
 
         const autoTrainingQuery = await db.collection('trainingData')
           .where('userId', '==', uid)
           .where('type', '==', 'l2_auto_feedback')
           .where('status', '==', 'approved')
-          .where('excludedFromLearning', '!=', true)
           .get();
 
-        const manualRecords = manualTrainingQuery.docs.map(doc => doc.data());
-        const autoRecords = autoTrainingQuery.docs.map(doc => doc.data());
+        const manualRecords = manualTrainingQuery.docs
+          .map(doc => doc.data())
+          .filter(record => !record.excludedFromLearning);
+        const autoRecords = autoTrainingQuery.docs
+          .map(doc => doc.data())
+          .filter(record => !record.excludedFromLearning);
 
         // Calculate weighted correction factors
         // manual feedback: weight = 2, auto feedback: weight = 1
