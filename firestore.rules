@@ -49,11 +49,12 @@ service cloud.firestore {
         allow write: if isOwner(uid);
       }
 
-      // ML Predictions — user čte svoje predikce, admin vidí všechny, CF píše, user skrývá
+      // ML Predictions — user čte svoje predikce, admin vidí všechny, CF píše, user/admin skrývá/vylučuje
       match /mlPredictions/{document=**} {
         allow read: if isOwner(uid) || isAdminByCustomClaims();
         allow write: if false;  // Jen Cloud Functions (Admin SDK)
-        allow update: if isOwner(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hidden']);
+        allow update: if isOwner(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hidden'])
+                   || isAdminByCustomClaims() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['excludedFromLearning', 'excludedAt', 'excludedBy', 'exclusionReason']);
       }
 
       // AI Profile — admin read, CF write
@@ -64,10 +65,11 @@ service cloud.firestore {
     }
 
 
-    // Training Data — admin/ml_admin čte vše, CF píše
+    // Training Data — admin/ml_admin čte vše, CF píše, admin může updatovat excludedFromLearning
     match /trainingData/{document=**} {
       allow read: if isAdmin(request.auth.uid);
       allow write: if false;  // Jen Cloud Functions (Admin SDK)
+      allow update: if isAdminByCustomClaims() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['excludedFromLearning', 'excludedAt', 'excludedBy', 'exclusionReason']);
     }
 
     // ML Debug Logs — admin čte, CF píše

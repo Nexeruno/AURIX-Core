@@ -52,6 +52,10 @@ interface L2ShadowPrediction {
     volatileCategories?: string[]
   } | null
   topCategoriesAffectingPrediction?: string[]
+  excludedFromLearning?: boolean
+  excludedAt?: any
+  excludedBy?: string
+  exclusionReason?: string
 }
 
 interface AggregateMetrics {
@@ -83,6 +87,9 @@ export function MlPredictionsPage() {
   const [selectedPredictionForFeedback, setSelectedPredictionForFeedback] = useState<L2ShadowPrediction | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<L2ShadowPrediction | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [excludeConfirm, setExcludeConfirm] = useState<L2ShadowPrediction | null>(null)
+  const [excludeReason, setExcludeReason] = useState('')
+  const [excluding, setExcluding] = useState(false)
 
   // '' = All Users (admin only); specific uid = single user
   const effectiveUserId = isAdmin ? selectedUserId : (user?.uid || '')
@@ -173,6 +180,37 @@ export function MlPredictionsPage() {
       alert(`Error: ${err instanceof Error ? err.message : 'Failed to delete'}`)
     } finally {
       setDeleting(false)
+    }
+  }
+
+  const handleExcludePrediction = async (pred: L2ShadowPrediction) => {
+    setExcluding(true)
+    try {
+      const token = await getIdToken()
+      if (!window.ipcApi) throw new Error('IPC API not available')
+
+      const result = await window.ipcApi.callCloudFunction(
+        'adminExcludeMlPredictionFromLearning',
+        token,
+        { userId: pred.userId, predictionId: pred.id, reason: excludeReason }
+      )
+
+      if (result?.ok) {
+        // Update UI - mark as excluded
+        setPredictions(predictions.map(p =>
+          p.id === pred.id
+            ? { ...p, excludedFromLearning: true, excludedAt: new Date(), excludedBy: 'current_user', exclusionReason: excludeReason }
+            : p
+        ))
+        setExcludeConfirm(null)
+        setExcludeReason('')
+      } else {
+        alert(`Error: ${result?.error || 'Failed to exclude prediction'}`)
+      }
+    } catch (err) {
+      alert(`Error: ${err instanceof Error ? err.message : 'Failed to exclude'}`)
+    } finally {
+      setExcluding(false)
     }
   }
 
@@ -334,9 +372,19 @@ export function MlPredictionsPage() {
                 >
                   ➕ Add Feedback
                 </button>
+                {!pred.excludedFromLearning && (
+                  <button
+                    onClick={() => setExcludeConfirm(pred)}
+                    className="px-3 py-2 rounded-lg bg-yellow-600 dark:bg-yellow-700 text-white text-sm font-semibold hover:bg-yellow-700 transition-colors"
+                    title="Exclude from learning (soft cleanup)"
+                  >
+                    ⚠️
+                  </button>
+                )}
                 <button
                   onClick={() => setDeleteConfirm(pred)}
                   className="px-3 py-2 rounded-lg bg-red-600 dark:bg-red-700 text-white text-sm font-semibold hover:bg-red-700 transition-colors"
+                  title="Permanently delete"
                 >
                   🗑️
                 </button>
@@ -556,6 +604,58 @@ export function MlPredictionsPage() {
           onSuccess={handleFeedbackSuccess}
           prediction={selectedPredictionForFeedback}
         />
+      )}
+
+      {/* Exclude confirmation modal */}
+      {excludeConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-light-bg dark:bg-dark-bg rounded-lg shadow-lg max-w-sm w-full p-6 space-y-4">
+            <h3 className="text-lg font-bold text-light-text dark:text-dark-text">Exclude from Learning?</h3>
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded p-3 space-y-2 text-sm">
+              <p className="text-light-text dark:text-dark-text">
+                <strong>Month:</strong> {excludeConfirm.month}
+              </p>
+              <p className="text-light-text dark:text-dark-text">
+                <strong>Amount:</strong> {excludeConfirm.totalPredictedExpense.toLocaleString()} Kč
+              </p>
+              <p className="text-light-text dark:text-dark-text">
+                <strong>User:</strong> {excludeConfirm.userId.slice(0, 12)}...
+              </p>
+              <p className="text-yellow-700 dark:text-yellow-300 mt-3 text-xs">
+                This record will stay in the database, but will no longer be used for AI learning.
+              </p>
+              <div className="mt-3">
+                <label className="text-xs text-light-text dark:text-dark-text font-semibold">Optional reason:</label>
+                <input
+                  type="text"
+                  value={excludeReason}
+                  onChange={(e) => setExcludeReason(e.target.value)}
+                  placeholder="e.g., anomaly, test data"
+                  className="w-full mt-1 px-2 py-1 rounded border border-light-border dark:border-dark-border bg-light-bg dark:bg-dark-bg text-sm text-light-text dark:text-dark-text"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setExcludeConfirm(null)
+                  setExcludeReason('')
+                }}
+                className="flex-1 px-4 py-2 rounded-lg border border-light-border dark:border-dark-border text-light-text dark:text-dark-text hover:bg-light-border dark:hover:bg-dark-border transition-colors"
+                disabled={excluding}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleExcludePrediction(excludeConfirm)}
+                className="flex-1 px-4 py-2 rounded-lg bg-yellow-600 text-white hover:bg-yellow-700 transition-colors disabled:opacity-50"
+                disabled={excluding}
+              >
+                {excluding ? 'Excluding...' : 'Exclude'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Delete confirmation modal */}

@@ -38,6 +38,10 @@ interface TrainingDataRecord {
   source: string
   status: string
   createdAt?: any
+  excludedFromLearning?: boolean
+  excludedAt?: any
+  excludedBy?: string
+  exclusionReason?: string
 }
 
 interface L2Prediction {
@@ -74,6 +78,9 @@ export function TrainingDataPage() {
   const [predictionsError, setPredictionsError] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<TrainingDataRecord | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [excludeConfirm, setExcludeConfirm] = useState<TrainingDataRecord | null>(null)
+  const [excludeReason, setExcludeReason] = useState('')
+  const [excluding, setExcluding] = useState(false)
 
   // Filter states for Raw Transactions
   const [transactionTypeFilter, setTransactionTypeFilter] = useState<'all' | 'vydaj' | 'prijem'>('all')
@@ -247,6 +254,37 @@ export function TrainingDataPage() {
       alert(`Error: ${err instanceof Error ? err.message : 'Failed to delete'}`)
     } finally {
       setDeleting(false)
+    }
+  }
+
+  const handleExcludeTrainingRecord = async (record: TrainingDataRecord) => {
+    setExcluding(true)
+    try {
+      const token = await getIdToken()
+      if (!window.ipcApi) throw new Error('IPC API not available')
+
+      const result = await window.ipcApi.callCloudFunction(
+        'adminExcludeTrainingRecordFromLearning',
+        token,
+        { recordId: record.id, reason: excludeReason }
+      )
+
+      if (result?.ok) {
+        // Update UI - mark as excluded
+        setTrainingData(trainingData.map(td =>
+          td.id === record.id
+            ? { ...td, excludedFromLearning: true, excludedAt: new Date(), excludedBy: 'current_user', exclusionReason: excludeReason }
+            : td
+        ))
+        setExcludeConfirm(null)
+        setExcludeReason('')
+      } else {
+        alert(`Error: ${result?.error || 'Failed to exclude record'}`)
+      }
+    } catch (err) {
+      alert(`Error: ${err instanceof Error ? err.message : 'Failed to exclude'}`)
+    } finally {
+      setExcluding(false)
     }
   }
 
@@ -520,6 +558,7 @@ export function TrainingDataPage() {
                   <th className="px-3 py-2 text-right">Error %</th>
                   <th className="px-3 py-2 text-left">Source</th>
                   <th className="px-3 py-2 text-left">Status</th>
+                  <th className="px-3 py-2 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -537,17 +576,36 @@ export function TrainingDataPage() {
                     <td className="px-3 py-2 text-right font-semibold">{td.errorPercent.toFixed(1)}%</td>
                     <td className="px-3 py-2 text-xs text-light-textMuted dark:text-dark-textMuted">{td.source}</td>
                     <td className="px-3 py-2">
-                      <span className={`px-2 py-0.5 rounded text-xs ${td.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-gray-100'}`}>
-                        {td.status}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-0.5 rounded text-xs ${td.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-gray-100'}`}>
+                          {td.status}
+                        </span>
+                        {td.excludedFromLearning && (
+                          <span className="px-2 py-0.5 rounded text-xs bg-yellow-100 text-yellow-700">
+                            Excluded
+                          </span>
+                        )}
+                      </div>
                     </td>
-                    <td className="px-3 py-2 text-right">
-                      <button
-                        onClick={() => setDeleteConfirm(td)}
-                        className="px-2 py-1 text-xs rounded bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
-                      >
-                        Delete
-                      </button>
+                    <td className="px-3 py-2">
+                      <div className="flex gap-2 justify-end">
+                        {!td.excludedFromLearning && (
+                          <button
+                            onClick={() => setExcludeConfirm(td)}
+                            className="px-2 py-1 text-xs rounded bg-yellow-100 text-yellow-700 hover:bg-yellow-200 transition-colors"
+                            title="Exclude from learning (soft cleanup)"
+                          >
+                            Exclude
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setDeleteConfirm(td)}
+                          className="px-2 py-1 text-xs rounded bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
+                          title="Permanently delete"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -615,6 +673,58 @@ export function TrainingDataPage() {
         )}
       </div>
 
+      {/* Exclude confirmation modal */}
+      {excludeConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-light-bg dark:bg-dark-bg rounded-lg shadow-lg max-w-sm w-full p-6 space-y-4">
+            <h3 className="text-lg font-bold text-light-text dark:text-dark-text">Exclude from Learning?</h3>
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded p-3 space-y-2 text-sm">
+              <p className="text-light-text dark:text-dark-text">
+                <strong>Type:</strong> {excludeConfirm.type === 'l2_manual_feedback' ? '👤 Manual Feedback' : '🤖 Auto Feedback'}
+              </p>
+              <p className="text-light-text dark:text-dark-text">
+                <strong>Month:</strong> {excludeConfirm.month}
+              </p>
+              <p className="text-light-text dark:text-dark-text">
+                <strong>User:</strong> {excludeConfirm.userId.slice(0, 12)}...
+              </p>
+              <p className="text-yellow-700 dark:text-yellow-300 mt-3 text-xs">
+                This record will stay in the database, but will no longer be used for AI learning.
+              </p>
+              <div className="mt-3">
+                <label className="text-xs text-light-text dark:text-dark-text font-semibold">Optional reason:</label>
+                <input
+                  type="text"
+                  value={excludeReason}
+                  onChange={(e) => setExcludeReason(e.target.value)}
+                  placeholder="e.g., data anomaly, user error"
+                  className="w-full mt-1 px-2 py-1 rounded border border-light-border dark:border-dark-border bg-light-bg dark:bg-dark-bg text-sm text-light-text dark:text-dark-text"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setExcludeConfirm(null)
+                  setExcludeReason('')
+                }}
+                className="flex-1 px-4 py-2 rounded-lg border border-light-border dark:border-dark-border text-light-text dark:text-dark-text hover:bg-light-border dark:hover:bg-dark-border transition-colors"
+                disabled={excluding}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleExcludeTrainingRecord(excludeConfirm)}
+                className="flex-1 px-4 py-2 rounded-lg bg-yellow-600 text-white hover:bg-yellow-700 transition-colors disabled:opacity-50"
+                disabled={excluding}
+              >
+                {excluding ? 'Excluding...' : 'Exclude'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Delete confirmation modal */}
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -631,7 +741,7 @@ export function TrainingDataPage() {
                 <strong>User:</strong> {deleteConfirm.userId.slice(0, 12)}...
               </p>
               <p className="text-red-700 dark:text-red-300 mt-3 text-xs">
-                This will remove it from future AI learning inputs.
+                This will permanently remove it from the database.
               </p>
             </div>
             <div className="flex gap-3">

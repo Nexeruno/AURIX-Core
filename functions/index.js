@@ -3807,17 +3807,19 @@ exports.runLevel2ShadowPipeline = functions.region(REGION).https.onRequest(async
           ...prijmySnap.docs.map(doc => ({ ...doc.data(), type: 'prijem' })),
         ];
 
-        // Load approved L2 training feedback (manual + auto) for this user
+        // Load approved L2 training feedback (manual + auto) for this user (excluding marked records)
         const manualTrainingQuery = await db.collection('trainingData')
           .where('userId', '==', uid)
           .where('type', '==', 'l2_manual_feedback')
           .where('status', '==', 'approved')
+          .where('excludedFromLearning', '!=', true)
           .get();
 
         const autoTrainingQuery = await db.collection('trainingData')
           .where('userId', '==', uid)
           .where('type', '==', 'l2_auto_feedback')
           .where('status', '==', 'approved')
+          .where('excludedFromLearning', '!=', true)
           .get();
 
         const manualRecords = manualTrainingQuery.docs.map(doc => doc.data());
@@ -4510,6 +4512,106 @@ exports.adminDeleteTrainingDataRecord = functions.region(REGION).https.onRequest
       });
     } catch (err) {
       logger.error('adminDeleteTrainingDataRecord error:', err);
+      res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+});
+
+// Exclude a training record from learning without deleting it (admin only)
+exports.adminExcludeTrainingRecordFromLearning = functions.region(REGION).https.onRequest(async (req, res) => {
+  cors(req, res, async () => {
+    try {
+      const auth = req.header('authorization')?.replace('Bearer ', '');
+      if (!auth) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+
+      const decodedToken = await admin.auth().verifyIdToken(auth);
+      const userDoc = await db.collection('users').doc(decodedToken.uid).get();
+      const userRole = userDoc.data()?.role;
+
+      if (!['admin', 'ml_admin'].includes(userRole)) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: only admin/ml_admin can exclude records' });
+      }
+
+      const { recordId, reason } = req.body;
+      if (!recordId) return res.status(400).json({ ok: false, error: 'recordId required' });
+
+      const recordDoc = await db.collection('trainingData').doc(recordId).get();
+      if (!recordDoc.exists) {
+        return res.status(404).json({ ok: false, error: 'Record not found' });
+      }
+
+      const recordData = recordDoc.data();
+
+      await db.collection('trainingData').doc(recordId).update({
+        excludedFromLearning: true,
+        excludedAt: admin.firestore.FieldValue.serverTimestamp(),
+        excludedBy: decodedToken.uid,
+        exclusionReason: reason || null,
+      });
+
+      logger.info(`[EXCLUDE_TRAINING] Excluded ${recordData?.type} record ${recordId} for user ${recordData?.userId} (reason: ${reason || 'none'})`);
+
+      res.status(200).json({
+        ok: true,
+        recordId,
+        type: recordData?.type,
+        userId: recordData?.userId,
+        month: recordData?.month,
+        message: 'Record excluded from learning'
+      });
+    } catch (err) {
+      logger.error('adminExcludeTrainingRecordFromLearning error:', err);
+      res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+});
+
+// Exclude an ML prediction from learning without deleting it (admin only)
+exports.adminExcludeMlPredictionFromLearning = functions.region(REGION).https.onRequest(async (req, res) => {
+  cors(req, res, async () => {
+    try {
+      const auth = req.header('authorization')?.replace('Bearer ', '');
+      if (!auth) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+
+      const decodedToken = await admin.auth().verifyIdToken(auth);
+      const userDoc = await db.collection('users').doc(decodedToken.uid).get();
+      const userRole = userDoc.data()?.role;
+
+      if (!['admin', 'ml_admin'].includes(userRole)) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: only admin/ml_admin can exclude records' });
+      }
+
+      const { userId, predictionId, reason } = req.body;
+      if (!userId || !predictionId) {
+        return res.status(400).json({ ok: false, error: 'userId and predictionId required' });
+      }
+
+      const predDoc = await db.collection('users').doc(userId).collection('mlPredictions').doc(predictionId).get();
+      if (!predDoc.exists) {
+        return res.status(404).json({ ok: false, error: 'Prediction not found' });
+      }
+
+      const predData = predDoc.data();
+
+      await db.collection('users').doc(userId).collection('mlPredictions').doc(predictionId).update({
+        excludedFromLearning: true,
+        excludedAt: admin.firestore.FieldValue.serverTimestamp(),
+        excludedBy: decodedToken.uid,
+        exclusionReason: reason || null,
+      });
+
+      logger.info(`[EXCLUDE_PREDICTION] Excluded L${predData?.pipelineLevel} prediction ${predictionId} for user ${userId} (reason: ${reason || 'none'})`);
+
+      res.status(200).json({
+        ok: true,
+        predictionId,
+        userId,
+        month: predData?.month,
+        pipelineLevel: predData?.pipelineLevel,
+        message: 'Prediction excluded from learning'
+      });
+    } catch (err) {
+      logger.error('adminExcludeMlPredictionFromLearning error:', err);
       res.status(500).json({ ok: false, error: err.message });
     }
   });
