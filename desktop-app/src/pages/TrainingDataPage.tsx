@@ -61,7 +61,7 @@ interface L2Prediction {
 export function TrainingDataPage() {
   const { user } = useAuth()
   const { role: userRole } = useUserRole(user)
-  const isAdmin = ['admin', 'ml_admin'].includes(userRole)
+  const isAdmin = userRole && ['admin', 'ml_admin'].includes(userRole)
   const { users, usersLoading, selectedUserId, selectedUser, selectUser } = useAdminUserSelector()
 
   // Effective uid: admin uses selector, regular user uses their own
@@ -247,7 +247,7 @@ export function TrainingDataPage() {
     invalidRecords: rawTransactions.filter(t => !t.mlEligible).length,
   }
 
-  if (!['admin', 'ml_admin'].includes(userRole)) {
+  if (!userRole || !['admin', 'ml_admin'].includes(userRole)) {
     return (
       <div className="space-y-6">
         <h1 className="text-3xl font-bold text-light-text dark:text-dark-text">ML Training Data</h1>
