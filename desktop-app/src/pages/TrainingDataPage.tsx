@@ -9,6 +9,7 @@ import {
   getDocs
 } from 'firebase/firestore'
 import { useAdminUserSelector, userLabel } from '@/hooks/useAdminUserSelector'
+import { SYMBOLS } from '@/utils/symbols'
 
 interface RawTransaction {
   id: string
@@ -75,6 +76,8 @@ export function TrainingDataPage() {
   const [l2Predictions, setL2Predictions] = useState<L2Prediction[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const getErrorMsg = (text: string) => `${SYMBOLS.ERROR} ${text}`
   const [predictionsError, setPredictionsError] = useState<string | null>(null)
   const [approvingId, setApprovingId] = useState<string | null>(null)
   const [restoringId, setRestoringId] = useState<string | null>(null)
@@ -98,7 +101,7 @@ export function TrainingDataPage() {
     if (roleLoading) return
 
     if (!user || !isAdmin) {
-      setError('Only admin/ml_admin can view training data')
+      setError(getErrorMsg('Only admin/ml_admin can view training data'))
       return
     }
 
@@ -177,14 +180,14 @@ export function TrainingDataPage() {
         return {
           id: doc.id,
           type: data.type,
-          userId: data.userId || '—',
+          userId: data.userId || SYMBOLS.DASH,
           predictionId: data.predictionId,
-          month: data.month || '—',
+          month: data.month || SYMBOLS.DASH,
           predictedTotal: Number(data.predictedTotal) || 0,
           actualTotal: Number(data.actualTotal) || 0,
           errorAmount: Number(data.errorAmount) || 0,
           errorPercent: Number(data.errorPercent) || 0,
-          source: data.source || '—',
+          source: data.source || SYMBOLS.DASH,
           status: data.status || 'pending',
           createdAt: data.createdAt,
           excludedFromLearning: data.excludedFromLearning || false,
@@ -250,7 +253,7 @@ export function TrainingDataPage() {
       )
 
       if (result?.ok) {
-        setSuccessMessage(`✅ Record approved: ${record.month} (${record.type === 'l2_manual_feedback' ? 'Manual' : 'Auto'})`)
+        setSuccessMessage(`${SYMBOLS.SUCCESS} Record approved: ${record.month} (${record.type === 'l2_manual_feedback' ? 'Manual' : 'Auto'})`)
         // Update local state to reflect approved status
         setTrainingData(trainingData.map(td =>
           td.id === record.id ? { ...td, status: 'approved' } : td
@@ -280,7 +283,7 @@ export function TrainingDataPage() {
       )
 
       if (result?.ok) {
-        setSuccessMessage(`✅ Record restored: ${record.month} (${record.type === 'l2_manual_feedback' ? 'Manual' : 'Auto'})`)
+        setSuccessMessage(`${SYMBOLS.SUCCESS} Record restored: ${record.month} (${record.type === 'l2_manual_feedback' ? 'Manual' : 'Auto'})`)
         // Update local state to remove excluded status
         setTrainingData(trainingData.map(td =>
           td.id === record.id
@@ -316,7 +319,7 @@ export function TrainingDataPage() {
       )
 
       if (result?.ok) {
-        setSuccessMessage(`✅ Record excluded: ${record.month} (${record.type === 'l2_manual_feedback' ? 'Manual' : 'Auto'})`)
+        setSuccessMessage(`${SYMBOLS.SUCCESS} Record excluded: ${record.month} (${record.type === 'l2_manual_feedback' ? 'Manual' : 'Auto'})`)
         // Update local state to mark as excluded
         setTrainingData(trainingData.map(td =>
           td.id === record.id
@@ -643,6 +646,26 @@ export function TrainingDataPage() {
           </button>
         </div>
 
+        {/* Summary counts */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-3 bg-light-border/50 dark:bg-dark-border/50 rounded-lg">
+          <div className="text-center">
+            <p className="text-xs text-light-textMuted dark:text-dark-textMuted uppercase tracking-wider">Pending</p>
+            <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{trainingData.filter(td => !td.excludedFromLearning && td.status !== 'approved').length}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-light-textMuted dark:text-dark-textMuted uppercase tracking-wider">Approved</p>
+            <p className="text-2xl font-bold text-green-600 dark:text-green-400">{trainingData.filter(td => !td.excludedFromLearning && td.status === 'approved').length}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-light-textMuted dark:text-dark-textMuted uppercase tracking-wider">Excluded</p>
+            <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{trainingData.filter(td => td.excludedFromLearning === true).length}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-light-textMuted dark:text-dark-textMuted uppercase tracking-wider">Total</p>
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{trainingData.length}</p>
+          </div>
+        </div>
+
         {successMessage && (
           <div className="p-3 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-sm">
             {successMessage}
@@ -683,14 +706,14 @@ export function TrainingDataPage() {
                   >
                     <td className="px-3 py-2 font-semibold">
                       <span className={`px-2 py-0.5 rounded text-xs ${td.type === 'l2_manual_feedback' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
-                        {td.type === 'l2_manual_feedback' ? '👤 Manual' : '🤖 Auto'}
+                        {td.type === 'l2_manual_feedback' ? `${SYMBOLS.MANUAL} Manual` : `${SYMBOLS.AUTO} Auto`}
                       </span>
                     </td>
                     <td className="px-3 py-2">{td.month}</td>
                     <td className="px-3 py-2 font-mono text-xs">{td.userId.slice(0, 8)}...</td>
-                    <td className="px-3 py-2 text-right">{td.predictedTotal.toLocaleString()}</td>
-                    <td className="px-3 py-2 text-right">{td.actualTotal.toLocaleString()}</td>
-                    <td className="px-3 py-2 text-right font-semibold">{td.errorPercent.toFixed(1)}%</td>
+                    <td className="px-3 py-2 text-right">{td.predictedTotal != null ? td.predictedTotal.toLocaleString() : SYMBOLS.DASH} {SYMBOLS.CZK}</td>
+                    <td className="px-3 py-2 text-right">{td.actualTotal != null ? td.actualTotal.toLocaleString() : SYMBOLS.DASH} {SYMBOLS.CZK}</td>
+                    <td className="px-3 py-2 text-right font-semibold">{td.errorPercent != null ? td.errorPercent.toFixed(1) : SYMBOLS.DASH}%</td>
                     <td className="px-3 py-2 text-xs text-light-textMuted dark:text-dark-textMuted">{td.source}</td>
                     <td className="px-3 py-2">
                       <div className="flex flex-col gap-2">
@@ -698,7 +721,7 @@ export function TrainingDataPage() {
                           {td.excludedFromLearning ? (
                             <div className="flex flex-col gap-1">
                               <span className="px-2 py-0.5 rounded text-xs bg-yellow-200 text-yellow-800 font-semibold border border-yellow-300">
-                                ⚠️ Excluded
+                                {SYMBOLS.WARNING} Excluded
                               </span>
                               <span className="text-xs text-yellow-700 dark:text-yellow-400 italic">
                                 Not used for learning
@@ -706,11 +729,11 @@ export function TrainingDataPage() {
                             </div>
                           ) : td.status === 'approved' ? (
                             <span className="px-2 py-0.5 rounded text-xs bg-green-100 text-green-700 font-semibold">
-                              ✓ Approved
+                              {SYMBOLS.SUCCESS} Approved
                             </span>
                           ) : (
                             <span className="px-2 py-0.5 rounded text-xs bg-orange-100 text-orange-700 font-semibold">
-                              ⏳ Pending
+                              {SYMBOLS.PENDING} Pending
                             </span>
                           )}
                           {isAdmin && !td.excludedFromLearning && td.status !== 'approved' && (
