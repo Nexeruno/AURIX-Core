@@ -12,6 +12,15 @@ export const SYMBOLS = {
   MANUAL: '👤',
   AUTO: '🤖',
 
+  // Training types
+  INCOME: '💰',
+  EXPENSE: '💸',
+  CATEGORY: '🏷️',
+  QUESTION: '❓',
+  TARGET: '🎯',
+  SAVE: '💾',
+  EDIT: '📝',
+
   // Chart/data
   CHART: '📊',
   TREND_UP: '↑',

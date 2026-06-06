@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/auth/AuthProvider'
 import toast from 'react-hot-toast'
+import { SYMBOLS, msg } from '@/utils/symbols'
 
 interface TrainingDataItem {
   id: string
@@ -192,13 +193,13 @@ export function TrainingPage() {
       })
 
       toast.success('Income record saved')
-      setStatusMessage('✅ Income record saved successfully')
+      setStatusMessage(msg.success('Income record saved successfully'))
       setIncome({ name: '', category: '', note: '', tags: '' })
       await loadTrainingData()
       setTimeout(() => setStatusMessage(''), 3000)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'
-      setStatusMessage(`❌ Failed: ${message}`)
+      setStatusMessage(msg.error(`Failed: ${message}`))
       toast.error(message)
     } finally {
       setLoading(false)
@@ -232,13 +233,13 @@ export function TrainingPage() {
       })
 
       toast.success('Expense record saved')
-      setStatusMessage('✅ Expense record saved successfully')
+      setStatusMessage(msg.success('Expense record saved successfully'))
       setExpense({ name: '', category: '', note: '', tags: '' })
       await loadTrainingData()
       setTimeout(() => setStatusMessage(''), 3000)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'
-      setStatusMessage(`❌ Failed: ${message}`)
+      setStatusMessage(msg.error(`Failed: ${message}`))
       toast.error(message)
     } finally {
       setLoading(false)
@@ -272,13 +273,13 @@ export function TrainingPage() {
       })
 
       toast.success('Categorization rule saved')
-      setStatusMessage('✅ Categorization rule saved successfully')
+      setStatusMessage(msg.success('Categorization rule saved successfully'))
       setCategorization({ pattern: '', category: '', type: 'expense', note: '', tags: '' })
       await loadTrainingData()
       setTimeout(() => setStatusMessage(''), 3000)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'
-      setStatusMessage(`❌ Failed: ${message}`)
+      setStatusMessage(msg.error(`Failed: ${message}`))
       toast.error(message)
     } finally {
       setLoading(false)
@@ -312,13 +313,13 @@ export function TrainingPage() {
       })
 
       toast.success('Q&A pair saved')
-      setStatusMessage('✅ Q&A pair saved successfully')
+      setStatusMessage(msg.success('Q&A pair saved successfully'))
       setQa({ question: '', answer: '', tags: '', note: '' })
       await loadTrainingData()
       setTimeout(() => setStatusMessage(''), 3000)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'
-      setStatusMessage(`❌ Failed: ${message}`)
+      setStatusMessage(msg.error(`Failed: ${message}`))
       toast.error(message)
     } finally {
       setLoading(false)
@@ -333,7 +334,7 @@ export function TrainingPage() {
       {statusMessage && (
         <div
           className={`p-4 rounded-lg text-sm ${
-            statusMessage.includes('✅')
+            statusMessage.includes(SYMBOLS.SUCCESS)
               ? 'bg-green-100 text-green-700'
               : 'bg-red-100 text-red-700'
           }`}
@@ -359,10 +360,10 @@ export function TrainingPage() {
                       : 'bg-light-border dark:bg-dark-border text-light-text dark:text-dark-text hover:bg-gray-100 dark:bg-gray-700 disabled:opacity-50'
                   }`}
                 >
-                  {tab === 'income' && '💰 Income'}
-                  {tab === 'expense' && '💸 Expense'}
-                  {tab === 'categorization' && '🏷️ Categorization'}
-                  {tab === 'qa' && '❓ Q&A'}
+                  {tab === 'income' && `${SYMBOLS.INCOME} Income`}
+                  {tab === 'expense' && `${SYMBOLS.EXPENSE} Expense`}
+                  {tab === 'categorization' && `${SYMBOLS.CATEGORY} Categorization`}
+                  {tab === 'qa' && `${SYMBOLS.QUESTION} Q&A`}
                 </button>
               ))}
             </div>
@@ -427,7 +428,7 @@ export function TrainingPage() {
                     disabled={loading}
                     className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {loading ? '⏳ Saving...' : '💾 Save Income Record'}
+                    {loading ? `${SYMBOLS.LOADING} Saving...` : `${SYMBOLS.SAVE} Save Income Record`}
                   </button>
                 </div>
               )}
@@ -491,7 +492,7 @@ export function TrainingPage() {
                     disabled={loading}
                     className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {loading ? '⏳ Saving...' : '💾 Save Expense Record'}
+                    {loading ? `${SYMBOLS.LOADING} Saving...` : `${SYMBOLS.SAVE} Save Expense Record`}
                   </button>
                 </div>
               )}
@@ -576,7 +577,7 @@ export function TrainingPage() {
                     disabled={loading}
                     className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {loading ? '⏳ Saving...' : '💾 Save Categorization Rule'}
+                    {loading ? `${SYMBOLS.LOADING} Saving...` : `${SYMBOLS.SAVE} Save Categorization Rule`}
                   </button>
                 </div>
               )}
@@ -638,7 +639,7 @@ export function TrainingPage() {
                     disabled={loading}
                     className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {loading ? '⏳ Saving...' : '💾 Save Q&A Pair'}
+                    {loading ? `${SYMBOLS.LOADING} Saving...` : `${SYMBOLS.SAVE} Save Q&A Pair`}
                   </button>
                 </div>
               )}
@@ -651,7 +652,7 @@ export function TrainingPage() {
           {/* Manual Training Examples */}
           <div className="bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border overflow-hidden">
             <div className="p-4 border-b border-light-border dark:border-dark-border">
-              <h2 className="text-sm font-semibold text-light-text dark:text-dark-text">📝 Manual Training Examples</h2>
+              <h2 className="text-sm font-semibold text-light-text dark:text-dark-text">{SYMBOLS.EDIT} Manual Training Examples</h2>
               <p className="text-xs text-light-textMuted dark:text-dark-textMuted mt-0.5">Records added via this form</p>
               <div className="flex gap-2 mt-2">
                 <select
@@ -682,7 +683,7 @@ export function TrainingPage() {
                 <div className="p-4 text-center text-gray-500 text-sm">Loading…</div>
               ) : listError ? (
                 <div className="p-4 text-center text-red-600 text-sm">
-                  <p className="font-semibold">⚠️ Error</p>
+                  <p className="font-semibold">{SYMBOLS.WARNING} Error</p>
                   <p className="text-xs mt-1">{listError}</p>
                 </div>
               ) : (() => {
@@ -707,15 +708,15 @@ export function TrainingPage() {
                             : item.type === 'category_rule' ? 'bg-blue-600'
                             : 'bg-purple-600'
                           }`}>
-                            {item.type === 'income_name' ? '💰' : item.type === 'expense_name' ? '💸' : item.type === 'category_rule' ? '🏷️' : '❓'}
+                            {item.type === 'income_name' ? SYMBOLS.INCOME : item.type === 'expense_name' ? SYMBOLS.EXPENSE : item.type === 'category_rule' ? SYMBOLS.CATEGORY : SYMBOLS.QUESTION}
                           </span>
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-light-text dark:text-dark-text truncate">{item.input || '—'}</p>
+                            <p className="font-semibold text-light-text dark:text-dark-text truncate">{item.input || SYMBOLS.DASH}</p>
                             {item.expectedOutput && (
-                              <p className="text-gray-400 truncate">→ {item.expectedOutput}</p>
+                              <p className="text-gray-400 truncate">{SYMBOLS.ARROW_RIGHT} {item.expectedOutput}</p>
                             )}
                             <p className={`text-xs mt-0.5 ${(item.approved || item.status === 'approved') ? 'text-green-600' : 'text-yellow-600'}`}>
-                              {(item.approved || item.status === 'approved') ? '✅ Approved' : '⏳ Pending approval'}
+                              {(item.approved || item.status === 'approved') ? `${SYMBOLS.SUCCESS} Approved` : `${SYMBOLS.PENDING} Pending approval`}
                             </p>
                           </div>
                         </div>
@@ -730,7 +731,7 @@ export function TrainingPage() {
           {/* L2 Feedback Records (manual entries for model learning) */}
           <div className="bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border overflow-hidden">
             <div className="p-4 border-b border-light-border dark:border-dark-border">
-              <h2 className="text-sm font-semibold text-light-text dark:text-dark-text">🎯 L2 Manual Feedback</h2>
+              <h2 className="text-sm font-semibold text-light-text dark:text-dark-text">{SYMBOLS.TARGET} L2 Manual Feedback</h2>
               <p className="text-xs text-light-textMuted dark:text-dark-textMuted mt-0.5">Manually entered correction records (2× weight)</p>
             </div>
             <div className="overflow-y-auto max-h-48">
@@ -752,8 +753,8 @@ export function TrainingPage() {
                       <div key={item.id} className="p-3 hover:bg-light-border/50 dark:hover:bg-dark-border/50 text-xs">
                         <div className="flex justify-between items-start">
                           <div>
-                            <p className="font-semibold text-light-text dark:text-dark-text">{item.month || '—'}</p>
-                            <p className="text-gray-400 text-xs">{item.userId ? item.userId.slice(0, 10) + '…' : '—'}</p>
+                            <p className="font-semibold text-light-text dark:text-dark-text">{item.month || SYMBOLS.DASH}</p>
+                            <p className="text-gray-400 text-xs">{item.userId ? item.userId.slice(0, 10) + '…' : SYMBOLS.DASH}</p>
                           </div>
                           <div className="text-right">
                             {item.errorPercent != null && (
@@ -762,7 +763,7 @@ export function TrainingPage() {
                               </p>
                             )}
                             <p className={`text-xs mt-0.5 ${item.status === 'approved' ? 'text-green-600' : 'text-yellow-600'}`}>
-                              {item.status === 'approved' ? '✅' : '⏳'} {item.status}
+                              {item.status === 'approved' ? SYMBOLS.SUCCESS : SYMBOLS.PENDING} {item.status}
                             </p>
                           </div>
                         </div>
@@ -780,7 +781,7 @@ export function TrainingPage() {
       <div className="bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border overflow-hidden">
         <div className="p-4 border-b border-light-border dark:border-dark-border flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-base font-semibold text-light-text dark:text-dark-text">✅ Training Record Review</h2>
+            <h2 className="text-base font-semibold text-light-text dark:text-dark-text">{SYMBOLS.SUCCESS} Training Record Review</h2>
             <p className="text-xs text-light-textMuted dark:text-dark-textMuted mt-0.5">
               Approve or reject training records. Admin-created records are auto-approved. L2 feedback may need review.
             </p>
@@ -822,7 +823,7 @@ export function TrainingPage() {
         {listLoading ? (
           <div className="p-6 text-center text-light-textMuted dark:text-dark-textMuted text-sm">Loading…</div>
         ) : listError ? (
-          <div className="p-4 text-sm text-red-600 dark:text-red-400">⚠️ {listError}</div>
+          <div className="p-4 text-sm text-red-600 dark:text-red-400">{SYMBOLS.WARNING} {listError}</div>
         ) : (() => {
           const manualTypes = ['income_name', 'expense_name', 'category_rule', 'qa_example', 'l2_manual_feedback', 'l2_auto_feedback']
           const items = trainingList
@@ -868,23 +869,23 @@ export function TrainingPage() {
                             : status === 'rejected' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
                             : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300'
                           }`}>
-                            {status === 'approved' ? '✅ Approved' : status === 'rejected' ? '❌ Rejected' : '⏳ Pending'}
+                            {status === 'approved' ? `${SYMBOLS.SUCCESS} Approved` : status === 'rejected' ? `${SYMBOLS.ERROR} Rejected` : `${SYMBOLS.PENDING} Pending`}
                           </span>
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-light-textMuted dark:text-dark-textMuted">
                           {item.type.replace('_', ' ')}
                         </td>
                         <td className="px-3 py-2 max-w-xs truncate text-light-text dark:text-dark-text" title={item.input}>
-                          {item.input || '—'}
+                          {item.input || SYMBOLS.DASH}
                         </td>
                         <td className="px-3 py-2 max-w-xs truncate text-light-textMuted dark:text-dark-textMuted" title={item.expectedOutput}>
-                          {item.expectedOutput || '—'}
+                          {item.expectedOutput || SYMBOLS.DASH}
                         </td>
                         <td className="px-3 py-2 max-w-xs truncate text-light-textMuted dark:text-dark-textMuted" title={item.note}>
-                          {item.note || '—'}
+                          {item.note || SYMBOLS.DASH}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-light-textMuted dark:text-dark-textMuted">
-                          {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '—'}
+                          {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : SYMBOLS.DASH}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap">
                           {isPending ? (
@@ -921,7 +922,7 @@ export function TrainingPage() {
       {/* Info Box */}
       <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
         <p className="text-blue-900">
-          <span className="font-semibold">ℹ️ Note:</span> Training data is used to improve AI/ML
+          <span className="font-semibold">{SYMBOLS.INFO} Note:</span> Training data is used to improve AI/ML
           models over time. The more examples you provide, the better the system becomes. All records
           require admin approval before being used in training.
         </p>
