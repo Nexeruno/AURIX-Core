@@ -431,7 +431,9 @@ export function TrainingDataPage() {
         <p className="text-xs text-blue-700 dark:text-blue-300">
           📡 <strong>Data Sources:</strong> Reading from Firestore project <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">evidence-vydaju</code>
           <br/>
-          Same project as web app. Raw data: <code>users/{'{uid}'}/vydaje</code> & <code>users/{'{uid}'}/prijmy</code> collections.
+          Raw data (wydaje/prijmy) and L2 Predictions are filtered by selected user.
+          <br/>
+          ℹ️ <strong>Training Feedback is GLOBAL</strong> - same for all users, independent of user selection.
           <br/>
           📌 <strong>Note:</strong> L2 is simplified baseline with manual/auto calibration. Not actual Python ML model yet.
         </p>
