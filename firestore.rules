@@ -164,6 +164,11 @@ service cloud.firestore {
       allow write: if false;  // Jen Cloud Functions (Admin SDK)
     }
 
+    // CollectionGroup query for mlPredictions (admin cross-user reads)
+    match /{path=**}/mlPredictions/{doc} {
+      allow read: if isAdminByCustomClaims();
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════════
     // 🎛️ APP CONFIG - Prediction Settings (source of truth for Level 1/Level 2)
     // ═══════════════════════════════════════════════════════════════════════════════
