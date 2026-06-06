@@ -81,6 +81,8 @@ export function MlPredictionsPage() {
   const [error, setError] = useState<string | null>(null)
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false)
   const [selectedPredictionForFeedback, setSelectedPredictionForFeedback] = useState<L2ShadowPrediction | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<L2ShadowPrediction | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   // '' = All Users (admin only); specific uid = single user
   const effectiveUserId = isAdmin ? selectedUserId : (user?.uid || '')
@@ -147,6 +149,31 @@ export function MlPredictionsPage() {
 
   const handleFeedbackSuccess = () => {
     setFeedbackModalOpen(false)
+  }
+
+  const handleDeletePrediction = async (pred: L2ShadowPrediction) => {
+    setDeleting(true)
+    try {
+      const token = await getIdToken()
+      if (!window.ipcApi) throw new Error('IPC API not available')
+
+      const result = await window.ipcApi.callCloudFunction(
+        'adminDeleteMlPrediction',
+        token,
+        { userId: pred.userId, predictionId: pred.id }
+      )
+
+      if (result?.ok) {
+        setPredictions(predictions.filter(p => p.id !== pred.id))
+        setDeleteConfirm(null)
+      } else {
+        alert(`Error: ${result?.error || 'Failed to delete prediction'}`)
+      }
+    } catch (err) {
+      alert(`Error: ${err instanceof Error ? err.message : 'Failed to delete'}`)
+    } finally {
+      setDeleting(false)
+    }
   }
 
   const renderL2Card = (pred: L2ShadowPrediction) => {
@@ -300,12 +327,20 @@ export function MlPredictionsPage() {
             )}
 
             {isAdmin && (
-              <button
-                onClick={() => handleOpenFeedbackModal(pred)}
-                className="w-full px-3 py-2 rounded-lg bg-blue-600 dark:bg-blue-700 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
-              >
-                ➕ Add Feedback
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleOpenFeedbackModal(pred)}
+                  className="flex-1 px-3 py-2 rounded-lg bg-blue-600 dark:bg-blue-700 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
+                >
+                  ➕ Add Feedback
+                </button>
+                <button
+                  onClick={() => setDeleteConfirm(pred)}
+                  className="px-3 py-2 rounded-lg bg-red-600 dark:bg-red-700 text-white text-sm font-semibold hover:bg-red-700 transition-colors"
+                >
+                  🗑️
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -521,6 +556,45 @@ export function MlPredictionsPage() {
           onSuccess={handleFeedbackSuccess}
           prediction={selectedPredictionForFeedback}
         />
+      )}
+
+      {/* Delete confirmation modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-light-bg dark:bg-dark-bg rounded-lg shadow-lg max-w-sm w-full p-6 space-y-4">
+            <h3 className="text-lg font-bold text-light-text dark:text-dark-text">Delete Prediction?</h3>
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded p-3 space-y-2 text-sm">
+              <p className="text-light-text dark:text-dark-text">
+                <strong>Month:</strong> {deleteConfirm.month}
+              </p>
+              <p className="text-light-text dark:text-dark-text">
+                <strong>Amount:</strong> {deleteConfirm.totalPredictedExpense.toLocaleString()} Kč
+              </p>
+              <p className="text-light-text dark:text-dark-text">
+                <strong>User:</strong> {deleteConfirm.userId.slice(0, 12)}...
+              </p>
+              <p className="text-red-700 dark:text-red-300 mt-3 text-xs">
+                This will permanently remove this prediction.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="flex-1 px-4 py-2 rounded-lg border border-light-border dark:border-dark-border text-light-text dark:text-dark-text hover:bg-light-border dark:hover:bg-dark-border transition-colors"
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeletePrediction(deleteConfirm)}
+                className="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+                disabled={deleting}
+              >
+                {deleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

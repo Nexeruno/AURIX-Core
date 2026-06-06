@@ -4416,6 +4416,54 @@ exports.adminCreateL2TrainingFeedback = functions.region(REGION).https.onRequest
   }
 });
 
+// Delete a single mlPrediction record (admin only)
+exports.adminDeleteMlPrediction = functions.region(REGION).https.onRequest(async (req, res) => {
+  cors(req, res, async () => {
+    try {
+      const auth = req.header('authorization')?.replace('Bearer ', '');
+      if (!auth) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+
+      const decodedToken = await admin.auth().verifyIdToken(auth);
+      const userDoc = await db.collection('users').doc(decodedToken.uid).get();
+      const userRole = userDoc.data()?.role;
+
+      if (!['admin', 'ml_admin'].includes(userRole)) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: only admin/ml_admin can delete records' });
+      }
+
+      const { userId, predictionId } = req.body;
+      if (!userId || !predictionId) {
+        return res.status(400).json({ ok: false, error: 'userId and predictionId required' });
+      }
+
+      // Get the prediction before deleting
+      const predDoc = await db.collection('users').doc(userId).collection('mlPredictions').doc(predictionId).get();
+      if (!predDoc.exists) {
+        return res.status(404).json({ ok: false, error: 'Prediction not found' });
+      }
+
+      const predData = predDoc.data();
+
+      // Delete the prediction
+      await db.collection('users').doc(userId).collection('mlPredictions').doc(predictionId).delete();
+
+      logger.info(`[DELETE_PREDICTION] Deleted L${predData?.pipelineLevel} prediction ${predictionId} for user ${userId}`);
+
+      res.status(200).json({
+        ok: true,
+        predictionId,
+        userId,
+        month: predData?.month,
+        pipelineLevel: predData?.pipelineLevel,
+        message: `Prediction deleted`
+      });
+    } catch (err) {
+      logger.error('adminDeleteMlPrediction error:', err);
+      res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+});
+
 // Delete a single trainingData feedback record (admin only)
 exports.adminDeleteTrainingDataRecord = functions.region(REGION).https.onRequest(async (req, res) => {
   cors(req, res, async () => {
