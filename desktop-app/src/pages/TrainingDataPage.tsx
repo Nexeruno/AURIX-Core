@@ -4,7 +4,6 @@ import { useUserRole } from '@/hooks/useUserRole'
 import { db } from '@/config/firebase'
 import {
   collection,
-  collectionGroup,
   query,
   where,
   getDocs
@@ -59,7 +58,7 @@ interface L2Prediction {
 }
 
 export function TrainingDataPage() {
-  const { user } = useAuth()
+  const { user, getIdToken } = useAuth()
   const { role: userRole, loading: roleLoading } = useUserRole(user)
   const isAdmin = userRole && ['admin', 'ml_admin'].includes(userRole)
   const { users, usersLoading, selectedUserId, selectedUser, selectUser } = useAdminUserSelector()
@@ -185,17 +184,19 @@ export function TrainingDataPage() {
       console.warn('Failed to load training feedback:', err)
     }
 
-    // ── 3. L2 shadow predictions ─────────────────────────────────────────────
+    // ── 3. L2 shadow predictions via Cloud Function (Admin SDK bypasses Firestore rules) ─
     try {
-      const predictionsSnap = uid
-        ? await getDocs(query(collection(db, 'users', uid, 'mlPredictions'), where('pipelineLevel', '==', 2)))
-        : await getDocs(query(collectionGroup(db, 'mlPredictions'), where('pipelineLevel', '==', 2)))
-      const predictions: L2Prediction[] = predictionsSnap.docs.map(doc => {
-        const data = doc.data()
-        const resolvedUid = uid || doc.ref.parent.parent?.id || '—'
-        return {
-          id: doc.id,
-          userId: resolvedUid,
+      if (!window.ipcApi) throw new Error('IPC API not available')
+      const token = await getIdToken()
+      const result = await window.ipcApi.callCloudFunction(
+        'adminGetMlPredictions',
+        token,
+        { uid: uid || undefined, pipelineLevel: 2, limit: 50 }
+      )
+      if (result?.ok) {
+        const predictions: L2Prediction[] = (result.data ?? []).map((data: any) => ({
+          id: data.id || '',
+          userId: data.userId || '—',
           month: data.month || '—',
           pipelineLevel: data.pipelineLevel,
           shadowMode: data.shadowMode,
@@ -208,19 +209,14 @@ export function TrainingDataPage() {
           finalCorrectionFactor: data.finalCorrectionFactor,
           isRealMlModel: data.isRealMlModel || false,
           modelVersion: data.modelVersion,
-        }
-      })
-      setL2Predictions(predictions)
+        }))
+        setL2Predictions(predictions)
+      } else {
+        setPredictionsError(result?.error || 'Failed to load predictions')
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to load predictions'
-      console.error('[L2_PREDICTIONS_ERROR]', msg, err)
-      setPredictionsError(
-        msg.includes('index') || msg.includes('requires an index')
-          ? 'Firestore index missing for mlPredictions collectionGroup query. Run the shadow pipeline at least once to create predictions, then add the composite index.'
-          : msg.includes('Missing or insufficient permissions')
-          ? `Permission denied reading mlPredictions. Ensure your admin role is properly set in Firestore. Error: ${msg}`
-          : msg
-      )
+      setPredictionsError(msg)
     }
 
     setLoading(false)
