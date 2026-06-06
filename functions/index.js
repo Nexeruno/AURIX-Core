@@ -3826,12 +3826,24 @@ exports.runLevel2ShadowPipeline = functions.region(REGION).https.onRequest(async
           .where('status', '==', 'approved')
           .get();
 
+        // Helper: validate learning record has required schema
+        const isValidLearningRecord = (record) => {
+          // Must not be excluded
+          if (record.excludedFromLearning === true) return false;
+          // Must have core fields for calculation
+          if (!record.predictedTotal || typeof record.predictedTotal !== 'number') return false;
+          if (record.actualTotal === undefined || typeof record.actualTotal !== 'number') return false;
+          // predictedTotal must be positive for ratio calculation
+          if (record.predictedTotal <= 0) return false;
+          return true;
+        };
+
         const manualRecords = manualTrainingQuery.docs
           .map(doc => doc.data())
-          .filter(record => !record.excludedFromLearning);
+          .filter(isValidLearningRecord);
         const autoRecords = autoTrainingQuery.docs
           .map(doc => doc.data())
-          .filter(record => !record.excludedFromLearning);
+          .filter(isValidLearningRecord);
 
         // Calculate weighted correction factors
         // manual feedback: weight = 2, auto feedback: weight = 1
@@ -3841,9 +3853,8 @@ exports.runLevel2ShadowPipeline = functions.region(REGION).https.onRequest(async
         let trainingDataUsed = false;
 
         if (manualRecords.length > 0) {
-          const manualRatios = manualRecords
-            .filter(td => td.predictedTotal && td.predictedTotal > 0)
-            .map(td => td.actualTotal / td.predictedTotal);
+          // All records already validated by isValidLearningRecord filter
+          const manualRatios = manualRecords.map(td => td.actualTotal / td.predictedTotal);
 
           if (manualRatios.length > 0) {
             manualCorrectionFactor = manualRatios.reduce((a, b) => a + b, 0) / manualRatios.length;
@@ -3853,9 +3864,8 @@ exports.runLevel2ShadowPipeline = functions.region(REGION).https.onRequest(async
         }
 
         if (autoRecords.length > 0) {
-          const autoRatios = autoRecords
-            .filter(td => td.predictedTotal && td.predictedTotal > 0)
-            .map(td => td.actualTotal / td.predictedTotal);
+          // All records already validated by isValidLearningRecord filter
+          const autoRatios = autoRecords.map(td => td.actualTotal / td.predictedTotal);
 
           if (autoRatios.length > 0) {
             autoCorrectionFactor = autoRatios.reduce((a, b) => a + b, 0) / autoRatios.length;
@@ -4369,25 +4379,40 @@ exports.adminCreateL2TrainingFeedback = functions.region(REGION).https.onRequest
     // Extract and validate input
     const { userId, predictionId, month, predictedTotal, actualTotal, correctedCategories, note } = req.body;
 
-    if (!userId || !month || !predictedTotal || !actualTotal) {
-      return res.status(400).json({
-        ok: false,
-        error: 'Missing required fields: userId, month, predictedTotal, actualTotal',
-      });
+    // Validate required fields for learning record schema
+    if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+      return res.status(400).json({ ok: false, error: 'Invalid userId: must be non-empty string' });
+    }
+    if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+      return res.status(400).json({ ok: false, error: 'Invalid month: must be YYYY-MM format' });
+    }
+    if (predictedTotal === undefined || predictedTotal === null || typeof Number(predictedTotal) !== 'number') {
+      return res.status(400).json({ ok: false, error: 'Invalid predictedTotal: must be a number' });
+    }
+    if (actualTotal === undefined || actualTotal === null || typeof Number(actualTotal) !== 'number') {
+      return res.status(400).json({ ok: false, error: 'Invalid actualTotal: must be a number' });
     }
 
-    const errorAmount = actualTotal - predictedTotal;
-    const errorPercent = predictedTotal !== 0 ? ((actualTotal - predictedTotal) / predictedTotal) * 100 : 0;
+    // Validate numeric constraints for learning
+    const ptNum = Number(predictedTotal);
+    const atNum = Number(actualTotal);
+    if (ptNum < 0 || atNum < 0) {
+      return res.status(400).json({ ok: false, error: 'predictedTotal and actualTotal must be >= 0' });
+    }
 
-    // Create training data record
+    const errorAmount = atNum - ptNum;
+    const errorPercent = ptNum !== 0 ? ((atNum - ptNum) / ptNum) * 100 : 0;
+
+    // Create training data record with validated learning schema
     const trainingRecord = {
       // L2 feedback specific
       type: 'l2_manual_feedback',
       userId,
       predictionId: predictionId || null,
       month,
-      predictedTotal: Math.round(predictedTotal),
-      actualTotal: Math.round(actualTotal),
+      // Learning-critical fields (validated)
+      predictedTotal: Math.round(ptNum),
+      actualTotal: Math.round(atNum),
       errorAmount: Math.round(errorAmount),
       errorPercent: Math.round(errorPercent * 10) / 10,
       correctedCategories: correctedCategories || {},
@@ -5020,12 +5045,15 @@ const extractUserFeatures = async (uid) => {
       .where('excludedFromLearning', '!=', true)
       .get();
 
+    // Note: finalCorrectionFactor is NOT stored in L2 feedback records
+    // These use predictedTotal/actualTotal for ratio calculation instead
+    // Use 1.0 as neutral factor if field is missing
     const avgManualFactor = manualFeedback.size > 0
-      ? manualFeedback.docs.reduce((sum, d) => sum + (d.data().finalCorrectionFactor || 1), 0) / manualFeedback.size
+      ? manualFeedback.docs.reduce((sum, d) => sum + (d.data().finalCorrectionFactor ?? 1), 0) / manualFeedback.size
       : 1.0;
 
     const avgAutoFactor = autoFeedback.size > 0
-      ? autoFeedback.docs.reduce((sum, d) => sum + (d.data().finalCorrectionFactor || 1), 0) / autoFeedback.size
+      ? autoFeedback.docs.reduce((sum, d) => sum + (d.data().finalCorrectionFactor ?? 1), 0) / autoFeedback.size
       : 1.0;
 
     // Category-level analysis
