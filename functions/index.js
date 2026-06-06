@@ -5175,6 +5175,12 @@ exports.adminGetAiProfile = functions.region(REGION).https.onRequest(async (req,
       if (profile.staleReason === undefined) {
         profile.staleReason = [];
       }
+      if (profile.staleSince === undefined) {
+        profile.staleSince = null;
+      }
+      if (profile.lastAutoRegeneratedAt === undefined) {
+        profile.lastAutoRegeneratedAt = null;
+      }
 
       // Check staleness to get current state
       const generatedAt = profile.generatedAt?.toDate ? profile.generatedAt.toDate() : profile.generatedAt;
@@ -5187,6 +5193,8 @@ exports.adminGetAiProfile = functions.region(REGION).https.onRequest(async (req,
         staleReason: staleness.staleReason,
         lastTransactionAt: staleness.lastTransactionAt,
         lastFeedbackAt: staleness.lastFeedbackAt,
+        staleSince: profile.staleSince || null,
+        lastAutoRegeneratedAt: profile.lastAutoRegeneratedAt || null,
       };
 
       res.status(200).json({ ok: true, profile: enrichedProfile });
