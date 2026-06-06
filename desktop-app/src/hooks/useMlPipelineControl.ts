@@ -198,7 +198,11 @@ export function useMlPipelineControl() {
       if (!window.ipcApi) {
         throw new Error('IPC API not available')
       }
-      const result = await window.ipcApi.runLevel2Pipeline(idToken)
+      const result = await window.ipcApi.callCloudFunction(
+        'runLevel2ShadowPipeline',
+        idToken,
+        {}
+      )
       return result
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Unknown error')
