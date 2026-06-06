@@ -67,33 +67,33 @@ service cloud.firestore {
 
     // Training Data — admin/ml_admin čte vše, CF píše, admin může updatovat excludedFromLearning
     match /trainingData/{document=**} {
-      allow read: if isAdmin(request.auth.uid);
+      allow read: if isAdminByCustomClaims();
       allow write: if false;  // Jen Cloud Functions (Admin SDK)
       allow update: if isAdminByCustomClaims() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['excludedFromLearning', 'excludedAt', 'excludedBy', 'exclusionReason']);
     }
 
     // ML Debug Logs — admin čte, CF píše
     match /mlDebugLogs/{document=**} {
-      allow read: if isAdmin(request.auth.uid);
+      allow read: if isAdminByCustomClaims();
       allow write: if false;  // Jen Cloud Functions (Admin SDK)
     }
 
     // ML Pipeline Status — admin čte, CF píše
     match /mlPipelineStatus/{document=**} {
-      allow read: if isAdmin(request.auth.uid);
+      allow read: if isAdminByCustomClaims();
       allow write: if false;  // Jen Cloud Functions (Admin SDK)
     }
 
     // System Alerts (admin monitoring)
     match /systemAlerts/{document=**} {
       allow read: if request.auth != null;
-      allow write: if isAdmin(request.auth.uid);
+      allow write: if isAdminByCustomClaims();
     }
 
     // System Repairs (auto-healing tracking)
     match /systemRepairs/{document=**} {
       allow read: if request.auth != null;
-      allow write: if isAdmin(request.auth.uid);
+      allow write: if isAdminByCustomClaims();
     }
 
     // Usernames (pro ověření dostupnosti)
@@ -109,24 +109,24 @@ service cloud.firestore {
     // Telemetry (user actions) — user píše, jen admin čte
     match /aiTelemetry/{uid}/{document=**} {
       allow create, write: if isOwner(uid);
-      allow read, delete: if isAdmin(request.auth.uid);
+      allow read, delete: if isAdminByCustomClaims();
     }
 
     // Full transaction data pro AI — jen admin má přístup (Cloud Functions)
     match /aiData/{uid}/{document=**} {
-      allow read, write: if isAdmin(request.auth.uid);
+      allow read, write: if isAdminByCustomClaims();
     }
 
     // AI Insights — jen admin čte, CF píše (server)
     match /aiInsights/{uid} {
-      allow read: if isAdmin(request.auth.uid);
+      allow read: if isAdminByCustomClaims();
       allow write: if false;  // Jen Cloud Functions (Admin SDK)
     }
 
     // AI Configuration — jen admin
     match /aiConfig/{document=**} {
-      allow read: if isAdmin(request.auth.uid);
-      allow write: if isAdmin(request.auth.uid);
+      allow read: if isAdminByCustomClaims();
+      allow write: if isAdminByCustomClaims();
     }
 
     // ═══════════════════════════════════════════════════════════════════════════════
@@ -135,7 +135,7 @@ service cloud.firestore {
 
     // Audit Log — jen CF a admin
     match /_auditLog/{document=**} {
-      allow read: if isAdmin(request.auth.uid);
+      allow read: if isAdminByCustomClaims();
       allow write: if false;  // Jen Cloud Functions
     }
 
@@ -146,13 +146,13 @@ service cloud.firestore {
 
     // Security Events — jen CF píše, admin čte
     match /_securityEvents/{document=**} {
-      allow read: if isAdmin(request.auth.uid);
+      allow read: if isAdminByCustomClaims();
       allow write: if false;  // Jen Cloud Functions
     }
 
     // Admin IP Log — jen CF píše, admin čte
     match /_adminIPLog/{document=**} {
-      allow read: if isAdmin(request.auth.uid);
+      allow read: if isAdminByCustomClaims();
       allow write: if false;  // Jen Cloud Functions
     }
 
@@ -162,7 +162,7 @@ service cloud.firestore {
 
     // ML Run Logs — jen admin čte, CF píše
     match /mlRuns/{document=**} {
-      allow read: if isAdmin(request.auth.uid);
+      allow read: if isAdminByCustomClaims();
       allow write: if false;  // Jen Cloud Functions (Admin SDK)
     }
 
