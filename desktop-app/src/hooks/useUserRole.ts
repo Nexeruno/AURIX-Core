@@ -16,6 +16,12 @@ export function useUserRole(user: User | null) {
       try {
         const idTokenResult = await user.getIdTokenResult(true)
         const customRole = (idTokenResult.claims as any)?.role
+        console.log('[AUTH_DEBUG] Token claims:', {
+          uid: user.uid,
+          email: user.email,
+          customRole,
+          allClaims: idTokenResult.claims,
+        })
         if (customRole) {
           setRole(customRole)
         } else {
