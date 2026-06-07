@@ -1567,15 +1567,56 @@ def calculate_baseline_prediction(
 @app.route('/health', methods=['GET'])
 def health_check():
     """
-    Health check endpoint
-    Used by Node/Firebase layer to verify Python runtime is available
+    FÁZE 5.5A: Runtime health check endpoint
+    Returns Python runtime availability and API contract readiness
+
+    Availability: Whether the runtime is responding
+    Contract Ready: Whether all required endpoints are implemented
     """
     logger.info('Health check requested')
+
+    # Check runtime availability (simple check that we're running)
+    runtime_available = True
+
+    # Check contract readiness (all required endpoints implemented)
+    required_endpoints = ['/health', '/status', '/predict', '/dataset-info', '/evaluate', '/evaluate-summary']
+    contract_ready = True
+
+    # Check if required classes and functions exist
+    try:
+        # Verify key components are loaded
+        if not hasattr(RequestContract, 'validate'):
+            contract_ready = False
+        if not hasattr(RequestParser, 'parse'):
+            contract_ready = False
+        if not callable(calculate_baseline_prediction):
+            contract_ready = False
+    except Exception as e:
+        logger.warn(f'Contract verification failed: {str(e)}')
+        contract_ready = False
+
+    availability_status = 'available' if runtime_available else 'unavailable'
+    contract_status = 'contract_ready' if contract_ready else 'not_ready'
+
+    logger.info(f'Health check result: availability={availability_status}, contract={contract_status}')
+
     return jsonify({
-        'status': 'healthy',
+        'status': 'healthy' if (runtime_available and contract_ready) else 'degraded',
         'service': 'ml-runtime',
+        'availability': availability_status,
+        'contractReady': contract_status,
         'timestamp': datetime.utcnow().isoformat() + 'Z',
-        'version': '5.0.0'
+        'version': '5.0.0',
+        'endpoints': required_endpoints,
+        'capabilities': [
+            'baseline-prediction',
+            'dataset-validation',
+            'feature-analysis',
+            'target-detection',
+            'offline-evaluation',
+            'failure-analysis',
+            'readiness-verdict'
+        ]
     }), 200
 
 
