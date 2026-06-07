@@ -1709,6 +1709,133 @@ def readiness_check():
         }), 200
 
 
+@app.route('/status-summary', methods=['GET'])
+def status_summary():
+    """
+    FÁZE 5.5C: Runtime status summary endpoint
+    Aggregates health and readiness checks into simple status: healthy/degraded/unavailable
+
+    Simple Rules:
+    1. unavailable — Runtime not responding
+    2. degraded — Runtime responding but contract/readiness issues
+    3. healthy — Runtime available, contract ready, application ready
+
+    Response includes:
+    - status: healthy/degraded/unavailable
+    - reasons: list of issues (empty if healthy)
+    - checks: detailed health and readiness results
+    """
+    logger.info('Status summary requested')
+
+    try:
+        # Get health check data (local, no HTTP call)
+        availability = 'available'
+        contract_ready = 'contract_ready'
+
+        try:
+            is_valid, error_msg = RequestContract.validate({'test': True})
+            if not is_valid:
+                contract_ready = 'not_ready'
+        except:
+            contract_ready = 'not_ready'
+
+        try:
+            if not hasattr(RequestParser, 'parse') or not callable(getattr(RequestParser, 'parse')):
+                contract_ready = 'not_ready'
+        except:
+            contract_ready = 'not_ready'
+
+        try:
+            if not callable(calculate_baseline_prediction):
+                contract_ready = 'not_ready'
+        except:
+            contract_ready = 'not_ready'
+
+        # Get readiness check data (simplified test)
+        readiness_status = 'ready'
+        readiness_reason = 'all_checks_passed'
+
+        try:
+            test_request = {
+                'uid': 'status-check',
+                'pipelineLevel': 'L1',
+                'modelVersion': '1.0',
+                'transactions': [
+                    {'category': 'food', 'amount': 100.0, 'date': '2026-01-05'},
+                    {'category': 'food', 'amount': 100.0, 'date': '2026-01-15'},
+                    {'category': 'food', 'amount': 100.0, 'date': '2026-02-05'},
+                ],
+                'income': 5000.0,
+            }
+
+            is_valid, error_msg = RequestContract.validate(test_request)
+            if not is_valid:
+                readiness_status = 'not_ready'
+                readiness_reason = 'request_validation_failed'
+            else:
+                try:
+                    parsed = RequestParser.parse(test_request)
+                    prediction = calculate_baseline_prediction(
+                        parsed['transactions'],
+                        parsed['income'],
+                        parsed['pipelineLevel']
+                    )
+
+                    if not prediction or 'totalPredictedExpense' not in prediction:
+                        readiness_status = 'not_ready'
+                        readiness_reason = 'invalid_response'
+                except Exception as e:
+                    readiness_status = 'not_ready'
+                    readiness_reason = 'processing_failed'
+
+        except Exception as e:
+            readiness_status = 'not_ready'
+            readiness_reason = 'unexpected_error'
+
+        # Determine overall status based on simple rules
+        reasons = []
+
+        if availability == 'unavailable':
+            overall_status = 'unavailable'
+            reasons.append('Runtime not responding')
+        elif contract_ready == 'not_ready':
+            overall_status = 'degraded'
+            reasons.append('Contract not ready (missing endpoints or components)')
+        elif readiness_status == 'not_ready':
+            overall_status = 'degraded'
+            reasons.append(f'Readiness check failed: {readiness_reason}')
+        else:
+            overall_status = 'healthy'
+
+        response = {
+            'status': overall_status,
+            'timestamp': datetime.utcnow().isoformat() + 'Z',
+            'reasons': reasons,
+            'checks': {
+                'health': {
+                    'availability': availability,
+                    'contractReady': contract_ready
+                },
+                'readiness': {
+                    'status': readiness_status,
+                    'reason': readiness_reason
+                }
+            }
+        }
+
+        logger.info(f'Status summary: {overall_status}')
+        return jsonify(response), 200
+
+    except Exception as e:
+        logger.error(f'Status summary error: {str(e)}')
+        return jsonify({
+            'status': 'unavailable',
+            'timestamp': datetime.utcnow().isoformat() + 'Z',
+            'reasons': [f'Status check failed: {str(e)}'],
+            'checks': {}
+        }), 200
+
+
 @app.route('/predict', methods=['POST'])
 def predict():
     """
