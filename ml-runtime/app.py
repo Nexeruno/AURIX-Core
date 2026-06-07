@@ -214,6 +214,217 @@ class RequestParser:
         }
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# 🎯 FEATURE EXTRACTION - Real Dataset Row Processing (FÁZE 5.2B)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class FeatureExtractor:
+    """
+    FÁZE 5.2B: Extract and validate features from real dataset rows
+    Handles feature values, target presence info, and training metadata
+    """
+
+    @staticmethod
+    def extract_features(transaction: Dict) -> Dict:
+        """Extract features from single transaction row"""
+        return {
+            'category': str(transaction.get('category', '')).strip().lower(),
+            'amount': float(transaction.get('amount', 0)),
+            'date': str(transaction.get('date', '')).strip(),
+            'amount_numeric': float(transaction.get('amount', 0)) > 0,
+        }
+
+    @staticmethod
+    def validate_features(transactions: List[Dict]) -> Tuple[bool, str]:
+        """
+        Validate that features are present and valid
+        Returns: (is_valid, error_message)
+        """
+        if not transactions:
+            return True, ""  # Empty is valid, just means no data
+
+        for idx, tx in enumerate(transactions):
+            if not isinstance(tx, dict):
+                return False, f"Row {idx}: Transaction must be object, got {type(tx).__name__}"
+
+            # Check feature fields exist
+            if 'category' not in tx:
+                return False, f"Row {idx}: Missing feature 'category'"
+            if 'amount' not in tx:
+                return False, f"Row {idx}: Missing feature 'amount'"
+            if 'date' not in tx:
+                return False, f"Row {idx}: Missing feature 'date'"
+
+            # Validate feature types
+            if not isinstance(tx.get('category'), str) or not tx.get('category').strip():
+                return False, f"Row {idx}: Feature 'category' must be non-empty string"
+            if not isinstance(tx.get('amount'), (int, float)):
+                return False, f"Row {idx}: Feature 'amount' must be numeric"
+            if tx.get('amount') < 0:
+                return False, f"Row {idx}: Feature 'amount' cannot be negative"
+            if not isinstance(tx.get('date'), str) or not tx.get('date').strip():
+                return False, f"Row {idx}: Feature 'date' must be non-empty string"
+
+        return True, ""
+
+    @staticmethod
+    def analyze_feature_coverage(transactions: List[Dict]) -> Dict:
+        """Analyze what features are present and their quality"""
+        if not transactions:
+            return {
+                'totalRows': 0,
+                'featurePresence': {
+                    'category': 0,
+                    'amount': 0,
+                    'date': 0,
+                },
+                'uniqueCategories': 0,
+                'amountRange': None,
+            }
+
+        categories_present = sum(1 for t in transactions if 'category' in t and t.get('category', '').strip())
+        amounts_present = sum(1 for t in transactions if 'amount' in t)
+        dates_present = sum(1 for t in transactions if 'date' in t and t.get('date', '').strip())
+
+        unique_categories = len(set(str(t.get('category', '')).strip().lower() for t in transactions if t.get('category', '').strip()))
+
+        amounts = [float(t.get('amount', 0)) for t in transactions if isinstance(t.get('amount'), (int, float)) and t.get('amount') >= 0]
+        amount_range = None
+        if amounts:
+            amount_range = {'min': round(min(amounts), 2), 'max': round(max(amounts), 2)}
+
+        return {
+            'totalRows': len(transactions),
+            'featurePresence': {
+                'category': round(categories_present / len(transactions) * 100, 1),
+                'amount': round(amounts_present / len(transactions) * 100, 1),
+                'date': round(dates_present / len(transactions) * 100, 1),
+            },
+            'uniqueCategories': unique_categories,
+            'amountRange': amount_range,
+        }
+
+
+class TargetInfo:
+    """
+    FÁZE 5.2B: Detect and validate target presence for training
+    Target = what we're trying to predict (monthly expenses)
+    """
+
+    @staticmethod
+    def extract_targets(transactions: List[Dict]) -> Dict:
+        """Extract target values (monthly aggregated expenses) from transactions"""
+        if not transactions:
+            return {}
+
+        monthly_totals = {}
+        for tx in transactions:
+            date_str = str(tx.get('date', '')).strip()
+            amount = float(tx.get('amount', 0))
+
+            if date_str and len(date_str) >= 7:  # YYYY-MM format
+                month_key = date_str[:7]
+                if month_key not in monthly_totals:
+                    monthly_totals[month_key] = 0
+                monthly_totals[month_key] += amount
+
+        return monthly_totals
+
+    @staticmethod
+    def validate_target_presence(transactions: List[Dict], income: float = None) -> Tuple[bool, str]:
+        """
+        Validate that we have target information
+        For expense prediction, target = monthly expense totals
+        Returns: (is_valid, error_message)
+        """
+        if not transactions:
+            return False, "Cannot validate target: no transactions provided"
+
+        # Check if we can extract monthly targets
+        targets = TargetInfo.extract_targets(transactions)
+
+        if not targets:
+            return False, "Cannot extract target values: transactions must have valid dates in YYYY-MM format"
+
+        if len(targets) < 1:
+            return False, "Cannot validate target: insufficient monthly data (need at least 1 month)"
+
+        return True, ""
+
+    @staticmethod
+    def analyze_target_quality(transactions: List[Dict]) -> Dict:
+        """Analyze quality of target data for training"""
+        targets = TargetInfo.extract_targets(transactions)
+
+        if not targets:
+            return {
+                'targetPresence': False,
+                'monthsAvailable': 0,
+                'targetDataPoints': 0,
+                'targetRange': None,
+                'recommendation': 'Cannot perform training: no valid monthly targets found',
+            }
+
+        sorted_months = sorted(targets.keys())
+        values = list(targets.values())
+
+        return {
+            'targetPresence': True,
+            'monthsAvailable': len(sorted_months),
+            'targetDataPoints': len(values),
+            'targetRange': {
+                'min': round(min(values), 2),
+                'max': round(max(values), 2),
+                'mean': round(sum(values) / len(values), 2),
+            },
+            'timeSpan': f"{sorted_months[0]} to {sorted_months[-1]}",
+            'recommendation': 'Ready for training' if len(sorted_months) >= 3 else f'Limited data: {len(sorted_months)} months (recommend 3+)',
+        }
+
+
+class DatasetMetadata:
+    """
+    FÁZE 5.2B: Generate metadata about dataset for first use-case
+    Tracks what data we have and whether it's suitable for training
+    """
+
+    @staticmethod
+    def generate(transactions: List[Dict], income: float = None) -> Dict:
+        """Generate comprehensive metadata about dataset"""
+        feature_coverage = FeatureExtractor.analyze_feature_coverage(transactions)
+        target_quality = TargetInfo.analyze_target_quality(transactions)
+
+        total_expense = sum(float(t.get('amount', 0)) for t in transactions if isinstance(t.get('amount'), (int, float)))
+
+        return {
+            'datasetSize': {
+                'totalRows': len(transactions),
+                'featurePresence': feature_coverage['featurePresence'],
+                'uniqueCategories': feature_coverage['uniqueCategories'],
+            },
+            'features': {
+                'amountRange': feature_coverage['amountRange'],
+                'categoriesPresent': feature_coverage['uniqueCategories'] > 0,
+                'datesPresent': feature_coverage['featurePresence']['date'] > 0,
+            },
+            'targets': {
+                'monthlyTargets': target_quality['targetPresence'],
+                'monthsAvailable': target_quality['monthsAvailable'],
+                'timeSpan': target_quality.get('timeSpan', 'N/A'),
+                'targetRange': target_quality.get('targetRange'),
+            },
+            'income': {
+                'provided': income is not None and income > 0,
+                'amount': round(income, 2) if income and income > 0 else None,
+            },
+            'summary': {
+                'totalExpense': round(total_expense, 2),
+                'readyForTraining': target_quality['targetPresence'] and feature_coverage['featurePresence']['category'] >= 80,
+                'recommendation': target_quality.get('recommendation', 'Unknown'),
+            }
+        }
+
+
 class ResponseContract:
     """Builds and validates outgoing response shape"""
 
@@ -746,6 +957,29 @@ def predict():
                 'debugMetadata': {'processingTimeMs': 0}
             }), 400
 
+        # FÁZE 5.2B: Validate features and target presence
+        transactions = parsed['transactions']
+        features_valid, features_error = FeatureExtractor.validate_features(transactions)
+        if not features_valid:
+            logger.error(f'Feature validation failed: {features_error}')
+            logger.error({
+                'event': '[ERROR] Dataset validation failed',
+                'uid': data.get('uid'),
+                'errorType': 'INVALID_FEATURES',
+                'reason': features_error
+            })
+            return jsonify({
+                'status': 'failed',
+                'error': f'Dataset feature validation failed: {features_error}',
+                'uid': data.get('uid'),
+                'debugMetadata': {'processingTimeMs': 0}
+            }), 400
+
+        # FÁZE 5.2B: Check target presence (optional warning, not failure)
+        target_valid, target_error = TargetInfo.validate_target_presence(transactions, parsed['income'])
+        if not target_valid:
+            logger.warning(f'Target validation issue: {target_error}', extra={'uid': data.get('uid')})
+
         logger.info(f"[PREDICT] Processing: uid={parsed['uid']}, level={parsed['pipelineLevel']}, txns={len(parsed['transactions'])}")
 
         # Extract parsed data
@@ -808,6 +1042,11 @@ def predict():
                 if '_debug' in pred:
                     del pred['_debug']
 
+        # FÁZE 5.2B: Add dataset metadata for training readiness
+        dataset_meta = DatasetMetadata.generate(transactions, parsed['income'])
+        response['debugMetadata']['datasetMetadata'] = dataset_meta
+        logger.info(f"[DATASET] Features validated: uid={uid}, rows={dataset_meta['datasetSize']['totalRows']}, categories={dataset_meta['datasetSize']['uniqueCategories']}, months={dataset_meta['targets']['monthsAvailable']}")
+
         # FÁZE 5.1E: Observability logging for deterministic result
         logger.info(f"[RESULT] Generated: uid={uid}, expense={prediction['totalPredictedExpense']}, confidence={prediction['confidence']}, method=deterministic")
         logger.info(f"[CONFIDENCE] Assigned: uid={uid}, score={prediction['confidence']}, factors=4-factor-weighted")
@@ -830,6 +1069,121 @@ def predict():
         }), 500
 
 
+@app.route('/dataset-info', methods=['POST'])
+def dataset_info():
+    """
+    FÁZE 5.2B: Dataset analysis endpoint
+    Validates features and target presence without making predictions
+
+    Request: Same as /predict
+    Response: Dataset metadata including feature coverage, target presence, training readiness
+    """
+    import time
+    start_time = time.time()
+    data = None
+
+    try:
+        # Get and validate JSON
+        data = request.get_json()
+
+        if data is None:
+            return jsonify({
+                'status': 'failed',
+                'error': 'Request must be JSON',
+                'debugMetadata': {'processingTimeMs': 0}
+            }), 400
+
+        # Validate request contract
+        is_valid, error_msg = RequestContract.validate(data)
+        if not is_valid:
+            logger.warning(f'Dataset info request validation failed: {error_msg}')
+            return jsonify({
+                'status': 'failed',
+                'error': error_msg,
+                'uid': data.get('uid'),
+                'debugMetadata': {'processingTimeMs': 0}
+            }), 400
+
+        # Parse and normalize
+        try:
+            parsed = RequestParser.parse(data)
+        except ValueError as e:
+            logger.error(f'Dataset info parsing failed: {str(e)}')
+            return jsonify({
+                'status': 'failed',
+                'error': f'Parsing failed: {str(e)}',
+                'uid': data.get('uid'),
+                'debugMetadata': {'processingTimeMs': 0}
+            }), 400
+
+        transactions = parsed['transactions']
+        uid = parsed['uid']
+
+        # Validate features
+        features_valid, features_error = FeatureExtractor.validate_features(transactions)
+        if not features_valid:
+            logger.error(f'Dataset info feature validation failed: {features_error}')
+            return jsonify({
+                'status': 'failed',
+                'error': f'Feature validation failed: {features_error}',
+                'uid': uid,
+                'debugMetadata': {'processingTimeMs': 0}
+            }), 400
+
+        # Analyze dataset
+        feature_coverage = FeatureExtractor.analyze_feature_coverage(transactions)
+        target_quality = TargetInfo.analyze_target_quality(transactions)
+        dataset_meta = DatasetMetadata.generate(transactions, parsed['income'])
+
+        # Check target presence
+        target_valid, target_error = TargetInfo.validate_target_presence(transactions, parsed['income'])
+
+        processing_time_ms = int((time.time() - start_time) * 1000)
+
+        response = {
+            'status': 'success',
+            'uid': uid,
+            'pipelineLevel': parsed['pipelineLevel'],
+            'processedAt': datetime.utcnow().isoformat() + 'Z',
+            'features': {
+                'validation': 'passed',
+                'coverage': feature_coverage['featurePresence'],
+                'categories': feature_coverage['uniqueCategories'],
+                'amountRange': feature_coverage['amountRange'],
+            },
+            'targets': {
+                'validation': 'passed' if target_valid else 'warning',
+                'validationMessage': '' if target_valid else target_error,
+                'monthlyTargets': target_quality['targetPresence'],
+                'monthsAvailable': target_quality['monthsAvailable'],
+                'timeSpan': target_quality.get('timeSpan', 'N/A'),
+                'targetRange': target_quality.get('targetRange'),
+            },
+            'datasetMetadata': dataset_meta,
+            'readyForTraining': dataset_meta['summary']['readyForTraining'],
+            'recommendation': dataset_meta['summary']['recommendation'],
+            'debugMetadata': {
+                'processingTimeMs': processing_time_ms,
+                'totalRows': len(transactions),
+                'dataSource': 'Firestore (real user transactions)',
+            }
+        }
+
+        logger.info(f"[DATASET-INFO] Analysis: uid={uid}, rows={len(transactions)}, features_ok={features_valid}, target_ok={target_valid}, ready={dataset_meta['summary']['readyForTraining']}")
+
+        return jsonify(response), 200
+
+    except Exception as e:
+        logger.error(f'Dataset info error: {str(e)}')
+        processing_time_ms = int((time.time() - start_time) * 1000)
+        return jsonify({
+            'status': 'failed',
+            'error': str(e),
+            'uid': data.get('uid') if data else None,
+            'debugMetadata': {'processingTimeMs': processing_time_ms}
+        }), 500
+
+
 @app.route('/status', methods=['GET'])
 def runtime_status():
     """
@@ -844,10 +1198,14 @@ def runtime_status():
         'endpoints': [
             '/health',
             '/status',
-            '/predict'
+            '/predict',
+            '/dataset-info'
         ],
         'capabilities': [
-            'baseline-prediction'
+            'baseline-prediction',
+            'dataset-validation',
+            'feature-analysis',
+            'target-detection'
         ],
         'timestamp': datetime.utcnow().isoformat() + 'Z'
     }), 200
@@ -886,9 +1244,10 @@ def internal_error(error):
 if __name__ == '__main__':
     logger.info(f'Starting ML Runtime Server on port {PORT}')
     logger.info('Available endpoints:')
-    logger.info('  GET  /health     - Health check')
-    logger.info('  GET  /status     - Runtime status')
-    logger.info('  POST /predict    - ML prediction')
+    logger.info('  GET  /health        - Health check')
+    logger.info('  GET  /status        - Runtime status')
+    logger.info('  POST /predict       - ML prediction with feature validation')
+    logger.info('  POST /dataset-info  - Dataset analysis (FÁZE 5.2B)')
 
     app.run(
         host='127.0.0.1',
