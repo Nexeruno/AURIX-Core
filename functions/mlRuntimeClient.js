@@ -27,6 +27,55 @@ const ML_RUNTIME_URL = process.env.ML_RUNTIME_URL || `http://${ML_RUNTIME_HOST}:
 const HEALTH_CHECK_TIMEOUT = 5000; // 5 seconds
 const PREDICT_TIMEOUT = 30000; // 30 seconds
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// FÁZA 6.1E: Runtime Availability Logging
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Log runtime availability event
+ * FÁZA 6.1E: Simple runtime event logging
+ * @param {string} eventType - Event type: "reachable", "unreachable", "fallback_used"
+ * @param {Object} details - Event details (uid, reason, etc.)
+ */
+function logRuntimeEvent(eventType, details = {}) {
+  const timestamp = new Date().toISOString();
+  const uid = details.uid || 'unknown';
+  const reason = details.reason || '';
+  const host = details.host || ML_RUNTIME_HOST;
+  const port = details.port || ML_RUNTIME_PORT;
+
+  const eventLog = {
+    timestamp,
+    eventType,
+    service: 'ml-runtime',
+    host,
+    port,
+    uid,
+    ...(reason && { reason })
+  };
+
+  // Log event in structured format
+  switch (eventType) {
+    case 'reachable':
+      console.log(
+        `[RUNTIME-EVENT] ✅ REACHABLE | timestamp=${timestamp} | host=${host}:${port} | uid=${uid}`
+      );
+      break;
+    case 'unreachable':
+      console.warn(
+        `[RUNTIME-EVENT] ❌ UNREACHABLE | timestamp=${timestamp} | host=${host}:${port} | reason=${reason} | uid=${uid}`
+      );
+      break;
+    case 'fallback_used':
+      console.warn(
+        `[RUNTIME-EVENT] ⚠️ FALLBACK_USED | timestamp=${timestamp} | reason=${reason} | uid=${uid}`
+      );
+      break;
+    default:
+      console.log(`[RUNTIME-EVENT] ${eventType} | ${JSON.stringify(eventLog)}`);
+  }
+}
+
 /**
  * Verify ML runtime is available
  * FÁZA 6.1C: Checks if runtime is enabled before attempting connection
@@ -118,6 +167,11 @@ async function checkMlRuntimeConnectivity() {
     }
 
     console.log(`✅ Runtime connectivity: reachable (${ML_RUNTIME_URL})`);
+    // FÁZA 6.1E: Log reachable event
+    logRuntimeEvent('reachable', {
+      host: ML_RUNTIME_HOST,
+      port: ML_RUNTIME_PORT
+    });
     return {
       reachable: true,
       host: ML_RUNTIME_HOST,
@@ -133,6 +187,13 @@ async function checkMlRuntimeConnectivity() {
     console.warn(
       `⚠️ Runtime connectivity: unreachable | reason=${reason} | url=${ML_RUNTIME_URL}`
     );
+
+    // FÁZA 6.1E: Log unreachable event
+    logRuntimeEvent('unreachable', {
+      host: ML_RUNTIME_HOST,
+      port: ML_RUNTIME_PORT,
+      reason: reason
+    });
 
     return {
       reachable: false,
@@ -166,6 +227,11 @@ async function callMlRuntime(requestData, options = {}) {
     console.warn(`[ML] ⚠️ DISABLED | ML_RUNTIME_ENABLED=false | uid=${uid}`);
     const elapsedMs = Date.now() - callStartTime;
     if (allowFallback) {
+      // FÁZA 6.1E: Log fallback used event
+      logRuntimeEvent('fallback_used', {
+        uid: uid,
+        reason: 'runtime_disabled'
+      });
       return {
         status: 'fallback',
         uid: uid,
@@ -279,6 +345,13 @@ async function callMlRuntime(requestData, options = {}) {
       `[ML] ✅ SUCCESS | uid=${uid}, confidence=${confidence}, python_time=${processingTimeMs}ms, total_time=${totalTimeMs}ms`
     );
 
+    // FÁZA 6.1E: Log reachable event on successful prediction
+    logRuntimeEvent('reachable', {
+      uid: uid,
+      host: ML_RUNTIME_HOST,
+      port: ML_RUNTIME_PORT
+    });
+
     return data;
 
   } catch (error) {
@@ -315,9 +388,14 @@ async function callMlRuntime(requestData, options = {}) {
         `[ML] ❌ UNAVAILABLE | reason=${error.message}, elapsed=${elapsedMs}ms | uid=${uid}`
       );
 
-      // FÁZE 6.1B: Return fallback response if allowed
+      // FÁZA 6.1B: Return fallback response if allowed
       if (allowFallback) {
         console.warn(`[ML] ⚠️ FALLBACK | uid=${uid}, returning fallback status`);
+        // FÁZA 6.1E: Log fallback used event
+        logRuntimeEvent('fallback_used', {
+          uid: uid,
+          reason: 'runtime_unavailable'
+        });
         return {
           status: 'fallback',
           uid: uid,
@@ -572,6 +650,7 @@ module.exports = {
   checkMlRuntimeHealth,
   checkMlRuntimeConnectivity,
   getMlRuntimeStatus,
+  logRuntimeEvent,
   ML_RUNTIME_URL,
   ML_RUNTIME_HOST,
   ML_RUNTIME_PORT,
