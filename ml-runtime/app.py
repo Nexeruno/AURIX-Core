@@ -741,8 +741,8 @@ class EvaluationSummary:
         confidence: float = None
     ) -> Dict:
         """
-        Calculate simple evaluation metrics
-        Returns: {row_count, valid_count, failed_count, avg_confidence, ...}
+        Calculate simple evaluation metrics with success/error comparison
+        Returns: {row_count, valid_count, failed_count, usable, errors, ...}
         """
         total_rows = len(transactions) if transactions else 0
 
@@ -757,12 +757,23 @@ class EvaluationSummary:
 
         failed_rows = total_rows - valid_rows
 
+        # FÁZE 5.3C: Success vs error comparison
+        usable_output_rows = valid_rows  # Rows with successful prediction
+        error_rows = failed_rows          # Rows with validation/computation error
+
         return {
             'summary': {
                 'total_row_count': total_rows,
                 'valid_result_count': valid_rows,
                 'failed_row_count': failed_rows,
                 'valid_percentage': round(valid_rows / total_rows * 100, 1) if total_rows > 0 else 0,
+            },
+            # FÁZE 5.3C: Success vs error comparison
+            'comparison': {
+                'usable_output_rows': usable_output_rows,
+                'error_rows': error_rows,
+                'success_rate': round(usable_output_rows / total_rows * 100, 1) if total_rows > 0 else 0,
+                'error_rate': round(error_rows / total_rows * 100, 1) if total_rows > 0 else 0,
             },
             'confidence': {
                 'average_confidence': round(confidence, 2) if confidence else 0,
