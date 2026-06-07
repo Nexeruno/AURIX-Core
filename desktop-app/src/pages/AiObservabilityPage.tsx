@@ -435,6 +435,61 @@ export function AiObservabilityPage() {
               </div>
             </div>
 
+            {/* Podman Runtime Warnings Panel - FÁZA 6.3C */}
+            {podmanStatus.warnings && podmanStatus.warnings.length > 0 && (
+              <div className="mt-6 p-4 rounded-lg border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20">
+                <h3 className="text-lg font-semibold text-orange-900 dark:text-orange-100 mb-4">
+                  ⚠️ Podman Runtime Warnings ({podmanStatus.warnings.length})
+                </h3>
+
+                <div className="space-y-3">
+                  {podmanStatus.warnings.map((warning, idx) => (
+                    <div
+                      key={idx}
+                      className={`p-3 rounded-lg border ${
+                        warning.severity === 'critical'
+                          ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+                          : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className="text-lg mt-0.5">
+                          {warning.severity === 'critical' ? '🔴' : '⚠️'}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p
+                            className={`text-sm font-medium ${
+                              warning.severity === 'critical'
+                                ? 'text-red-900 dark:text-red-100'
+                                : 'text-yellow-900 dark:text-yellow-100'
+                            }`}
+                          >
+                            {warning.type === 'runtime_unavailable' && 'Runtime Unavailable'}
+                            {warning.type === 'fallback_active' && 'Fallback Active'}
+                            {warning.type === 'config_mismatch' && 'Config Mismatch'}
+                          </p>
+                          <p
+                            className={`text-xs mt-1 ${
+                              warning.severity === 'critical'
+                                ? 'text-red-700 dark:text-red-300'
+                                : 'text-yellow-700 dark:text-yellow-300'
+                            }`}
+                          >
+                            {warning.message}
+                          </p>
+                          {warning.timestamp && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                              {warning.timestamp.toLocaleTimeString()}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Learning Health Panel */}
             <div className="mt-8">
               <h3 className="text-lg font-semibold text-light-text dark:text-dark-text mb-4">

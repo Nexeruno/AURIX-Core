@@ -9,6 +9,13 @@ import { useState, useEffect, useCallback } from 'react'
  * - Connection readiness verdict
  */
 
+export interface PodmanRuntimeWarning {
+  type: 'runtime_unavailable' | 'fallback_active' | 'config_mismatch'
+  severity: 'warning' | 'critical'
+  message: string
+  timestamp?: Date
+}
+
 export interface PodmanRuntimeStatus {
   connected: boolean
   lastCheckTime?: Date
@@ -18,6 +25,7 @@ export interface PodmanRuntimeStatus {
   mlRuntimeHealthy?: boolean
   runtimeAvailable?: boolean
   requestPathHealthy?: boolean
+  warnings?: PodmanRuntimeWarning[]
   lastError?: string
 }
 
@@ -35,6 +43,7 @@ export function usePodmanRuntimeStatus() {
     mlRuntimeHealthy: undefined,
     runtimeAvailable: undefined,
     requestPathHealthy: undefined,
+    warnings: [],
     lastError: undefined,
   })
 
@@ -68,6 +77,39 @@ export function usePodmanRuntimeStatus() {
       const runtimeAvailable = isReachable && response.ok
       const requestPathHealthy = isHealthy && isReachable
 
+      // Detect warning states
+      const warnings: PodmanRuntimeWarning[] = []
+
+      // 1. Runtime Unavailable
+      if (!isReachable) {
+        warnings.push({
+          type: 'runtime_unavailable',
+          severity: 'critical',
+          message: 'ML Runtime is not reachable. Check if Podman container is running.',
+          timestamp: new Date(),
+        })
+      }
+
+      // 2. Fallback Active (degraded state)
+      if (readiness === 'degraded') {
+        warnings.push({
+          type: 'fallback_active',
+          severity: 'warning',
+          message: 'System is in degraded mode. Fallback responses active.',
+          timestamp: new Date(),
+        })
+      }
+
+      // 3. Config Mismatch (response OK but not ready)
+      if (response.ok && readiness !== 'ready' && readiness !== 'degraded') {
+        warnings.push({
+          type: 'config_mismatch',
+          severity: 'warning',
+          message: 'Configuration mismatch detected. Check environment variables and settings.',
+          timestamp: new Date(),
+        })
+      }
+
       setStatus({
         connected: response.ok && isReachable,
         lastCheckTime: new Date(),
@@ -77,11 +119,21 @@ export function usePodmanRuntimeStatus() {
         mlRuntimeHealthy: isHealthy,
         runtimeAvailable,
         requestPathHealthy,
+        warnings,
         lastError: undefined,
       })
     } catch (error) {
       const errorMsg =
         error instanceof Error ? error.message : 'Unknown error'
+
+      const warnings: PodmanRuntimeWarning[] = [
+        {
+          type: 'runtime_unavailable',
+          severity: 'critical',
+          message: `Cannot reach runtime: ${errorMsg}`,
+          timestamp: new Date(),
+        },
+      ]
 
       setStatus({
         connected: false,
@@ -92,6 +144,7 @@ export function usePodmanRuntimeStatus() {
         mlRuntimeHealthy: false,
         runtimeAvailable: false,
         requestPathHealthy: false,
+        warnings,
         lastError: errorMsg,
       })
     } finally {
