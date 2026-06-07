@@ -728,6 +728,94 @@ class ResponseContract:
 # 📈 EVALUATION METRICS - Offline evaluation for deterministic predictions (FÁZE 5.3A)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+class EvaluationSummary:
+    """
+    FÁZE 5.3B: Simple evaluation summary for deterministic predictions
+    Calculates basic statistics about predictions and data quality
+    """
+
+    @staticmethod
+    def calculate_summary(
+        transactions: List[Dict],
+        predictions: Dict,  # From calculate_baseline_prediction
+        confidence: float = None
+    ) -> Dict:
+        """
+        Calculate simple evaluation metrics
+        Returns: {row_count, valid_count, failed_count, avg_confidence, ...}
+        """
+        total_rows = len(transactions) if transactions else 0
+
+        # Count valid transactions (have all required fields)
+        valid_rows = 0
+        for tx in transactions:
+            if (isinstance(tx, dict) and
+                'category' in tx and tx.get('category') and
+                'amount' in tx and isinstance(tx.get('amount'), (int, float)) and tx.get('amount') > 0 and
+                'date' in tx and tx.get('date')):
+                valid_rows += 1
+
+        failed_rows = total_rows - valid_rows
+
+        return {
+            'summary': {
+                'total_row_count': total_rows,
+                'valid_result_count': valid_rows,
+                'failed_row_count': failed_rows,
+                'valid_percentage': round(valid_rows / total_rows * 100, 1) if total_rows > 0 else 0,
+            },
+            'confidence': {
+                'average_confidence': round(confidence, 2) if confidence else 0,
+                'confidence_level': EvaluationSummary._classify_confidence(confidence),
+            },
+            'quality_score': EvaluationSummary._calculate_quality_score(valid_rows, total_rows, confidence),
+        }
+
+    @staticmethod
+    def _classify_confidence(confidence: float) -> str:
+        """Classify confidence score"""
+        if confidence is None or confidence < 0.3:
+            return 'low'
+        elif confidence < 0.6:
+            return 'medium'
+        elif confidence < 0.8:
+            return 'good'
+        else:
+            return 'high'
+
+    @staticmethod
+    def _calculate_quality_score(valid_rows: int, total_rows: int, confidence: float) -> Dict:
+        """
+        Calculate overall quality score
+        Takes into account: data validity %, confidence, completeness
+        """
+        data_quality = valid_rows / total_rows if total_rows > 0 else 0
+        confidence_weight = confidence if confidence else 0
+        completeness_score = min(1.0, total_rows / 30)  # Good at 30+ rows
+
+        overall_score = (data_quality * 0.4 + confidence_weight * 0.4 + completeness_score * 0.2)
+
+        return {
+            'overall_score': round(overall_score, 2),
+            'data_quality': round(data_quality, 2),
+            'confidence_score': round(confidence_weight, 2),
+            'completeness_score': round(completeness_score, 2),
+            'rating': EvaluationSummary._rate_quality(overall_score),
+        }
+
+    @staticmethod
+    def _rate_quality(score: float) -> str:
+        """Rate overall quality"""
+        if score < 0.4:
+            return 'poor'
+        elif score < 0.6:
+            return 'fair'
+        elif score < 0.8:
+            return 'good'
+        else:
+            return 'excellent'
+
+
 class EvaluationMetrics:
     """
     FÁZE 5.3A: Calculate evaluation metrics for predictions vs actual values
@@ -1900,6 +1988,100 @@ def dataset_info():
         }), 500
 
 
+@app.route('/evaluate-summary', methods=['POST'])
+def evaluate_summary():
+    """
+    FÁZE 5.3B: Simple evaluation summary endpoint
+    Returns basic metrics about deterministic predictions
+
+    Request: Same as /predict
+    Response: Simple evaluation summary (row count, validity, confidence, quality)
+    """
+    import time
+    start_time = time.time()
+    data = None
+
+    try:
+        # Get and validate JSON
+        data = request.get_json()
+
+        if data is None:
+            return jsonify({
+                'status': 'failed',
+                'error': 'Request must be JSON',
+                'debugMetadata': {'processingTimeMs': 0}
+            }), 400
+
+        # Validate request contract
+        is_valid, error_msg = RequestContract.validate(data)
+        if not is_valid:
+            logger.warning(f'Evaluate-summary request validation failed: {error_msg}')
+            return jsonify({
+                'status': 'failed',
+                'error': error_msg,
+                'uid': data.get('uid'),
+                'debugMetadata': {'processingTimeMs': 0}
+            }), 400
+
+        # Parse and normalize
+        try:
+            parsed = RequestParser.parse(data)
+        except ValueError as e:
+            logger.error(f'Evaluate-summary parsing failed: {str(e)}')
+            return jsonify({
+                'status': 'failed',
+                'error': f'Parsing failed: {str(e)}',
+                'uid': data.get('uid'),
+                'debugMetadata': {'processingTimeMs': 0}
+            }), 400
+
+        transactions = parsed['transactions']
+        uid = parsed['uid']
+        income = parsed['income']
+
+        logger.info(f"[EVAL-SUMMARY-STARTED] uid={uid}, rows={len(transactions)}")
+
+        # Generate prediction to get confidence
+        prediction = calculate_baseline_prediction(transactions, income, parsed['pipelineLevel'])
+        confidence = prediction.get('confidence', 0)
+
+        # FÁZE 5.3B: Calculate evaluation summary
+        summary = EvaluationSummary.calculate_summary(transactions, prediction, confidence)
+
+        processing_time_ms = int((time.time() - start_time) * 1000)
+
+        response = {
+            'status': 'success',
+            'uid': uid,
+            'pipelineLevel': parsed['pipelineLevel'],
+            'processedAt': datetime.utcnow().isoformat() + 'Z',
+            'evaluation': summary,
+            'prediction': {
+                'predicted_expense': round(prediction['totalPredictedExpense'], 2),
+                'confidence': round(confidence, 2),
+                'categories': prediction.get('categories', {}),
+            },
+            'debugMetadata': {
+                'processingTimeMs': processing_time_ms,
+                'evaluation_type': 'simple_deterministic_summary',
+            }
+        }
+
+        logger.info(f"[EVAL-SUMMARY-SUCCEEDED] uid={uid}, rows={summary['summary']['total_row_count']}, valid={summary['summary']['valid_result_count']}, avg_conf={confidence:.2f}, quality={summary['quality_score']['overall_score']}")
+
+        return jsonify(response), 200
+
+    except Exception as e:
+        logger.error(f'Evaluate-summary error: {str(e)}')
+        processing_time_ms = int((time.time() - start_time) * 1000)
+        return jsonify({
+            'status': 'failed',
+            'error': str(e),
+            'uid': data.get('uid') if data else None,
+            'debugMetadata': {'processingTimeMs': processing_time_ms}
+        }), 500
+
+
 @app.route('/evaluate', methods=['POST'])
 def evaluate():
     """
@@ -2077,7 +2259,8 @@ def runtime_status():
             '/status',
             '/predict',
             '/dataset-info',
-            '/evaluate'
+            '/evaluate',
+            '/evaluate-summary'
         ],
         'capabilities': [
             'baseline-prediction',
@@ -2123,11 +2306,12 @@ def internal_error(error):
 if __name__ == '__main__':
     logger.info(f'Starting ML Runtime Server on port {PORT}')
     logger.info('Available endpoints:')
-    logger.info('  GET  /health        - Health check')
-    logger.info('  GET  /status        - Runtime status')
-    logger.info('  POST /predict       - ML prediction with feature validation')
-    logger.info('  POST /dataset-info  - Dataset analysis (FÁZE 5.2B)')
-    logger.info('  POST /evaluate      - Offline evaluation (FÁZE 5.3A)')
+    logger.info('  GET  /health              - Health check')
+    logger.info('  GET  /status              - Runtime status')
+    logger.info('  POST /predict             - ML prediction with feature validation')
+    logger.info('  POST /dataset-info        - Dataset analysis (FÁZE 5.2B)')
+    logger.info('  POST /evaluate            - Offline evaluation (FÁZE 5.3A)')
+    logger.info('  POST /evaluate-summary    - Simple evaluation summary (FÁZE 5.3B)')
 
     app.run(
         host='127.0.0.1',
