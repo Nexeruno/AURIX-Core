@@ -1,20 +1,20 @@
-import { useState, useMemo } from 'react'
+﻿import { useState, useMemo } from 'react'
 import { SYMBOLS } from '@/utils/symbols'
 import { useRuntimeStatus } from '@/hooks/useRuntimeStatus'
 import { usePodmanRuntimeStatus } from '@/hooks/usePodmanRuntimeStatus'
-import { useSuccessfulRuns, formatRunTimestamp, formatRunStatus } from '@/hooks/useSuccessfulRuns'
-import { useFailedRuns, formatRunTimestamp as formatTimestamp, formatFailedStatus } from '@/hooks/useFailedRuns'
-import { useConfidenceData, getConfidenceColor, getConfidenceIcon, getConfidenceLabel } from '@/hooks/useConfidenceData'
+import { useSuccessfulRuns, formatRunTimestamp, formatRunStatus, type SuccessfulRun } from '@/hooks/useSuccessfulRuns'
+import { useFailedRuns, formatFailedStatus, type FailedRun } from '@/hooks/useFailedRuns'
+import { useConfidenceData, getConfidenceColor, getConfidenceIcon } from '@/hooks/useConfidenceData'
 import { useLearningHealth, formatActionType, formatActionTime, getLearningStatusIcon, getLearningStatusLabel, getLearningStatusColor, getTrainSamplesIcon, getTrainSamplesColor, getActionStatusIcon } from '@/hooks/useLearningHealth'
-import { useSystemWarnings, getWarningIcon, getWarningLabel, getSeverityColor, getSeverityBadge, countBySeverity } from '@/hooks/useSystemWarnings'
+import { useSystemWarnings, getWarningIcon, getWarningLabel, getSeverityColor, getSeverityBadge } from '@/hooks/useSystemWarnings'
 import { RunDetailModal, type RunDetail } from '@/components/RunDetailModal'
 import { useMlRuns } from '@/hooks/useFirestore'
 
 /**
  * AI Observability Console
  *
- * FÁZE 4.6A: Skeleton page with placeholder sections
- * FÁZE 4.6B: Connected to runtime status
+ * FĂZE 4.6A: Skeleton page with placeholder sections
+ * FĂZE 4.6B: Connected to runtime status
  * - AI Status (system status overview) - NOW REAL
  * - Success Runs (successful predictions) - PLACEHOLDER
  * - Failed Runs (failed predictions) - PLACEHOLDER
@@ -22,7 +22,7 @@ import { useMlRuns } from '@/hooks/useFirestore'
  */
 
 export function AiObservabilityPage() {
-  const [activeTab, setActiveTab] = useState<'status' | 'success' | 'failed' | 'debug'>('status')
+  const [activeTab, setActiveTab] = useState<'status' | 'runs' | 'debug'>('status')
   const [selectedRun, setSelectedRun] = useState<RunDetail | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [runStatusFilter, setRunStatusFilter] = useState<'all' | 'success' | 'failed'>('all')
@@ -36,7 +36,7 @@ export function AiObservabilityPage() {
   const { warnings, loading: warningsLoading, totalCount: warningsTotalCount } = useSystemWarnings()
   const { data: mlRuns } = useMlRuns(5)
 
-  // FÁZE 5.4C: Get latest evaluation verdict
+  // FĂZE 5.4C: Get latest evaluation verdict
   const latestEvaluation = useMemo(() => {
     if (!mlRuns || mlRuns.length === 0) return null
     const runsWithEval = mlRuns.filter((r: any) => r.evaluation?.status === 'evaluated')
@@ -112,7 +112,7 @@ export function AiObservabilityPage() {
           {SYMBOLS.CHART} AI Observability Console
         </h1>
         <div className="text-sm text-gray-500 dark:text-gray-400">
-          FÁZE 4.7E Summary
+          FĂZE 4.7E Summary
         </div>
       </div>
 
@@ -166,7 +166,7 @@ export function AiObservabilityPage() {
           </p>
         </div>
 
-        {/* FÁZE 5.4C: Evaluation Verdict Card */}
+        {/* FĂZE 5.4C: Evaluation Verdict Card */}
         <div
           className={`p-4 rounded-lg border ${
             !latestEvaluation
@@ -196,10 +196,10 @@ export function AiObservabilityPage() {
             {!latestEvaluation
               ? 'No evaluation yet'
               : latestEvaluation.verdict === 'usable'
-                ? `✅ Dataset ready (${latestEvaluation.validRows}/${latestEvaluation.totalRows})`
+                ? `âś… Dataset ready (${latestEvaluation.validRows}/${latestEvaluation.totalRows})`
                 : latestEvaluation.verdict === 'partially_usable'
-                  ? `⚠️ Use with caution (${latestEvaluation.validRows}/${latestEvaluation.totalRows})`
-                  : `❌ Fix data first (${latestEvaluation.validRows}/${latestEvaluation.totalRows})`}
+                  ? `âš ď¸Ź Use with caution (${latestEvaluation.validRows}/${latestEvaluation.totalRows})`
+                  : `âťŚ Fix data first (${latestEvaluation.validRows}/${latestEvaluation.totalRows})`}
           </p>
         </div>
       </div>
@@ -209,8 +209,7 @@ export function AiObservabilityPage() {
         <nav className="flex space-x-8" role="tablist">
           {[
             { id: 'status', label: `${SYMBOLS.CHECK} AI Status`, icon: '📊' },
-            { id: 'success', label: `${SYMBOLS.CHECK} Success Runs`, icon: '✅' },
-            { id: 'failed', label: `${SYMBOLS.WARNING} Failed Runs`, icon: '❌' },
+            { id: 'runs', label: `${SYMBOLS.CHECK} Runs`, icon: '📋' },
             { id: 'debug', label: `${SYMBOLS.GEAR} Debug Console`, icon: '🔧' },
           ].map((tab) => (
             <button
@@ -254,9 +253,9 @@ export function AiObservabilityPage() {
                   {runtimeLoading ? (
                     <span className="text-yellow-600 dark:text-yellow-400">Checking...</span>
                   ) : runtimeStatus.available ? (
-                    <span className="text-green-600 dark:text-green-400">🟢 Available</span>
+                    <span className="text-green-600 dark:text-green-400">đźź˘ Available</span>
                   ) : (
-                    <span className="text-red-600 dark:text-red-400">🔴 Unavailable</span>
+                    <span className="text-red-600 dark:text-red-400">đź”´ Unavailable</span>
                   )}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
@@ -273,11 +272,11 @@ export function AiObservabilityPage() {
                   {runtimeLoading ? (
                     <span className="text-yellow-600 dark:text-yellow-400">Pending</span>
                   ) : runtimeStatus.lastRequestStatus === 'success' ? (
-                    <span className="text-green-600 dark:text-green-400">✅ Success</span>
+                    <span className="text-green-600 dark:text-green-400">âś… Success</span>
                   ) : runtimeStatus.lastRequestStatus === 'failed' ? (
-                    <span className="text-red-600 dark:text-red-400">❌ Failed</span>
+                    <span className="text-red-600 dark:text-red-400">âťŚ Failed</span>
                   ) : (
-                    <span className="text-gray-600 dark:text-gray-400">—</span>
+                    <span className="text-gray-600 dark:text-gray-400">â€”</span>
                   )}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
@@ -290,11 +289,11 @@ export function AiObservabilityPage() {
                 <p className="text-sm text-gray-600 dark:text-gray-400">Last Response</p>
                 <p className="text-2xl font-bold mt-2">
                   {runtimeStatus.lastResponseValid === true ? (
-                    <span className="text-green-600 dark:text-green-400">✅ Valid</span>
+                    <span className="text-green-600 dark:text-green-400">âś… Valid</span>
                   ) : runtimeStatus.lastResponseValid === false ? (
-                    <span className="text-red-600 dark:text-red-400">❌ Invalid</span>
+                    <span className="text-red-600 dark:text-red-400">âťŚ Invalid</span>
                   ) : (
-                    <span className="text-gray-600 dark:text-gray-400">—</span>
+                    <span className="text-gray-600 dark:text-gray-400">â€”</span>
                   )}
                 </p>
                 <button
@@ -328,7 +327,7 @@ export function AiObservabilityPage() {
               {!confidenceData && !confidenceLoading && (
                 <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800">
                   <p className="text-sm text-gray-600 dark:text-gray-400">AI Confidence</p>
-                  <p className="text-2xl font-bold mt-2 text-gray-600 dark:text-gray-400">—</p>
+                  <p className="text-2xl font-bold mt-2 text-gray-600 dark:text-gray-400">â€”</p>
                   <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">No data available</p>
                 </div>
               )}
@@ -353,9 +352,9 @@ export function AiObservabilityPage() {
                   {podmanLoading ? (
                     <span className="text-yellow-600 dark:text-yellow-400">Checking...</span>
                   ) : podmanStatus.connected ? (
-                    <span className="text-indigo-600 dark:text-indigo-400">🔗 Connected</span>
+                    <span className="text-indigo-600 dark:text-indigo-400">đź”— Connected</span>
                   ) : (
-                    <span className="text-orange-600 dark:text-orange-400">⚠️ Disconnected</span>
+                    <span className="text-orange-600 dark:text-orange-400">âš ď¸Ź Disconnected</span>
                   )}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
@@ -383,12 +382,12 @@ export function AiObservabilityPage() {
             >
               <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 {runtimeStatus.available
-                  ? `✅ Python runtime is available and responding correctly`
-                  : `⚠️ Python runtime is not available. Check if it's running on http://localhost:5000`}
+                  ? `âś… Python runtime is available and responding correctly`
+                  : `âš ď¸Ź Python runtime is not available. Check if it's running on http://localhost:5000`}
               </p>
             </div>
 
-            {/* Container Health Panel - FÁZA 6.3B */}
+            {/* Container Health Panel - FĂZA 6.3B */}
             <div className="mt-6 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/20">
               <h3 className="text-lg font-semibold text-light-text dark:text-dark-text mb-4">
                 Container Health
@@ -408,9 +407,9 @@ export function AiObservabilityPage() {
                     {podmanLoading ? (
                       <span className="text-yellow-600 dark:text-yellow-400">Checking...</span>
                     ) : podmanStatus.runtimeAvailable ? (
-                      <span className="text-green-600 dark:text-green-400">✅ Available</span>
+                      <span className="text-green-600 dark:text-green-400">âś… Available</span>
                     ) : (
-                      <span className="text-red-600 dark:text-red-400">❌ Unavailable</span>
+                      <span className="text-red-600 dark:text-red-400">âťŚ Unavailable</span>
                     )}
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
@@ -433,25 +432,25 @@ export function AiObservabilityPage() {
                     {podmanLoading ? (
                       <span className="text-yellow-600 dark:text-yellow-400">Checking...</span>
                     ) : podmanStatus.requestPathHealthy ? (
-                      <span className="text-green-600 dark:text-green-400">✅ Healthy</span>
+                      <span className="text-green-600 dark:text-green-400">âś… Healthy</span>
                     ) : (
-                      <span className="text-red-600 dark:text-red-400">❌ Unhealthy</span>
+                      <span className="text-red-600 dark:text-red-400">âťŚ Unhealthy</span>
                     )}
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
                     {podmanStatus.requestPathHealthy
-                      ? 'Backend → Runtime communication working'
+                      ? 'Backend â†’ Runtime communication working'
                       : 'Communication path has issues'}
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Podman Runtime Warnings Panel - FÁZA 6.3C */}
+            {/* Podman Runtime Warnings Panel - FĂZA 6.3C */}
             {podmanStatus.warnings && podmanStatus.warnings.length > 0 && (
               <div className="mt-6 p-4 rounded-lg border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20">
                 <h3 className="text-lg font-semibold text-orange-900 dark:text-orange-100 mb-4">
-                  ⚠️ Podman Runtime Warnings ({podmanStatus.warnings.length})
+                  âš ď¸Ź Podman Runtime Warnings ({podmanStatus.warnings.length})
                 </h3>
 
                 <div className="space-y-3">
@@ -466,7 +465,7 @@ export function AiObservabilityPage() {
                     >
                       <div className="flex items-start gap-3">
                         <span className="text-lg mt-0.5">
-                          {warning.severity === 'critical' ? '🔴' : '⚠️'}
+                          {warning.severity === 'critical' ? 'đź”´' : 'âš ď¸Ź'}
                         </span>
                         <div className="flex-1 min-w-0">
                           <p
@@ -502,7 +501,7 @@ export function AiObservabilityPage() {
               </div>
             )}
 
-            {/* Runtime Details View - FÁZA 6.3D */}
+            {/* Runtime Details View - FĂZA 6.3D */}
             {podmanStatus.details && (
               <div className="mt-6 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/20">
                 <h3 className="text-lg font-semibold text-light-text dark:text-dark-text mb-4">
@@ -516,7 +515,7 @@ export function AiObservabilityPage() {
                       Runtime Endpoint
                     </p>
                     <p className="text-sm font-mono text-gray-900 dark:text-gray-100 mt-2 break-all">
-                      {podmanStatus.details.endpoint || '—'}
+                      {podmanStatus.details.endpoint || 'â€”'}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                       {podmanStatus.details.endpoint
@@ -532,11 +531,11 @@ export function AiObservabilityPage() {
                     </p>
                     <p className="text-sm font-semibold mt-2">
                       {podmanStatus.details.mode === 'ready' ? (
-                        <span className="text-green-600 dark:text-green-400">✅ Ready</span>
+                        <span className="text-green-600 dark:text-green-400">âś… Ready</span>
                       ) : podmanStatus.details.mode === 'degraded' ? (
-                        <span className="text-yellow-600 dark:text-yellow-400">⚠️ Degraded</span>
+                        <span className="text-yellow-600 dark:text-yellow-400">âš ď¸Ź Degraded</span>
                       ) : (
-                        <span className="text-red-600 dark:text-red-400">❌ Unavailable</span>
+                        <span className="text-red-600 dark:text-red-400">âťŚ Unavailable</span>
                       )}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -555,9 +554,9 @@ export function AiObservabilityPage() {
                     </p>
                     <p className="text-sm font-semibold mt-2">
                       {podmanStatus.details.lastHandshakeStatus === 'success' ? (
-                        <span className="text-green-600 dark:text-green-400">✅ Success</span>
+                        <span className="text-green-600 dark:text-green-400">âś… Success</span>
                       ) : (
-                        <span className="text-red-600 dark:text-red-400">❌ Failed</span>
+                        <span className="text-red-600 dark:text-red-400">âťŚ Failed</span>
                       )}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -597,7 +596,7 @@ export function AiObservabilityPage() {
                 {!learningHealthData && !learningLoading && (
                   <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800">
                     <p className="text-sm text-gray-600 dark:text-gray-400">Learning Status</p>
-                    <p className="text-2xl font-bold mt-2 text-gray-600 dark:text-gray-400">—</p>
+                    <p className="text-2xl font-bold mt-2 text-gray-600 dark:text-gray-400">â€”</p>
                     <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">No data</p>
                   </div>
                 )}
@@ -629,7 +628,7 @@ export function AiObservabilityPage() {
                 {!learningHealthData && !learningLoading && (
                   <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800">
                     <p className="text-sm text-gray-600 dark:text-gray-400">Training Samples</p>
-                    <p className="text-2xl font-bold mt-2 text-gray-600 dark:text-gray-400">—</p>
+                    <p className="text-2xl font-bold mt-2 text-gray-600 dark:text-gray-400">â€”</p>
                     <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">No data</p>
                   </div>
                 )}
@@ -656,7 +655,7 @@ export function AiObservabilityPage() {
                 {!learningHealthData && !learningLoading && (
                   <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800">
                     <p className="text-sm text-gray-600 dark:text-gray-400">Last Action</p>
-                    <p className="text-sm font-medium mt-2 text-gray-600 dark:text-gray-400">—</p>
+                    <p className="text-sm font-medium mt-2 text-gray-600 dark:text-gray-400">â€”</p>
                     <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">No data</p>
                   </div>
                 )}
@@ -723,7 +722,7 @@ export function AiObservabilityPage() {
               <div className="mt-8">
                 <div className="p-6 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-center">
                   <p className="text-green-700 dark:text-green-400 font-medium">
-                    ✅ No warnings - system is healthy
+                    âś… No warnings - system is healthy
                   </p>
                   <p className="text-xs text-green-600 dark:text-green-500 mt-2">
                     All monitored systems are operating normally
@@ -744,8 +743,8 @@ export function AiObservabilityPage() {
           </div>
         )}
 
-        {/* 2. Success Runs Tab */}
-        {activeTab === 'success' && (
+        {/* 2. Runs Tab (Success & Failed) */}
+        {activeTab === 'runs' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-semibold text-light-text dark:text-dark-text">
@@ -761,9 +760,9 @@ export function AiObservabilityPage() {
               <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">Filter:</span>
               <div className="flex gap-2">
                 {[
-                  { value: 'all' as const, label: 'All Runs', icon: '📊' },
-                  { value: 'success' as const, label: 'Success Only', icon: '✅' },
-                  { value: 'failed' as const, label: 'Failed Only', icon: '❌' },
+                  { value: 'all' as const, label: 'All Runs', icon: 'đź“Š' },
+                  { value: 'success' as const, label: 'Success Only', icon: 'âś…' },
+                  { value: 'failed' as const, label: 'Failed Only', icon: 'âťŚ' },
                 ].map((filter) => (
                   <button
                     key={filter.value}
@@ -858,7 +857,7 @@ export function AiObservabilityPage() {
                             </span>
                           </td>
                           <td className="px-4 py-3 text-gray-700 dark:text-gray-300 max-w-md truncate">
-                            {isSuccess ? (run.summary || '—') : (run.errorSummary || '—')}
+                            {isSuccess ? ((run as SuccessfulRun).summary || '-') : ((run as FailedRun).errorSummary || '-')}
                           </td>
                         </tr>
                       )
@@ -883,147 +882,7 @@ export function AiObservabilityPage() {
           </div>
         )}
 
-        {/* 3. Failed Runs Tab */}
-        {activeTab === 'failed' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold text-light-text dark:text-dark-text">
-                Recent Predictions
-              </h2>
-              {failedLoading && (
-                <span className="text-xs text-gray-500 dark:text-gray-400">Loading...</span>
-              )}
-            </div>
-
-            {/* Run Status Filter */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">Filter:</span>
-              <div className="flex gap-2">
-                {[
-                  { value: 'all' as const, label: 'All Runs', icon: '📊' },
-                  { value: 'success' as const, label: 'Success Only', icon: '✅' },
-                  { value: 'failed' as const, label: 'Failed Only', icon: '❌' },
-                ].map((filter) => (
-                  <button
-                    key={filter.value}
-                    onClick={() => setRunStatusFilter(filter.value)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                      runStatusFilter === filter.value
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600'
-                    }`}
-                  >
-                    {filter.icon} {filter.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Error State */}
-            {failedError && (
-              <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-                <p className="text-red-800 dark:text-red-300 text-sm">
-                  {SYMBOLS.WARNING} Failed to load predictions: {failedError.message}
-                </p>
-              </div>
-            )}
-
-            {/* Loading State */}
-            {(runsLoading || failedLoading) && !filteredRuns.length && (
-              <div className="p-8 rounded-lg bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-700 text-center">
-                <p className="text-gray-600 dark:text-gray-400">Loading predictions...</p>
-              </div>
-            )}
-
-            {/* Empty State */}
-            {!(runsLoading || failedLoading) && !filteredRuns.length && !runsError && !failedError && (
-              <div
-                className={`p-8 rounded-lg text-center ${
-                  runStatusFilter === 'all' && failedRuns.length === 0
-                    ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
-                    : 'bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-700'
-                }`}
-              >
-                <p
-                  className={`${
-                    runStatusFilter === 'all' && failedRuns.length === 0
-                      ? 'text-green-600 dark:text-green-400'
-                      : 'text-gray-600 dark:text-gray-400'
-                  }`}
-                >
-                  {runStatusFilter === 'all' && failedRuns.length === 0
-                    ? `${SYMBOLS.CHECK} No failed runs - everything is working great!`
-                    : 'No predictions with this filter'}
-                </p>
-              </div>
-            )}
-
-            {/* Filtered Runs Table */}
-            {filteredRuns.length > 0 && (
-              <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
-                    <tr>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">
-                        Timestamp
-                      </th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">
-                        Status
-                      </th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">
-                        {runStatusFilter === 'failed' ? 'Error Summary' : 'Summary'}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredRuns.map((run) => {
-                      const isSuccess = 'summary' in run
-                      const statusInfo = isSuccess
-                        ? formatRunStatus(run.status)
-                        : formatFailedStatus(run.status)
-                      return (
-                        <tr
-                          key={run.id}
-                          className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-900/50 cursor-pointer"
-                          onClick={() => openRunDetail(run, isSuccess ? 'success' : 'failed')}
-                        >
-                          <td className="px-4 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                            {formatRunTimestamp(run.startedAt)}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span
-                              className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${statusInfo.color}`}
-                            >
-                              {statusInfo.text}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-gray-700 dark:text-gray-300 max-w-md truncate">
-                            {isSuccess ? (run.summary || '—') : (run.errorSummary || '—')}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {/* Info Box */}
-            <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-              <p className="text-blue-800 dark:text-blue-300 text-xs">
-                {SYMBOLS.INFO} Showing{' '}
-                {runStatusFilter === 'all'
-                  ? 'all'
-                  : runStatusFilter === 'success'
-                    ? 'successful'
-                    : 'failed'}{' '}
-                predictions from Firebase
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* 4. Debug Console Tab */}
+        {/* 3. Debug Console Tab */}
         {activeTab === 'debug' && (
           <div className="space-y-4">
             <h2 className="text-2xl font-semibold text-light-text dark:text-dark-text">
@@ -1056,7 +915,7 @@ export function AiObservabilityPage() {
       {/* Footer Info */}
       <div className="p-4 rounded-lg bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-700">
         <p className="text-sm text-gray-700 dark:text-gray-300">
-          {SYMBOLS.INFO} <strong>FÁZE 4.6E Status:</strong> Click on any run to view detailed information.
+          {SYMBOLS.INFO} <strong>FĂZE 4.6E Status:</strong> Click on any run to view detailed information.
         </p>
       </div>
 
@@ -1069,3 +928,4 @@ export function AiObservabilityPage() {
     </div>
   )
 }
+
