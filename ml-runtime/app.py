@@ -218,6 +218,118 @@ class RequestParser:
 # 🎯 FEATURE EXTRACTION - Real Dataset Row Processing (FÁZE 5.2B)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+class DatasetErrorHandler:
+    """
+    FÁZE 5.2F: Handle dataset-specific errors for debugging and reporting
+    Provides readable error messages for missing features, invalid state, etc.
+    """
+
+    ERROR_TYPES = {
+        'MISSING_REQUIRED_FEATURE': {
+            'http_code': 400,
+            'message': 'Missing required feature in dataset'
+        },
+        'INVALID_TARGET_STATE': {
+            'http_code': 400,
+            'message': 'Invalid or missing target data for training'
+        },
+        'INCONSISTENT_DATASET_ROW': {
+            'http_code': 400,
+            'message': 'Inconsistent or malformed row in dataset'
+        },
+        'DATASET_TOO_SMALL': {
+            'http_code': 400,
+            'message': 'Dataset too small for meaningful prediction'
+        },
+        'FEATURE_VALUE_ERROR': {
+            'http_code': 400,
+            'message': 'Invalid feature value'
+        }
+    }
+
+    @staticmethod
+    def validate_required_features(transactions: List[Dict]) -> Tuple[bool, str, str]:
+        """
+        Validate that all required features are present in dataset
+        Returns: (is_valid, error_message, error_type)
+        """
+        required_features = ['category', 'amount', 'date']
+
+        if not transactions:
+            return False, "Dataset cannot be empty", "DATASET_TOO_SMALL"
+
+        for idx, tx in enumerate(transactions):
+            for feature in required_features:
+                if feature not in tx or not tx.get(feature):
+                    return False, f"Row {idx}: Missing required feature '{feature}'", "MISSING_REQUIRED_FEATURE"
+
+        return True, "", ""
+
+    @staticmethod
+    def validate_target_state(transactions: List[Dict]) -> Tuple[bool, str, str]:
+        """
+        Validate that target state is consistent and valid
+        Target = monthly expense totals (aggregated from transaction dates)
+        """
+        if not transactions:
+            return False, "Cannot determine target state: no transactions", "INVALID_TARGET_STATE"
+
+        # Check if we can extract targets (need valid dates)
+        monthly_targets = {}
+        invalid_dates = 0
+
+        for tx in transactions:
+            date_str = str(tx.get('date', '')).strip()
+
+            if date_str and len(date_str) >= 7:  # YYYY-MM format
+                month_key = date_str[:7]
+                if month_key not in monthly_targets:
+                    monthly_targets[month_key] = 0
+                monthly_targets[month_key] += float(tx.get('amount', 0))
+            else:
+                invalid_dates += 1
+
+        if not monthly_targets:
+            return False, "Cannot extract targets: no valid dates in YYYY-MM format", "INVALID_TARGET_STATE"
+
+        if invalid_dates > len(transactions) * 0.5:
+            return False, f"Too many invalid dates ({invalid_dates}/{len(transactions)})", "INVALID_TARGET_STATE"
+
+        return True, "", ""
+
+    @staticmethod
+    def validate_row_consistency(transactions: List[Dict]) -> Tuple[bool, str, str]:
+        """
+        Validate that dataset rows are consistent and well-formed
+        """
+        for idx, tx in enumerate(transactions):
+            if not isinstance(tx, dict):
+                return False, f"Row {idx}: Transaction must be object, got {type(tx).__name__}", "INCONSISTENT_DATASET_ROW"
+
+            # Check types
+            category = tx.get('category')
+            amount = tx.get('amount')
+            date_str = tx.get('date')
+
+            if category and not isinstance(category, str):
+                return False, f"Row {idx}: 'category' must be string, got {type(category).__name__}", "FEATURE_VALUE_ERROR"
+
+            if amount is not None and not isinstance(amount, (int, float)):
+                return False, f"Row {idx}: 'amount' must be numeric, got {type(amount).__name__}", "FEATURE_VALUE_ERROR"
+
+            if amount and amount < 0:
+                return False, f"Row {idx}: 'amount' cannot be negative ({amount})", "FEATURE_VALUE_ERROR"
+
+            if date_str and not isinstance(date_str, str):
+                return False, f"Row {idx}: 'date' must be string, got {type(date_str).__name__}", "FEATURE_VALUE_ERROR"
+
+            # Check for empty category
+            if isinstance(category, str) and not category.strip():
+                return False, f"Row {idx}: 'category' cannot be empty", "INCONSISTENT_DATASET_ROW"
+
+        return True, "", ""
+
+
 class FeatureExtractor:
     """
     FÁZE 5.2B: Extract and validate features from real dataset rows
@@ -1260,8 +1372,61 @@ def predict():
                 'debugMetadata': {'processingTimeMs': 0}
             }), 400
 
-        # FÁZE 5.2B: Validate features and target presence
+        # FÁZE 5.2F: Validate dataset-specific requirements
         transactions = parsed['transactions']
+
+        # Check 1: Required features
+        required_features_valid, required_features_error, error_type_req = DatasetErrorHandler.validate_required_features(transactions)
+        if not required_features_valid:
+            logger.error(f'Missing required feature: {required_features_error}')
+            logger.error({
+                'event': '[ERROR] Dataset validation failed',
+                'uid': data.get('uid'),
+                'errorType': error_type_req,
+                'reason': required_features_error
+            })
+            return jsonify({
+                'status': 'failed',
+                'error': required_features_error,
+                'uid': data.get('uid'),
+                'debugMetadata': {'processingTimeMs': 0}
+            }), 400
+
+        # Check 2: Row consistency
+        row_consistent, row_error, error_type_row = DatasetErrorHandler.validate_row_consistency(transactions)
+        if not row_consistent:
+            logger.error(f'Inconsistent dataset row: {row_error}')
+            logger.error({
+                'event': '[ERROR] Dataset validation failed',
+                'uid': data.get('uid'),
+                'errorType': error_type_row,
+                'reason': row_error
+            })
+            return jsonify({
+                'status': 'failed',
+                'error': row_error,
+                'uid': data.get('uid'),
+                'debugMetadata': {'processingTimeMs': 0}
+            }), 400
+
+        # Check 3: Target state
+        target_valid, target_error, error_type_target = DatasetErrorHandler.validate_target_state(transactions)
+        if not target_valid:
+            logger.error(f'Invalid target state: {target_error}')
+            logger.error({
+                'event': '[ERROR] Dataset validation failed',
+                'uid': data.get('uid'),
+                'errorType': error_type_target,
+                'reason': target_error
+            })
+            return jsonify({
+                'status': 'failed',
+                'error': target_error,
+                'uid': data.get('uid'),
+                'debugMetadata': {'processingTimeMs': 0}
+            }), 400
+
+        # FÁZE 5.2B: Validate features and target presence (legacy validation)
         features_valid, features_error = FeatureExtractor.validate_features(transactions)
         if not features_valid:
             logger.error(f'Feature validation failed: {features_error}')
@@ -1279,9 +1444,9 @@ def predict():
             }), 400
 
         # FÁZE 5.2B: Check target presence (optional warning, not failure)
-        target_valid, target_error = TargetInfo.validate_target_presence(transactions, parsed['income'])
-        if not target_valid:
-            logger.warning(f'Target validation issue: {target_error}', extra={'uid': data.get('uid')})
+        target_valid_legacy, target_error_legacy = TargetInfo.validate_target_presence(transactions, parsed['income'])
+        if not target_valid_legacy:
+            logger.warning(f'Target validation issue: {target_error_legacy}', extra={'uid': data.get('uid')})
 
         # FÁZE 5.2E: Observability logging - dataset accepted
         logger.info(f"[DATASET-ACCEPTED] uid={parsed['uid']}, rows={len(parsed['transactions'])}, level={parsed['pipelineLevel']}, income_provided={parsed['income'] > 0}")
@@ -1464,7 +1629,62 @@ def dataset_info():
         # FÁZE 5.2E: Observability logging - dataset accepted for analysis
         logger.info(f"[DATASET-ACCEPTED] uid={uid}, rows={len(transactions)}, level={parsed['pipelineLevel']}, endpoint=dataset-info")
 
-        # Validate features
+        # FÁZE 5.2F: Dataset error handling for analysis endpoint
+        # Check 1: Required features
+        required_features_valid, required_features_error, error_type_req = DatasetErrorHandler.validate_required_features(transactions)
+        if not required_features_valid:
+            logger.error(f'Missing required feature (analysis): {required_features_error}')
+            logger.error({
+                'event': '[ERROR] Dataset validation failed',
+                'uid': uid,
+                'errorType': error_type_req,
+                'reason': required_features_error
+            })
+            logger.error(f"[FEATURE-VALIDATION-FAILED] uid={uid}, error={required_features_error}")
+            return jsonify({
+                'status': 'failed',
+                'error': required_features_error,
+                'uid': uid,
+                'debugMetadata': {'processingTimeMs': 0}
+            }), 400
+
+        # Check 2: Row consistency
+        row_consistent, row_error, error_type_row = DatasetErrorHandler.validate_row_consistency(transactions)
+        if not row_consistent:
+            logger.error(f'Inconsistent row (analysis): {row_error}')
+            logger.error({
+                'event': '[ERROR] Dataset validation failed',
+                'uid': uid,
+                'errorType': error_type_row,
+                'reason': row_error
+            })
+            logger.error(f"[FEATURE-VALIDATION-FAILED] uid={uid}, error={row_error}")
+            return jsonify({
+                'status': 'failed',
+                'error': row_error,
+                'uid': uid,
+                'debugMetadata': {'processingTimeMs': 0}
+            }), 400
+
+        # Check 3: Target state
+        target_valid_check, target_error_check, error_type_target = DatasetErrorHandler.validate_target_state(transactions)
+        if not target_valid_check:
+            logger.error(f'Invalid target state (analysis): {target_error_check}')
+            logger.error({
+                'event': '[ERROR] Dataset validation failed',
+                'uid': uid,
+                'errorType': error_type_target,
+                'reason': target_error_check
+            })
+            logger.error(f"[FEATURE-VALIDATION-FAILED] uid={uid}, error={target_error_check}")
+            return jsonify({
+                'status': 'failed',
+                'error': target_error_check,
+                'uid': uid,
+                'debugMetadata': {'processingTimeMs': 0}
+            }), 400
+
+        # Validate features (legacy)
         features_valid, features_error = FeatureExtractor.validate_features(transactions)
         if not features_valid:
             logger.error(f'Dataset info feature validation failed: {features_error}')
