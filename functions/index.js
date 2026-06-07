@@ -2341,12 +2341,33 @@ exports.runMlPipeline = functions
           const evalResponse = await mlRuntimeClient.callEvaluateSummary(evaluationRequest);
           evaluationSummary = evalResponse.evaluation || null;
 
-          logger.info({
-            event: 'mlPipeline_evaluationCompleted',
-            verdict: evaluationSummary?.readiness?.verdict || 'unknown',
-            rowsProcessed: evaluationSummary?.summary?.total_row_count || 0,
-            validRows: evaluationSummary?.summary?.valid_result_count || 0,
-          });
+          // FÁZA 5.4D: Log evaluation completion event
+          if (evaluationSummary) {
+            const verdict = evaluationSummary.readiness?.verdict || 'unknown';
+            const totalRows = evaluationSummary.summary?.total_row_count || 0;
+            const validRows = evaluationSummary.summary?.valid_result_count || 0;
+            const failureCount = evaluationSummary.summary?.failed_row_count || 0;
+            const successRate = evaluationSummary.comparison?.success_rate || 0;
+
+            logger.info({
+              event: 'evaluationCompletion',
+              verdict,
+              rowsProcessed: totalRows,
+              rowsValid: validRows,
+              failureCount,
+              successRate: successRate.toFixed(1),
+              status: 'evaluation_completed',
+            });
+
+            logger.info({
+              event: 'mlPipeline_datasetQuality',
+              verdict,
+              totalRows,
+              validRows,
+              errorRows: failureCount,
+              readiness: `Dataset is ${verdict}`,
+            });
+          }
         }
       } catch (evalErr) {
         logger.warn({
