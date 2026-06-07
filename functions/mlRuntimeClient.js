@@ -160,24 +160,87 @@ async function callMlRuntime(requestData) {
 
   } catch (error) {
     // ─────────────────────────────────────────────────────────────
-    // ERROR HANDLING
+    // ERROR HANDLING - FÁZE 5.0F: Structured error detection
     // ─────────────────────────────────────────────────────────────
 
     const elapsedMs = Date.now() - callStartTime;
+    let errorType = 'UNKNOWN';
+    let errorMsg = error.message || 'Unknown error';
+    let friendlyMsg = 'ML Runtime error';
+
+    // ──────────────────────────────────────────────────────────
+    // ERROR TYPE DETECTION
+    // ──────────────────────────────────────────────────────────
 
     if (error.name === 'AbortError') {
+      errorType = 'TIMEOUT';
+      errorMsg = 'Request timeout';
+      friendlyMsg = `ML Runtime did not respond within ${PREDICT_TIMEOUT}ms`;
       console.error(
         `[ML] ❌ TIMEOUT | timeout=${PREDICT_TIMEOUT}ms, elapsed=${elapsedMs}ms | uid=${uid}`
       );
-      throw new Error('ML Runtime request timeout');
+    } else if (
+      error.message.includes('ECONNREFUSED') ||
+      error.message.includes('Connection refused') ||
+      error.message.includes('ENOTFOUND') ||
+      error.message.includes('getaddrinfo')
+    ) {
+      errorType = 'UNAVAILABLE';
+      errorMsg = 'Python runtime not available';
+      friendlyMsg = `ML Runtime unavailable at ${ML_RUNTIME_URL}. Ensure Python server is running on localhost:5000`;
+      console.error(
+        `[ML] ❌ UNAVAILABLE | reason=${error.message}, elapsed=${elapsedMs}ms | uid=${uid}`
+      );
+    } else if (
+      error.message.includes('Invalid response') ||
+      error.message.includes('missing predictions')
+    ) {
+      errorType = 'INVALID_RESPONSE';
+      errorMsg = 'Python returned invalid response';
+      friendlyMsg = `ML Runtime response format error: ${error.message}`;
+      console.error(
+        `[ML] ❌ INVALID_RESPONSE | reason=${error.message}, elapsed=${elapsedMs}ms | uid=${uid}`
+      );
+    } else if (error.message.includes('HTTP')) {
+      errorType = 'HTTP_ERROR';
+      friendlyMsg = `ML Runtime HTTP error: ${error.message}`;
+      console.error(
+        `[ML] ❌ HTTP_ERROR | reason=${error.message}, elapsed=${elapsedMs}ms | uid=${uid}`
+      );
+    } else if (error.message.includes('SyntaxError')) {
+      errorType = 'PARSE_ERROR';
+      errorMsg = 'Failed to parse Python response';
+      friendlyMsg = 'ML Runtime returned malformed JSON';
+      console.error(
+        `[ML] ❌ PARSE_ERROR | reason=${error.message}, elapsed=${elapsedMs}ms | uid=${uid}`
+      );
+    } else if (error.message.includes('Prediction failed')) {
+      errorType = 'PREDICTION_ERROR';
+      errorMsg = 'Python prediction failed';
+      friendlyMsg = `ML prediction error: ${error.message}`;
+      console.error(
+        `[ML] ❌ PREDICTION_ERROR | reason=${error.message}, elapsed=${elapsedMs}ms | uid=${uid}`
+      );
+    } else {
+      // Generic error
+      errorType = 'GENERIC';
+      friendlyMsg = `ML Runtime error: ${errorMsg}`;
+      console.error(
+        `[ML] ❌ ERROR | type=${errorType}, reason=${errorMsg}, elapsed=${elapsedMs}ms | uid=${uid}`
+      );
     }
 
-    const errorMsg = error.message || 'Unknown error';
-    console.error(
-      `[ML] ❌ ERROR | error=${errorMsg}, elapsed=${elapsedMs}ms | uid=${uid}`
-    );
+    // ──────────────────────────────────────────────────────────
+    // THROW STRUCTURED ERROR
+    // ──────────────────────────────────────────────────────────
 
-    throw error;
+    const structuredError = new Error(friendlyMsg);
+    structuredError.errorType = errorType;
+    structuredError.originalError = errorMsg;
+    structuredError.elapsed = elapsedMs;
+    structuredError.uid = uid;
+
+    throw structuredError;
   }
 }
 

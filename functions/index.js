@@ -2156,13 +2156,73 @@ exports.runMlPipeline = functions
             });
 
           } catch (runtimeErr) {
-            // Fallback to Node.js baseline if Python runtime fails
+            // FÁZE 5.0F: Structured error handling for Python runtime failures
+            const errorType = runtimeErr.errorType || 'UNKNOWN';
+            const originalError = runtimeErr.originalError || runtimeErr.message;
+
+            // Log with error type for debugging
             logger.warn({
               event: 'mlPipeline_pythonRuntime_failed',
               uid: user.uid,
-              error: runtimeErr.message,
+              errorType: errorType,
+              errorMessage: runtimeErr.message,
+              originalError: originalError,
+              elapsed: runtimeErr.elapsed,
               fallback: 'Using Node.js baseline prediction',
             });
+
+            // Log specific error types
+            switch (errorType) {
+              case 'TIMEOUT':
+                logger.warn({
+                  event: 'mlPipeline_pythonRuntime_timeout',
+                  uid: user.uid,
+                  message: 'Python runtime did not respond in time',
+                });
+                break;
+              case 'UNAVAILABLE':
+                logger.error({
+                  event: 'mlPipeline_pythonRuntime_unavailable',
+                  uid: user.uid,
+                  message: 'Python runtime is not running',
+                  url: 'http://127.0.0.1:5000',
+                });
+                break;
+              case 'INVALID_RESPONSE':
+                logger.error({
+                  event: 'mlPipeline_pythonRuntime_invalidResponse',
+                  uid: user.uid,
+                  message: 'Python returned invalid response format',
+                  detail: originalError,
+                });
+                break;
+              case 'PARSE_ERROR':
+                logger.error({
+                  event: 'mlPipeline_pythonRuntime_parseError',
+                  uid: user.uid,
+                  message: 'Failed to parse Python response JSON',
+                  detail: originalError,
+                });
+                break;
+              case 'HTTP_ERROR':
+                logger.error({
+                  event: 'mlPipeline_pythonRuntime_httpError',
+                  uid: user.uid,
+                  message: 'Python returned HTTP error',
+                  detail: originalError,
+                });
+                break;
+              case 'PREDICTION_ERROR':
+                logger.warn({
+                  event: 'mlPipeline_pythonRuntime_predictionError',
+                  uid: user.uid,
+                  message: 'Python prediction calculation failed',
+                  detail: originalError,
+                });
+                break;
+            }
+
+            // Use Node.js baseline as fallback
             prediction = generateBaselinePrediction(transactions, income);
           }
 
