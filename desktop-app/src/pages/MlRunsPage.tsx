@@ -14,6 +14,7 @@ function formatTs(ts: any): string {
 export function MlRunsPage() {
   const [level, setLevel] = useState<'all' | '1' | '2'>('all')
   const [status, setStatus] = useState<'all' | 'success' | 'partial_success' | 'failed'>('all')
+  const [expandedRunId, setExpandedRunId] = useState<string | null>(null)
   const { data: allRuns, loading, error } = useMlRuns(50)
 
   const filteredRuns = allRuns.filter((run: any) => {
@@ -108,7 +109,7 @@ export function MlRunsPage() {
               </thead>
               <tbody>
                 {filteredRuns.map((run: any) => (
-                  <tr key={run.id} className="table-row">
+                  <tr key={run.id} className="table-row cursor-pointer hover:bg-light-border/50 dark:hover:bg-dark-border/50" onClick={() => setExpandedRunId(expandedRunId === run.id ? null : run.id)}>
                     <td className="px-6 py-4 text-light-text dark:text-dark-text whitespace-nowrap text-xs">
                       {formatTs(run.startedAt)}
                     </td>
@@ -178,6 +179,35 @@ export function MlRunsPage() {
           )}
         </div>
       </div>
+
+      {/* FÁZE 5.4B: Expanded detail with top failure reasons */}
+      {expandedRunId && filteredRuns.find((r: any) => r.id === expandedRunId)?.evaluation?.debugSummary?.top_failure_reasons && (
+        <div className="card rounded-lg p-6 bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-light-text dark:text-dark-text">
+              Top Failure Reasons
+            </h3>
+            <button
+              onClick={() => setExpandedRunId(null)}
+              className="text-light-textMuted dark:text-dark-textMuted hover:text-light-text dark:hover:text-dark-text"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="space-y-2">
+            {Object.entries(filteredRuns.find((r: any) => r.id === expandedRunId)?.evaluation?.debugSummary?.top_failure_reasons || {}).map(([reason, count]: [string, any]) => (
+              <div key={reason} className="flex justify-between items-center p-3 bg-light-border/30 dark:bg-dark-border/30 rounded">
+                <span className="text-light-text dark:text-dark-text text-sm">
+                  {reason.replace(/_/g, ' ').toLowerCase()}
+                </span>
+                <span className="text-light-textMuted dark:text-dark-textMuted font-semibold text-sm">
+                  {count}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

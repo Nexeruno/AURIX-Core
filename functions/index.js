@@ -2375,6 +2375,11 @@ exports.runMlPipeline = functions
           validRows: evaluationSummary.summary?.valid_result_count || 0,
           errorRows: evaluationSummary.summary?.failed_row_count || 0,
           successRate: evaluationSummary.comparison?.success_rate || 0,
+          // FÁZA 5.4B: Debug summary with top failure reasons
+          debugSummary: evaluationSummary.debug_summary || {
+            top_failure_reasons: {},
+            failure_reason_count: 0,
+          },
         } : null,
       });
 
