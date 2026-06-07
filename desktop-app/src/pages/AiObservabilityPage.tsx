@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { SYMBOLS } from '@/utils/symbols'
 import { useRuntimeStatus } from '@/hooks/useRuntimeStatus'
+import { usePodmanRuntimeStatus } from '@/hooks/usePodmanRuntimeStatus'
 import { useSuccessfulRuns, formatRunTimestamp, formatRunStatus } from '@/hooks/useSuccessfulRuns'
 import { useFailedRuns, formatRunTimestamp as formatTimestamp, formatFailedStatus } from '@/hooks/useFailedRuns'
 import { useConfidenceData, getConfidenceColor, getConfidenceIcon, getConfidenceLabel } from '@/hooks/useConfidenceData'
@@ -27,6 +28,7 @@ export function AiObservabilityPage() {
   const [runStatusFilter, setRunStatusFilter] = useState<'all' | 'success' | 'failed'>('all')
 
   const { status: runtimeStatus, loading: runtimeLoading, checkNow: recheck } = useRuntimeStatus()
+  const { status: podmanStatus, loading: podmanLoading, checkNow: recheckPodman } = usePodmanRuntimeStatus()
   const { runs: successfulRuns, loading: runsLoading, error: runsError } = useSuccessfulRuns(10)
   const { runs: failedRuns, loading: failedLoading, error: failedError } = useFailedRuns(10)
   const { data: confidenceData, loading: confidenceLoading } = useConfidenceData()
@@ -325,6 +327,38 @@ export function AiObservabilityPage() {
                   <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">Fetching confidence data</p>
                 </div>
               )}
+
+              {/* Podman Runtime Status */}
+              <div
+                className={`p-4 rounded-lg border ${
+                  podmanStatus.connected
+                    ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800'
+                    : 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800'
+                }`}
+              >
+                <p className="text-sm text-gray-600 dark:text-gray-400">Podman Runtime</p>
+                <p className="text-2xl font-bold mt-2">
+                  {podmanLoading ? (
+                    <span className="text-yellow-600 dark:text-yellow-400">Checking...</span>
+                  ) : podmanStatus.connected ? (
+                    <span className="text-indigo-600 dark:text-indigo-400">🔗 Connected</span>
+                  ) : (
+                    <span className="text-orange-600 dark:text-orange-400">⚠️ Disconnected</span>
+                  )}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                  {podmanStatus.lastCheckTime
+                    ? `Last check: ${podmanStatus.lastCheckTime.toLocaleTimeString()}`
+                    : 'Never checked'}
+                </p>
+                <button
+                  onClick={recheckPodman}
+                  disabled={podmanLoading}
+                  className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline mt-2 disabled:opacity-50"
+                >
+                  {podmanLoading ? 'Checking...' : 'Check now'}
+                </button>
+              </div>
             </div>
 
             {/* Status Summary */}
