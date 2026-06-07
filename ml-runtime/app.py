@@ -816,6 +816,14 @@ class EvaluationSummary:
         if error_rows > 0:
             failure_reasons = EvaluationSummary.analyze_failure_reasons(transactions)
 
+        # Calculate comparison metrics
+        success_rate = round(usable_output_rows / total_rows * 100, 1) if total_rows > 0 else 0
+        error_rate = round(error_rows / total_rows * 100, 1) if total_rows > 0 else 0
+        failure_reason_count = len(failure_reasons)
+
+        # FÁZE 5.3E: Determine readiness verdict
+        readiness = EvaluationSummary.determine_readiness_verdict(success_rate, failure_reason_count)
+
         return {
             'summary': {
                 'total_row_count': total_rows,
@@ -827,14 +835,16 @@ class EvaluationSummary:
             'comparison': {
                 'usable_output_rows': usable_output_rows,
                 'error_rows': error_rows,
-                'success_rate': round(usable_output_rows / total_rows * 100, 1) if total_rows > 0 else 0,
-                'error_rate': round(error_rows / total_rows * 100, 1) if total_rows > 0 else 0,
+                'success_rate': success_rate,
+                'error_rate': error_rate,
             },
             # FÁZE 5.3D: Top failure reasons for debugging
             'debug_summary': {
                 'top_failure_reasons': failure_reasons,
-                'failure_reason_count': len(failure_reasons),
+                'failure_reason_count': failure_reason_count,
             },
+            # FÁZE 5.3E: Readiness verdict
+            'readiness': readiness,
             'confidence': {
                 'average_confidence': round(confidence, 2) if confidence else 0,
                 'confidence_level': EvaluationSummary._classify_confidence(confidence),
@@ -885,6 +895,42 @@ class EvaluationSummary:
             return 'good'
         else:
             return 'excellent'
+
+    @staticmethod
+    def determine_readiness_verdict(success_rate: float, failure_reason_count: int) -> Dict:
+        """
+        FÁZE 5.3E: Determine simple readiness verdict based on evaluation metrics
+        Simple rules: no complex scoring, just thresholds
+
+        Verdict:
+        - usable: success_rate >= 80% AND failure_reason_count <= 2
+        - partially_usable: success_rate >= 60% AND failure_reason_count <= 5
+        - not_usable: anything else
+        """
+        verdict = 'not_usable'
+        reasoning = ''
+
+        if success_rate >= 80 and failure_reason_count <= 2:
+            verdict = 'usable'
+            reasoning = f'High success rate ({success_rate}%) with minimal failure types ({failure_reason_count})'
+        elif success_rate >= 60 and failure_reason_count <= 5:
+            verdict = 'partially_usable'
+            reasoning = f'Acceptable success rate ({success_rate}%) with manageable failure types ({failure_reason_count})'
+        else:
+            # Explain why not usable
+            reasons = []
+            if success_rate < 60:
+                reasons.append(f'Low success rate ({success_rate}% < 60%)')
+            if failure_reason_count > 5:
+                reasons.append(f'Too many failure types ({failure_reason_count} > 5)')
+            reasoning = ', '.join(reasons) if reasons else 'Dataset quality insufficient'
+
+        return {
+            'verdict': verdict,
+            'reasoning': reasoning,
+            'success_rate': success_rate,
+            'failure_reason_count': failure_reason_count,
+        }
 
 
 class EvaluationMetrics:
