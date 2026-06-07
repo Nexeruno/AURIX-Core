@@ -702,6 +702,22 @@ def predict():
         is_valid, error_msg = RequestContract.validate(data)
         if not is_valid:
             logger.warning(f'Request validation failed: {error_msg}', extra={'uid': data.get('uid')})
+            # FÁZE 5.1F: Classify error type
+            error_type = 'INVALID_REQUEST'
+            if 'Missing required field' in error_msg:
+                error_type = 'MISSING_REQUIRED_FIELD'
+            elif 'must be one of' in error_msg:
+                error_type = 'INVALID_ENUM_VALUE'
+            elif 'must be' in error_msg or 'cannot be' in error_msg:
+                error_type = 'INVALID_INPUT'
+
+            logger.error({
+                'event': '[ERROR] Deterministic computation failed',
+                'uid': data.get('uid'),
+                'errorType': error_type,
+                'reason': error_msg
+            })
+
             return jsonify({
                 'status': 'failed',
                 'error': error_msg,
@@ -715,6 +731,14 @@ def predict():
             logger.debug(f"Request parsed successfully: {RequestParser.get_summary(parsed)}")
         except ValueError as parse_err:
             logger.error(f'Request parsing failed: {str(parse_err)}')
+            # FÁZE 5.1F: Log parse error
+            logger.error({
+                'event': '[ERROR] Deterministic computation failed',
+                'uid': data.get('uid'),
+                'errorType': 'PARSE_ERROR',
+                'reason': str(parse_err)
+            })
+
             return jsonify({
                 'status': 'failed',
                 'error': f'Input parsing error: {str(parse_err)}',
@@ -738,6 +762,14 @@ def predict():
             logger.debug(f"Prediction generated: {prediction}")
         except Exception as pred_err:
             logger.error(f'Prediction calculation failed: {str(pred_err)}')
+            # FÁZE 5.1F: Log computation error
+            logger.error({
+                'event': '[ERROR] Deterministic computation failed',
+                'uid': uid,
+                'errorType': 'COMPUTATION_FAILED',
+                'reason': f'Unexpected error during prediction calculation: {str(pred_err)}'
+            })
+
             return jsonify({
                 'status': 'failed',
                 'error': f'Prediction calculation failed: {str(pred_err)}',
