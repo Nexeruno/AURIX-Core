@@ -490,6 +490,74 @@ export function AiObservabilityPage() {
               </div>
             )}
 
+            {/* Runtime Details View - FÁZA 6.3D */}
+            {podmanStatus.details && (
+              <div className="mt-6 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/20">
+                <h3 className="text-lg font-semibold text-light-text dark:text-dark-text mb-4">
+                  Runtime Details
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Current Runtime Endpoint */}
+                  <div className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                    <p className="text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wide">
+                      Runtime Endpoint
+                    </p>
+                    <p className="text-sm font-mono text-gray-900 dark:text-gray-100 mt-2 break-all">
+                      {podmanStatus.details.endpoint || '—'}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {podmanStatus.details.endpoint
+                        ? 'Active endpoint'
+                        : 'Not configured'}
+                    </p>
+                  </div>
+
+                  {/* Current Runtime Mode */}
+                  <div className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                    <p className="text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wide">
+                      Runtime Mode
+                    </p>
+                    <p className="text-sm font-semibold mt-2">
+                      {podmanStatus.details.mode === 'ready' ? (
+                        <span className="text-green-600 dark:text-green-400">✅ Ready</span>
+                      ) : podmanStatus.details.mode === 'degraded' ? (
+                        <span className="text-yellow-600 dark:text-yellow-400">⚠️ Degraded</span>
+                      ) : (
+                        <span className="text-red-600 dark:text-red-400">❌ Unavailable</span>
+                      )}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {podmanStatus.details.mode === 'ready'
+                        ? 'All dependencies ready'
+                        : podmanStatus.details.mode === 'degraded'
+                          ? 'Using fallback mode'
+                          : 'Cannot reach runtime'}
+                    </p>
+                  </div>
+
+                  {/* Last Successful Handshake */}
+                  <div className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                    <p className="text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wide">
+                      Last Handshake
+                    </p>
+                    <p className="text-sm font-semibold mt-2">
+                      {podmanStatus.details.lastHandshakeStatus === 'success' ? (
+                        <span className="text-green-600 dark:text-green-400">✅ Success</span>
+                      ) : (
+                        <span className="text-red-600 dark:text-red-400">❌ Failed</span>
+                      )}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {podmanStatus.details.lastHandshakeTime
+                        ? podmanStatus.details.lastHandshakeTime.toLocaleTimeString()
+                        : 'Never checked'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Learning Health Panel */}
             <div className="mt-8">
               <h3 className="text-lg font-semibold text-light-text dark:text-dark-text mb-4">

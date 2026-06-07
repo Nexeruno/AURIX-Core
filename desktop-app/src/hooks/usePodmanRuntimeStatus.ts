@@ -16,6 +16,13 @@ export interface PodmanRuntimeWarning {
   timestamp?: Date
 }
 
+export interface PodmanRuntimeDetails {
+  endpoint?: string
+  mode?: 'ready' | 'degraded' | 'unavailable'
+  lastHandshakeTime?: Date
+  lastHandshakeStatus?: 'success' | 'failed'
+}
+
 export interface PodmanRuntimeStatus {
   connected: boolean
   lastCheckTime?: Date
@@ -26,6 +33,7 @@ export interface PodmanRuntimeStatus {
   runtimeAvailable?: boolean
   requestPathHealthy?: boolean
   warnings?: PodmanRuntimeWarning[]
+  details?: PodmanRuntimeDetails
   lastError?: string
 }
 
@@ -44,6 +52,7 @@ export function usePodmanRuntimeStatus() {
     runtimeAvailable: undefined,
     requestPathHealthy: undefined,
     warnings: [],
+    details: undefined,
     lastError: undefined,
   })
 
@@ -76,6 +85,12 @@ export function usePodmanRuntimeStatus() {
       // Container health: runtime available + request path healthy
       const runtimeAvailable = isReachable && response.ok
       const requestPathHealthy = isHealthy && isReachable
+
+      // Extract runtime details
+      const endpoint = mlRuntimeDep?.url ?? 'http://ml-runtime:5000'
+      const mode = readiness
+      const lastHandshakeTime = mlRuntimeDep?.lastCheck ? new Date(mlRuntimeDep.lastCheck) : undefined
+      const lastHandshakeStatus = isHealthy ? 'success' : 'failed'
 
       // Detect warning states
       const warnings: PodmanRuntimeWarning[] = []
@@ -120,6 +135,12 @@ export function usePodmanRuntimeStatus() {
         runtimeAvailable,
         requestPathHealthy,
         warnings,
+        details: {
+          endpoint,
+          mode: mode as 'ready' | 'degraded' | 'unavailable',
+          lastHandshakeTime,
+          lastHandshakeStatus,
+        },
         lastError: undefined,
       })
     } catch (error) {
@@ -145,6 +166,11 @@ export function usePodmanRuntimeStatus() {
         runtimeAvailable: false,
         requestPathHealthy: false,
         warnings,
+        details: {
+          endpoint: 'http://ml-runtime:5000',
+          mode: 'unavailable',
+          lastHandshakeStatus: 'failed',
+        },
         lastError: errorMsg,
       })
     } finally {
