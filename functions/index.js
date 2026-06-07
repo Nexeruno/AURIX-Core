@@ -8,6 +8,9 @@ const cors = require('cors')({
   credentials: true,
 });
 
+// FÁZE 5.0A: Import ML Runtime client for external Python server
+const mlRuntimeClient = require('./mlRuntimeClient');
+
 const ADMIN_EMAIL = 'danzby@seznam.cz';
 const REGION = 'europe-west1';
 
@@ -2104,7 +2107,54 @@ exports.runMlPipeline = functions
           }
 
           const income = await loadUserIncome(user.uid);
-          const prediction = generateBaselinePrediction(transactions, income);
+
+          // FÁZE 5.0A: Call external Python runtime instead of Node.js baseline
+          const runtimeRequest = {
+            uid: user.uid,
+            pipelineLevel: 'L1',
+            modelVersion: ML_VERSION,
+            transactions: transactions.map(t => ({
+              category: t.kategorie,
+              amount: t.castka,
+              date: t.datum,
+            })),
+            income: income.reduce((s, i) => s + i.castka, 0),
+            debugMode: false,
+          };
+
+          let prediction;
+          try {
+            // Call Python runtime
+            const runtimeResponse = await mlRuntimeClient.callMlRuntime(runtimeRequest);
+
+            // Transform Python response into Node.js prediction format
+            prediction = {
+              totalPredictedExpense: runtimeResponse.predictions[0]?.totalPredictedExpense || 0,
+              categories: runtimeResponse.predictions[0]?.categories || {},
+              confidence: 'unknown',
+              confidenceScore: Math.round((runtimeResponse.predictions[0]?.confidence || 0) * 100),
+              confidenceReason: `Python ML Runtime (L1) - confidence: ${runtimeResponse.predictions[0]?.confidence || 0}`,
+              features: { dataPoints: transactions.length },
+              incomeStats: { dataPoints: income.length },
+              monthlyIncome: {},
+            };
+
+            logger.info({
+              event: 'mlPipeline_pythonRuntimeCalled',
+              uid: user.uid,
+              processingTimeMs: runtimeResponse.debugMetadata?.processingTimeMs || 0,
+            });
+          } catch (runtimeErr) {
+            // Fallback to Node.js baseline if Python runtime fails
+            logger.warn({
+              event: 'mlPipeline_pythonRuntimeFailed',
+              uid: user.uid,
+              error: runtimeErr.message,
+              message: 'Falling back to Node.js baseline',
+            });
+            prediction = generateBaselinePrediction(transactions, income);
+          }
+
           const saved = await savePredictionResults(user.uid, prediction);
 
           if (saved) {
@@ -2228,7 +2278,54 @@ exports.testMlPipeline = functions.region(REGION).https.onRequest(async (req, re
             }
 
             const income = await loadUserIncome(user.uid);
-            const prediction = generateBaselinePrediction(transactions, income);
+
+            // FÁZE 5.0A: Call external Python runtime instead of Node.js baseline
+            const runtimeRequest = {
+              uid: user.uid,
+              pipelineLevel: 'L1',
+              modelVersion: ML_VERSION,
+              transactions: transactions.map(t => ({
+                category: t.kategorie,
+                amount: t.castka,
+                date: t.datum,
+              })),
+              income: income.reduce((s, i) => s + i.castka, 0),
+              debugMode: false,
+            };
+
+            let prediction;
+            try {
+              // Call Python runtime
+              const runtimeResponse = await mlRuntimeClient.callMlRuntime(runtimeRequest);
+
+              // Transform Python response into Node.js prediction format
+              prediction = {
+                totalPredictedExpense: runtimeResponse.predictions[0]?.totalPredictedExpense || 0,
+                categories: runtimeResponse.predictions[0]?.categories || {},
+                confidence: 'unknown',
+                confidenceScore: Math.round((runtimeResponse.predictions[0]?.confidence || 0) * 100),
+                confidenceReason: `Python ML Runtime (L1) - confidence: ${runtimeResponse.predictions[0]?.confidence || 0}`,
+                features: { dataPoints: transactions.length },
+                incomeStats: { dataPoints: income.length },
+                monthlyIncome: {},
+              };
+
+              logger.info({
+                event: 'mlPipeline_pythonRuntimeCalled',
+                uid: user.uid,
+                processingTimeMs: runtimeResponse.debugMetadata?.processingTimeMs || 0,
+              });
+            } catch (runtimeErr) {
+              // Fallback to Node.js baseline if Python runtime fails
+              logger.warn({
+                event: 'mlPipeline_pythonRuntimeFailed',
+                uid: user.uid,
+                error: runtimeErr.message,
+                message: 'Falling back to Node.js baseline',
+              });
+              prediction = generateBaselinePrediction(transactions, income);
+            }
+
             const saved = await savePredictionResults(user.uid, prediction);
 
             if (saved) {
@@ -5119,6 +5216,135 @@ const extractUserFeatures = async (uid) => {
   }
 };
 
+const buildTrainingDataset = async () => {
+  try {
+    const dataset = [];
+
+    // Get all users
+    const allUsers = await db.collection('users').get();
+
+    for (const userDoc of allUsers.docs) {
+      const uid = userDoc.id;
+
+      // Get approved, non-excluded training records for this user (only L2 feedback types)
+      const trainingRecords = await db.collection('trainingData')
+        .where('userId', '==', uid)
+        .where('type', 'in', ['l2_manual_feedback', 'l2_auto_feedback'])
+        .where('status', '==', 'approved')
+        .where('excludedFromLearning', '!=', true)
+        .get();
+
+      if (trainingRecords.empty) continue;
+
+      // Extract features once for this user (valid period context)
+      const userFeatures = await extractUserFeatures(uid);
+
+      // Create a dataset row for each training record
+      for (const recordDoc of trainingRecords.docs) {
+        const record = recordDoc.data();
+
+        // Validate target values
+        const actualTotal = Number(record.actualTotal);
+        const predictedTotal = Number(record.predictedTotal);
+        // actualTotal >= 0 is valid (zero is legitimate), predictedTotal > 0 required for ratio
+        const targetValid = Number.isFinite(actualTotal) && actualTotal >= 0 && Number.isFinite(predictedTotal) && predictedTotal > 0;
+
+        const row = {
+          userId: uid,
+          month: record.month,
+          // Feature values (from user's overall profile)
+          avgExpense3m: userFeatures.avgExpense3m,
+          avgExpense6m: userFeatures.avgExpense6m,
+          avgExpense12m: userFeatures.avgExpense12m,
+          avgIncome3m: userFeatures.avgIncome3m,
+          avgIncome6m: userFeatures.avgIncome6m,
+          avgIncome12m: userFeatures.avgIncome12m,
+          volatilityScore: userFeatures.volatilityScore,
+          regularityScore: userFeatures.regularityScore,
+          feedbackCount: userFeatures.feedbackCount,
+          avgManualCorrectionFactor: userFeatures.avgManualCorrectionFactor,
+          avgAutoCorrectionFactor: userFeatures.avgAutoCorrectionFactor,
+          avgFinalCorrectionFactor: userFeatures.avgFinalCorrectionFactor,
+          // Target (learning objective)
+          target: targetValid ? actualTotal : null,
+          targetDefinition: 'actualTotal (ground truth from user feedback)',
+          // Source values (for reference/debugging)
+          actualTotal,
+          predictedTotal,
+          // Status flags
+          targetAvailable: targetValid,
+          trainReady: targetValid,
+          // Metadata
+          feedbackType: record.type,
+          recordId: recordDoc.id,
+        };
+
+        dataset.push(row);
+      }
+    }
+
+    return dataset;
+  } catch (err) {
+    logger.error('[DATASET_BUILDER] Multi-user dataset extraction failed:', err.message);
+    throw err;
+  }
+};
+
+const exportTrainReadyDataset = async () => {
+  try {
+    const fullDataset = await buildTrainingDataset();
+
+    // Filter only train-ready rows
+    const trainReadyRows = fullDataset.filter(row => row.trainReady === true);
+
+    // Create export-optimized rows (remove redundant fields, structure clearly)
+    const exportRows = trainReadyRows.map(row => ({
+      userId: row.userId,
+      month: row.month,
+      // Features (13 values)
+      features: {
+        avgExpense3m: row.avgExpense3m,
+        avgExpense6m: row.avgExpense6m,
+        avgExpense12m: row.avgExpense12m,
+        avgIncome3m: row.avgIncome3m,
+        avgIncome6m: row.avgIncome6m,
+        avgIncome12m: row.avgIncome12m,
+        volatilityScore: row.volatilityScore,
+        regularityScore: row.regularityScore,
+        feedbackCount: row.feedbackCount,
+        avgManualCorrectionFactor: row.avgManualCorrectionFactor,
+        avgAutoCorrectionFactor: row.avgAutoCorrectionFactor,
+        avgFinalCorrectionFactor: row.avgFinalCorrectionFactor,
+      },
+      // Target (ground truth)
+      target: row.target,
+      // Metadata for traceability
+      metadata: {
+        feedbackType: row.feedbackType,
+        recordId: row.recordId,
+        predictedTotal: row.predictedTotal,
+        actualTotal: row.actualTotal,
+      }
+    }));
+
+    return {
+      success: true,
+      metadata: {
+        exportedAt: new Date().toISOString(),
+        version: '1.0',
+        format: 'json_array',
+        totalRecords: fullDataset.length,
+        trainReadyRecords: trainReadyRows.length,
+        excludedRecords: fullDataset.length - trainReadyRows.length,
+      },
+      rows: exportRows,
+    };
+  } catch (err) {
+    logger.error('[DATASET_EXPORT] Export failed:', err.message);
+    throw err;
+  }
+};
+
 const generateHumanReadableExplanation = (profile) => {
   const parts = [];
 
@@ -5772,4 +5998,81 @@ exports.autoRegenerateStaleAiProfiles = functions
       logger.error('[AUTO_REGEN] Scheduled function error:', err.message);
     }
   });
+
+exports.buildTrainingDataset = functions.region(REGION).https.onRequest(async (req, res) => {
+  try {
+    const dataset = await buildTrainingDataset();
+
+    // Calculate summary statistics
+    const trainReadyCount = dataset.filter(row => row.trainReady).length;
+    const missingTargetCount = dataset.filter(row => !row.trainReady).length;
+
+    res.json({
+      success: true,
+      summary: {
+        totalRows: dataset.length,
+        trainReadyRows: trainReadyCount,
+        missingTargetRows: missingTargetCount,
+        trainReadyPercent: dataset.length > 0 ? Math.round((trainReadyCount / dataset.length) * 100) : 0,
+      },
+      dataset,
+      schema: {
+        // Core identifiers
+        userId: 'string',
+        month: 'string (YYYY-MM)',
+        recordId: 'string (Firestore document ID)',
+        // Features (13 fields)
+        avgExpense3m: 'number',
+        avgExpense6m: 'number',
+        avgExpense12m: 'number',
+        avgIncome3m: 'number',
+        avgIncome6m: 'number',
+        avgIncome12m: 'number',
+        volatilityScore: 'number (0-1)',
+        regularityScore: 'number (0-1)',
+        feedbackCount: 'number',
+        avgManualCorrectionFactor: 'number',
+        avgAutoCorrectionFactor: 'number',
+        avgFinalCorrectionFactor: 'number',
+        // Target (learning objective)
+        target: 'number | null (actualTotal from feedback, null if invalid)',
+        targetDefinition: 'string (describes what target represents)',
+        targetAvailable: 'boolean (true if target is valid and usable)',
+        trainReady: 'boolean (true if row can be used for training)',
+        // Source values (for reference)
+        actualTotal: 'number (ground truth from user)',
+        predictedTotal: 'number (model prediction)',
+        // Metadata
+        feedbackType: 'string (l2_manual_feedback | l2_auto_feedback)',
+      },
+      targetDefinition: {
+        target: 'actualTotal',
+        description: 'Ground truth expense amount provided by user feedback',
+        validityCondition: 'actualTotal >= 0 AND predictedTotal > 0 AND both are finite numbers (zero expenses are valid, zero prediction is not)',
+        whenTargetMissing: 'target=null, targetAvailable=false, trainReady=false',
+        usage: 'For supervised learning: model predicts actualTotal given features',
+      }
+    });
+  } catch (err) {
+    logger.error('[DATASET_BUILDER] HTTP endpoint error:', err.message);
+    res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
+exports.exportTrainReadyDataset = functions.region(REGION).https.onRequest(async (req, res) => {
+  try {
+    const exportData = await exportTrainReadyDataset();
+
+    res.json(exportData);
+  } catch (err) {
+    logger.error('[DATASET_EXPORT] HTTP endpoint error:', err.message);
+    res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
 
