@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+﻿import { useState, useMemo } from 'react'
 import toast from 'react-hot-toast'
 import { SYMBOLS } from '@/utils/symbols'
 import { useDebugLogExport } from '@/hooks/useDebugLogExport'
@@ -752,10 +752,29 @@ export function RunDetailModal({ run, isOpen, onClose }: RunDetailModalProps) {
   const [showDetailExportMenu, setShowDetailExportMenu] = useState(false)
   const { exportDebugLog } = useDebugLogExport()
 
+  // FÁZE 4.8C: Detect if debug export is large — must be before early return (Rules of Hooks)
+  const debugExportMetadata = useMemo(() => (run ? getDebugExportMetadata(run) : null), [run])
+
   if (!isOpen || !run) return null
 
-  // FÁZE 4.8C: Detect if debug export is large
-  const debugExportMetadata = useMemo(() => getDebugExportMetadata(run), [run])
+  // Guard against incomplete run data
+  const isDataIncomplete = !run.id || !run.status
+  if (isDataIncomplete) {
+    return (
+      <>
+        <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
+        <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-light-card dark:bg-dark-card rounded-lg shadow-xl z-50 p-8 text-center">
+          <p className="text-gray-500 dark:text-gray-400 text-sm">Run detail data is incomplete.</p>
+          <button onClick={onClose} className="mt-4 px-4 py-2 text-sm bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600">
+            Close
+          </button>
+        </div>
+      </>
+    )
+  }
+
+  // At this point run is valid and meta is guaranteed non-null
+  const meta = debugExportMetadata!
 
   const isSuccess = run.status === 'completed'
   const isFailed = run.status === 'failed' || run.status === 'error'
@@ -827,7 +846,7 @@ export function RunDetailModal({ run, isOpen, onClose }: RunDetailModalProps) {
   // FÁZE 4.9D: Export with error details
   const handleSmartExport = () => {
     try {
-      if (debugExportMetadata.isLarge) {
+      if (meta.isLarge) {
         // Large export → PDF
         const pdfStructure = generatePdfDebugExportPayload(run)
         generatePdfFromStructure(pdfStructure, run)
@@ -913,24 +932,24 @@ export function RunDetailModal({ run, isOpen, onClose }: RunDetailModalProps) {
               <button
                 onClick={() => setShowDetailExportMenu(!showDetailExportMenu)}
                 className={`px-3 py-1.5 text-sm rounded transition-colors ${
-                  debugExportMetadata.isLarge
+                  meta.isLarge
                     ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 hover:bg-orange-200 dark:hover:bg-orange-900/50'
                     : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50'
                 }`}
               >
-                📥 Export {debugExportMetadata.isLarge && '⚠️'}
+                📥 Export {meta.isLarge && '⚠️'}
               </button>
 
               {/* Export Menu */}
               {showDetailExportMenu && (
                 <div className="absolute right-0 mt-2 w-56 rounded-lg shadow-lg bg-light-card dark:bg-dark-card border border-gray-200 dark:border-gray-700 z-10">
-                  <div className={`p-3 border-b ${debugExportMetadata.isLarge ? 'border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/10' : 'border-gray-200 dark:border-gray-700'}`}>
+                  <div className={`p-3 border-b ${meta.isLarge ? 'border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/10' : 'border-gray-200 dark:border-gray-700'}`}>
                     <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">
                       Export Format
                     </p>
-                    {debugExportMetadata.isLarge && (
+                    {meta.isLarge && (
                       <p className="text-xs text-orange-600 dark:text-orange-400 mt-1 font-medium">
-                        ⚠️ Large export candidate ({debugExportMetadata.lineCount} lines)
+                        ⚠️ Large export candidate ({meta.lineCount} lines)
                       </p>
                     )}
                   </div>
@@ -943,7 +962,7 @@ export function RunDetailModal({ run, isOpen, onClose }: RunDetailModalProps) {
                     >
                       <div className="font-medium">🚀 Export Debug Detail</div>
                       <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {debugExportMetadata.isLarge ? 'Auto PDF (large)' : 'Auto Text (small)'}
+                        {meta.isLarge ? 'Auto PDF (large)' : 'Auto Text (small)'}
                       </div>
                     </button>
                   </div>
@@ -956,7 +975,7 @@ export function RunDetailModal({ run, isOpen, onClose }: RunDetailModalProps) {
                     >
                       <div className="font-medium">📄 Text Format</div>
                       <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {debugExportMetadata.isLarge ? `⚠️ Large (${debugExportMetadata.charCount} chars)` : 'Download .txt'}
+                        {meta.isLarge ? `⚠️ Large (${meta.charCount} chars)` : 'Download .txt'}
                       </div>
                     </button>
                     <button
@@ -1002,7 +1021,7 @@ export function RunDetailModal({ run, isOpen, onClose }: RunDetailModalProps) {
                   </div>
 
                   {/* PDF Format (Large Exports Only) */}
-                  {debugExportMetadata.isLarge && (
+                  {meta.isLarge && (
                     <div>
                       <button
                         onClick={() => handlePdfExport('download')}
