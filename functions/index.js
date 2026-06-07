@@ -2068,6 +2068,16 @@ const savePredictionResults = async (uid, prediction) => {
     };
 
     await db.collection(`users/${uid}/mlPredictions`).add(predictionData);
+
+    // FÁZE 5.1E: Log persistence of deterministic result
+    logger.info({
+      event: 'mlPipeline_predictionPersisted',
+      uid: uid,
+      totalExpense: predictionData.totalPredictedExpense,
+      source: predictionData.sourceMethod,
+      hasDebugMetadata: !!predictionData.pythonMetadata
+    });
+
     return true;
   } catch (err) {
     logger.error(`Failed to save prediction for ${uid}: ${err.message}`);
@@ -2158,6 +2168,33 @@ exports.runMlPipeline = functions
                 processingTimeMs: runtimeResponse.debugMetadata?.processingTimeMs || 0
               }
             };
+
+            // FÁZE 5.1E: Observability logging for deterministic Python result
+            logger.info({
+              event: 'mlPipeline_determinisicResult_generated',
+              uid: user.uid,
+              predictedExpense: prediction.totalPredictedExpense,
+              method: 'Python Deterministic'
+            });
+
+            logger.info({
+              event: 'mlPipeline_confidenceAssigned',
+              uid: user.uid,
+              confidence: prediction.confidenceScore,
+              confidenceLevel: prediction.confidenceScore >= 80 ? 'high' : prediction.confidenceScore >= 50 ? 'medium' : 'low',
+              method: 'Python 4-Factor (data frequency, transaction count, expense ratio, income constraint)'
+            });
+
+            if (prediction.pythonMetadata) {
+              logger.info({
+                event: 'mlPipeline_debugMetadataAttached',
+                uid: user.uid,
+                hasInputs: !!prediction.pythonMetadata.inputs,
+                hasConfidenceExplained: !!prediction.pythonMetadata.confidenceExplained,
+                hasCalculationMethod: !!prediction.pythonMetadata.calculationMethod,
+                pythonProcessingMs: prediction.pythonMetadata.processingTimeMs
+              });
+            }
 
             logger.info({
               event: 'mlPipeline_pythonRuntime_success',
@@ -2404,6 +2441,33 @@ exports.testMlPipeline = functions.region(REGION).https.onRequest(async (req, re
                   processingTimeMs: runtimeResponse.debugMetadata?.processingTimeMs || 0
                 }
               };
+
+              // FÁZE 5.1E: Observability logging for deterministic Python result
+              logger.info({
+                event: 'mlPipeline_deterministicResult_generated',
+                uid: user.uid,
+                predictedExpense: prediction.totalPredictedExpense,
+                method: 'Python Deterministic'
+              });
+
+              logger.info({
+                event: 'mlPipeline_confidenceAssigned',
+                uid: user.uid,
+                confidence: prediction.confidenceScore,
+                confidenceLevel: prediction.confidenceScore >= 80 ? 'high' : prediction.confidenceScore >= 50 ? 'medium' : 'low',
+                method: 'Python 4-Factor (data frequency, transaction count, expense ratio, income constraint)'
+              });
+
+              if (prediction.pythonMetadata) {
+                logger.info({
+                  event: 'mlPipeline_debugMetadataAttached',
+                  uid: user.uid,
+                  hasInputs: !!prediction.pythonMetadata.inputs,
+                  hasConfidenceExplained: !!prediction.pythonMetadata.confidenceExplained,
+                  hasCalculationMethod: !!prediction.pythonMetadata.calculationMethod,
+                  pythonProcessingMs: prediction.pythonMetadata.processingTimeMs
+                });
+              }
 
               logger.info({
                 event: 'mlPipeline_pythonRuntimeCalled',

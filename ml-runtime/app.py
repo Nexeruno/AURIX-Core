@@ -776,6 +776,12 @@ def predict():
                 if '_debug' in pred:
                     del pred['_debug']
 
+        # FÁZE 5.1E: Observability logging for deterministic result
+        logger.info(f"[RESULT] Generated: uid={uid}, expense={prediction['totalPredictedExpense']}, confidence={prediction['confidence']}, method=deterministic")
+        logger.info(f"[CONFIDENCE] Assigned: uid={uid}, score={prediction['confidence']}, factors=4-factor-weighted")
+        if '_debug' in prediction:
+          logger.info(f"[METADATA] Attached: uid={uid}, inputs={len(prediction['_debug']['inputSummary'])}, factors={len(prediction['_debug']['confidenceBreakdown'])}")
+
         logger.info(f"[SUCCESS] Prediction completed: uid={uid}, level={pipeline_level}, confidence={prediction['confidence']}, time={processing_time_ms}ms")
 
         return jsonify(response), 200
