@@ -59,14 +59,22 @@ export function AiObservabilityPage() {
         : failedRuns
 
   const openRunDetail = (run: any, type: 'success' | 'failed') => {
+    // Ensure status is valid for RunDetail interface
+    let status: 'completed' | 'failed' | 'error' = 'completed'
+    if (type === 'failed') {
+      status = run.status === 'error' ? 'error' : 'failed'
+    } else {
+      status = 'completed'
+    }
+
     const runDetail: RunDetail = {
-      id: run.id,
-      status: run.status,
+      id: run.id || 'unknown',
+      status,
       startedAt: run.startedAt,
       finishedAt: run.finishedAt,
-      durationMs: run.durationMs,
-      errorCount: run.errorCount,
-      lastError: run.lastError,
+      durationMs: run.durationMs || 0,
+      errorCount: run.errorCount || 0,
+      lastError: run.lastError || '',
       validationStatus:
         type === 'success'
           ? 'valid'
