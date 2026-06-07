@@ -1,6 +1,6 @@
 ﻿import { useState, useMemo } from 'react'
 import { SYMBOLS } from '@/utils/symbols'
-import { useRuntimeStatus } from '@/hooks/useRuntimeStatus'
+import { useRuntimeStatus, RUNTIME_URL } from '@/hooks/useRuntimeStatus'
 import { usePodmanRuntimeStatus } from '@/hooks/usePodmanRuntimeStatus'
 import { useSuccessfulRuns, formatRunTimestamp, formatRunStatus, type SuccessfulRun } from '@/hooks/useSuccessfulRuns'
 import { useFailedRuns, formatFailedStatus, type FailedRun } from '@/hooks/useFailedRuns'
@@ -383,8 +383,8 @@ export function AiObservabilityPage() {
             >
               <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 {runtimeStatus.available
-                  ? `âś… Python runtime is available and responding correctly`
-                  : `âš ď¸Ź Python runtime is not available. Check if it's running on http://localhost:5000`}
+                  ? '✅ Python runtime is available and responding correctly'
+                  : ('⚠️ Python runtime is not available. Check if it' + "'" + 's running on ' + RUNTIME_URL)}
               </p>
             </div>
 

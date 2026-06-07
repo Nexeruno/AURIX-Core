@@ -383,7 +383,7 @@ async function callMlRuntime(requestData, options = {}) {
     ) {
       errorType = 'UNAVAILABLE';
       errorMsg = 'Python runtime not available';
-      friendlyMsg = `ML Runtime unavailable at ${ML_RUNTIME_URL}. Ensure Python server is running on localhost:5000`;
+      friendlyMsg = `ML Runtime unavailable at ${ML_RUNTIME_URL}. Ensure Python server is running.`;
       console.error(
         `[ML] ❌ UNAVAILABLE | reason=${error.message}, elapsed=${elapsedMs}ms | uid=${uid}`
       );

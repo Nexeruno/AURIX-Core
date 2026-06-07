@@ -37,8 +37,10 @@ export interface PodmanRuntimeStatus {
   lastError?: string
 }
 
-// Canonical runtime endpoint (Podman multi-service network)
-const RUNTIME_ENDPOINT = 'http://ml-runtime:5000'
+// Canonical Python runtime endpoint for local dev mode.
+// In Podman multi-service networking the backend uses ml-runtime:5000 internally,
+// but the UI always shows the locally-reachable address.
+const RUNTIME_ENDPOINT = 'http://localhost:5000'
 
 const BACKEND_URL = 'http://localhost:3000'
 const DEPENDENCIES_ENDPOINT = `${BACKEND_URL}/status/dependencies`
