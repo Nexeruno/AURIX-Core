@@ -70,7 +70,7 @@ test.yml (Build & Test)
     ↓
 ✅ Creates git tag (vYYYY.MM.DD.HHMMSS)
     ↓
-✅ Site LIVE at: https://nexeruno.github.io/Evidence-v-daj-/
+✅ Site LIVE at: https://nexeruno.github.io/AURIX-Core/
 ```
 
 ### Deployment Fails

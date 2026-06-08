@@ -142,7 +142,7 @@ jobs:
         id: success
         run: |
           echo "✅✅✅ DEPLOYMENT COMPLETE ✅✅✅"
-          echo "📍 Deployed to: https://nexeruno.github.io/Evidence-v-daj-/"
+          echo "📍 Deployed to: https://nexeruno.github.io/AURIX-Core/"
           echo "⏱️ Completed at: $(date)"
 
       - name: 🚨 Notify on failure (Linter)

@@ -33,7 +33,7 @@ Check Actions tab:
 1. Go to **Actions** tab
 2. Click **🚀 Deploy & Backup** workflow
 3. Verify recent runs are green (✅)
-4. Site should be live at: https://nexeruno.github.io/Evidence-v-daj-/
+4. Site should be live at: https://nexeruno.github.io/AURIX-Core/
 
 ## If Secrets Are Missing
 

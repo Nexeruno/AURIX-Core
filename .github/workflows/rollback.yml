@@ -86,7 +86,7 @@ jobs:
       - name: ✅ Rollback complete
         run: |
           echo "✅ Rollback successful!"
-          echo "🌐 Site deployed: https://nexeruno.github.io/Evidence-v-daj-/"
+          echo "🌐 Site deployed: https://nexeruno.github.io/AURIX-Core/"
           echo "📦 Restored commit: ${{ steps.commit.outputs.commit }}"
           echo ""
           echo "⚠️ Next steps:"
