@@ -1,214 +1,207 @@
-# Evidence v Datech / AURIX Core
+# AURIX Core
 
-Portfolio project: personal finance tracking web app with a separate Electron admin console (AURIX Core), Firebase backend, and an experimental Python ML runtime for prediction observability.
+Full-stack personal finance platform with a React web app, an Electron desktop admin console, Firebase backend, Python ML runtime, and containerised services via Podman.
 
-The project demonstrates a full-stack product workflow: data entry, role-aware management, ML pipeline monitoring, runtime health checks, and container orchestration with Podman/Docker Compose.
+Built as a portfolio project to demonstrate end-to-end product thinking: user-facing data entry, role-based admin tooling, ML pipeline integration, runtime observability, and cloud deployment.
 
-## Highlights
+---
 
-- React/Vite finance tracker for income and expense data entry
-- **AURIX Core** — Electron desktop admin console with ML control, AI profiles, observability, and audit trails
-- Firebase Authentication, Firestore, Cloud Functions, and audit logging
-- Python Flask ML runtime with health, readiness, prediction, dataset validation, and evaluation endpoints
-- Local Node.js backend proxy for runtime dependency checks
-- Podman/Docker Compose stack for `backend` + `ml-runtime`
-- Kubernetes manifests and CI/CD workflow examples
-- Security: local secrets and env files are git-ignored and excluded from container build context
+## What's in the repo
+
+| App | Description | Where it runs |
+|---|---|---|
+| **Finance Web App** | React/Vite SPA — income and expense tracking, dashboard, Firebase auth | GitHub Pages (live) |
+| **AURIX Core** | Electron desktop admin console — ML control, AI profiles, observability, audit trail | Locally (Electron) |
+| **Python ML Runtime** | Flask service — health, readiness, prediction, and dataset validation endpoints | Local / Podman container |
+| **Node.js Backend Proxy** | Express server — routes ML runtime calls, status checks | Local / Podman container |
+
+---
 
 ## Tech Stack
 
-| Area | Technology |
-| --- | --- |
-| Web app | React 18, Vite, Tailwind CSS |
-| Desktop admin | Electron, React, TypeScript |
-| Backend | Firebase Cloud Functions, Node.js proxy |
-| Database/Auth | Firestore, Firebase Authentication |
-| ML runtime | Python, Flask |
-| Containers | Podman/Docker Compose |
-| Infrastructure | Kubernetes manifests, GitHub Actions |
-| Testing | Vitest, TypeScript checks, Python runtime tests |
+| Layer | Technologies |
+|---|---|
+| Web app | React 18, Vite, Tailwind CSS, Firebase |
+| Desktop admin | Electron, React 18, TypeScript, Vite, Tailwind CSS |
+| Auth & database | Firebase Authentication, Firestore |
+| Cloud functions | Firebase Cloud Functions (Node.js) |
+| ML runtime | Python 3.11, Flask |
+| Backend proxy | Node.js, Express |
+| Containers | Podman, Docker Compose |
+| CI/CD | GitHub Actions — lint, test, build, deploy to GitHub Pages |
+| Infrastructure | Kubernetes manifests (k8s/) |
 
-## Repository Layout
+---
 
-```text
-backend/              Node.js backend proxy for ML runtime checks
-desktop-app/          AURIX Core — Electron admin and ML control center
-docs/                 Guides, reports, screenshots
-functions/            Firebase Cloud Functions
-k8s/                  Kubernetes manifests
-ml-pipeline/          Experimental ML contract and validation utilities
-ml-runtime/           Python Flask ML runtime
-scripts/              Startup and helper scripts
-src/                  Main web application (React/Vite)
-tests/                Manual test scripts
-docker-compose.yml    Podman/Docker Compose stack definition
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ GitHub Pages                                                    │
+│   Finance Web App  (React/Vite)                                 │
+│   ↕ Firebase Auth + Firestore                                   │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│ Local — started via start-aurix-core.bat                        │
+│                                                                 │
+│   AURIX Core Electron ──→ Firebase Auth + Firestore             │
+│                      ──→ Node.js Proxy :3000                    │
+│                                 ──→ Python ML Runtime :5000     │
+│                                                                 │
+│   Podman: [ml-runtime container] + [node-backend container]     │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Quick Start
+## Finance Web App
 
-### 1. Install dependencies
+Live on GitHub Pages: [nexeruno.github.io/AURIX-Core](https://nexeruno.github.io/AURIX-Core/)
+
+Features:
+- Income and expense entry with categories
+- Dashboard with totals and charts
+- Repeating transactions
+- Firebase Authentication (register, login, password reset)
+- Dark mode
+
+Local development:
 
 ```powershell
 npm install
-cd desktop-app && npm install && cd ..
-cd backend && npm install && cd ..
-```
-
-### 2. Configure Firebase
-
-```powershell
-Copy-Item .env.example .env.local
-```
-
-Fill in your Firebase project values. Never commit `.env*` files — they are git-ignored.
-
-### 3. Run the web app
-
-```powershell
 npm run dev
+# Opens at http://localhost:5175
 ```
-
-Opens at `http://localhost:5173`
 
 ---
 
-## AURIX Core (Desktop Admin App)
+## AURIX Core — Desktop Admin Console
 
-AURIX Core is the admin and ML control center. It runs as a standalone Electron app.
+A standalone Electron app for admin and ML operations. Requires the Python ML runtime and Node.js backend running (handled automatically by the startup script).
 
-### Option A — PowerShell launcher script (recommended)
-
-```powershell
-.\scripts\startup\start-aurix-core.ps1
-```
-
-The script checks for Node.js, installs dependencies on first run, and launches the app automatically.
-
-### Option B — manual
+### Start everything with one command
 
 ```powershell
-cd desktop-app
-npm run electron-dev
+.\scripts\startup\start-aurix-core.bat
 ```
 
-This starts the Vite dev server and opens the Electron window once `http://localhost:5173` is ready.
+The script:
+1. Verifies Node.js and Podman are installed
+2. Starts the Podman machine (WSL2 VM)
+3. Builds container images on first run
+4. Starts `ml-runtime` (port 5000) and `node-backend` (port 3000)
+5. Waits for both health checks to pass
+6. Launches AURIX Core (Vite dev server + Electron)
+7. Stops containers when Electron closes
 
-### What's inside AURIX Core
+### Manual start (without Podman)
+
+```powershell
+# Terminal 1 — ML runtime
+python ml-runtime/app.py
+
+# Terminal 2 — Node backend
+cd backend && npm start
+
+# Terminal 3 — AURIX Core
+cd desktop-app && npm run electron-dev
+```
+
+### AURIX Core sections
 
 | Section | Description |
-| --- | --- |
-| Dashboard | Overview of users, system health, recent activity |
-| ML Predictions | L1 / L2 shadow prediction flow and results |
-| Training Data | Approved feedback records for ML learning |
-| AI Profiles | Per-user feature layer — freshness, staleness, confidence |
-| AI Observability | Runtime health, run history, debug export |
-| Audit Trail | Full action log with filters |
+|---|---|
+| Dashboard | System overview — users, ML run history, health status |
+| ML Predictions | L1 / L2 prediction results per user |
+| ML Model Control | Switch prediction levels, manage shadow mode |
+| Training Data | Feedback records used to improve the ML model |
+| AI Profiles | Per-user feature layer — confidence scores, correction factors |
+| AI Observability | Python runtime health, run history, export |
+| Audit Trail | Full admin action log with filters |
+| Roles | User role management |
 
 ---
 
 ## Python ML Runtime
 
-Run locally:
-
 ```powershell
 python ml-runtime/app.py
 ```
 
-Health check: `http://localhost:5000/health`
+Key endpoints:
 
-Expected response:
-
-```json
-{ "status": "healthy", "service": "ml-runtime" }
-```
-
----
-
-## Backend Proxy
-
-```powershell
-cd backend
-$env:ML_RUNTIME_HOST="localhost"
-npm start
-```
-
-Dependency check: `http://localhost:3000/status/dependencies`
+| Endpoint | Description |
+|---|---|
+| `GET /health` | Liveness check |
+| `GET /ready` | Readiness check |
+| `POST /predict` | Run a prediction |
+| `POST /validate-dataset` | Validate a training dataset |
 
 ---
 
-## Podman / Docker Compose
+## Podman Containers
+
+Build and run individually (recommended on Windows):
 
 ```powershell
-Copy-Item .env.docker-compose.example .env.docker-compose
 podman machine start
 podman network create ml-network
+
+podman build -t evidence-vydaju-ml-runtime ml-runtime/
+podman build -t evidence-vydaju-backend -f backend/Containerfile .
+
 podman run -d --name ml-runtime --network ml-network -p 5000:5000 evidence-vydaju-ml-runtime
 podman run -d --name node-backend --network ml-network -p 3000:3000 `
   -e ML_RUNTIME_HOST=ml-runtime -e ML_RUNTIME_PORT=5000 `
   -e ML_RUNTIME_ENABLED=true -e PORT=3000 evidence-vydaju-backend
 ```
 
-> Note: `podman compose up --build` delegates to `docker-compose.exe` which has a credential-store conflict with Podman. Use `podman build` + `podman run` directly as shown above.
-
 ---
 
-## Verification
-
-Type check (desktop app):
+## Configuration
 
 ```powershell
-cd desktop-app
-npm run type-check
+# Web app / Firebase
+Copy-Item .env.example .env.local
+
+# Containers
+Copy-Item .env.docker-compose.example .env.docker-compose
 ```
 
-Python runtime tests:
-
-```powershell
-python ml-runtime/test_dataset_error_handling.py
-```
-
-Runtime health:
-
-```powershell
-Invoke-WebRequest http://localhost:5000/health -UseBasicParsing
-Invoke-WebRequest http://localhost:3000/status/dependencies -UseBasicParsing
-```
+Fill in Firebase project credentials. All `.env*` files are git-ignored.
 
 ---
 
-## Demo Flow
+## CI/CD
 
-1. Show the finance web app — income/expense tracking, dashboard.
-2. Launch AURIX Core and walk through the sidebar sections.
-3. Show ML Predictions — explain L1 vs. L2 shadow flow.
-4. Show AI Profiles — per-user feature layer, freshness/staleness.
-5. Show AI Observability — Python runtime health, run history, debug export.
-6. Open `ml-runtime/app.py` — explain the Python service contract.
-7. Show `docker-compose.yml` — explain the container stack.
+GitHub Actions pipeline on every push to `main`:
 
----
-
-## Security Notes
-
-- Local `.env*` files are git-ignored.
-- Service-account JSON files are git-ignored.
-- Docker build context excludes env files, credentials, docs, and local cache via `.dockerignore`.
-- Example files (`.env.example`, `.env.docker-compose.example`) are safe templates.
+1. ESLint
+2. Vitest unit tests
+3. Vite build
+4. Smoke tests — verifies `dist/index.html` structure and assets
+5. Deploy to GitHub Pages
 
 ---
 
-## Documentation
+## Repository Layout
 
-- Portfolio guide: `docs/PORTFOLIO_GUIDE.md`
-- Setup guides: `docs/guides/`
-- Phase and audit reports: `docs/reports/`
+```
+backend/              Node.js Express backend proxy
+desktop-app/          AURIX Core Electron admin app (TypeScript/React)
+functions/            Firebase Cloud Functions
+k8s/                  Kubernetes manifests
+ml-pipeline/          ML contract validation utilities
+ml-runtime/           Python Flask ML service + Containerfile
+scripts/startup/      start-aurix-core.bat / .ps1 launcher
+src/                  Finance web app (React/Vite)
+docker-compose.yml    Podman/Docker Compose service definitions
+firestore.rules       Firestore security rules
+```
 
 ---
 
 ## About
 
-This project was built by **Daniel Řezáč** using an AI-assisted development workflow. The architecture, feature decisions, and direction were driven by the author — Claude (Anthropic) was used as the implementation assistant throughout the process, writing code based on the author's instructions and requirements.
-
-All technical choices, scope definitions, and product decisions were made by the author.
+Built by **Daniel Řezáč**. Architecture, product decisions, and direction by the author — Claude (Anthropic) used as implementation assistant throughout, writing code to the author's specifications.
