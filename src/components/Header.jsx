@@ -20,9 +20,8 @@ export const Header = () => {
           </div>
           <div className="min-w-0">
             <h1 className="text-base sm:text-lg font-bold text-light-text dark:text-dark-text leading-tight truncate">
-              Evidence
+              AURIX Core
             </h1>
-            <p className="text-xs text-light-textMuted dark:text-dark-textMuted hidden sm:block">Výdaje</p>
           </div>
         </div>
 
