@@ -8,7 +8,7 @@ export default defineConfig({
   },
   plugins: [react()],
   server: {
-    port: 5173,
+    port: 5175,
     open: true,
     headers: {
       'X-Content-Type-Options': 'nosniff',
