@@ -3,7 +3,6 @@ import { useAppStore } from '../utils/store';
 import { formatCastka, filterItems, pluralizePolozka } from '../utils/formatters';
 import { MESICE, KATEGORIE_VYDAJ, KATEGORIE_PRIJEM } from '../utils/constants';
 import { ItemCardVydaj, ItemCardPrijem } from './ItemCard';
-import { PendingTransactions } from './PendingTransactions';
 import { exportVypisPDF } from '../utils/export';
 import { useAuth } from '../context/AuthContext';
 import { FileDown } from 'lucide-react';
@@ -254,12 +253,6 @@ export const Dashboard = () => {
             </div>
           </>
         )}
-      </div>
-
-      {/* Pending Transactions — čekání na schválení */}
-      <div>
-        <h3 className="text-lg font-bold mb-3 text-light-text dark:text-dark-text">⏳ Čeká na schválení</h3>
-        <PendingTransactions />
       </div>
 
       {/* Empty state */}
