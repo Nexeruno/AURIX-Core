@@ -133,12 +133,10 @@ export const Dashboard = () => {
   const totalVydaje = filteredVydaje.reduce((sum, item) => sum + Number(item.castka || 0), 0);
   const totalPrijmy = filteredPrijmy.reduce((sum, item) => sum + Number(item.castka || 0), 0);
 
-  // Zůstatek se počítá z celého měsíce — kategorie filtr ho nemá ovlivňovat
-  const mesicVydaje = filterItems(vydaje, 'vse', mesic);
-  const mesicPrijmy = filterItems(prijmy, 'vse-prijem', mesic);
+  // Zůstatek ignoruje oba filtry — vždy ukazuje skutečný celkový stav
   const zustatek =
-    mesicPrijmy.reduce((s, i) => s + Number(i.castka || 0), 0) -
-    mesicVydaje.reduce((s, i) => s + Number(i.castka || 0), 0);
+    prijmy.reduce((s, i) => s + Number(i.castka || 0), 0) -
+    vydaje.reduce((s, i) => s + Number(i.castka || 0), 0);
 
   const { pieData, barData } = useMemo(() => {
     const categoryData = {};
@@ -252,7 +250,7 @@ export const Dashboard = () => {
               <p className="text-xs text-light-textMuted dark:text-dark-textMuted mt-1">{pluralizePolozka(filteredVydaje.length)}</p>
             </div>
             <div className={`card border-l-4 ${zustatek >= 0 ? 'border-blue-500' : 'border-red-500'}`}>
-              <p className="text-sm font-medium text-light-textMuted dark:text-dark-textMuted">Zůstatek</p>
+              <p className="text-sm font-medium text-light-textMuted dark:text-dark-textMuted">Zůstatek celkem</p>
               <p className={`text-3xl font-bold mt-2 ${zustatek >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}`}>
                 {formatCastka(zustatek)}
               </p>
