@@ -89,7 +89,7 @@ export const exportVypisPDF = ({ username, period, vydaje, prijmy }) => {
   <div class="header">
     <div class="header-top">
       <div class="header-icon">💰</div>
-      <div><div class="header-title">Evidence Výdajů</div><div class="header-sub">Výpis z účtu</div></div>
+      <div><div class="header-title">Aurix Core</div><div class="header-sub">Výpis z účtu</div></div>
     </div>
   </div>
   <div class="meta">
@@ -129,7 +129,7 @@ export const exportVypisPDF = ({ username, period, vydaje, prijmy }) => {
           </table>`
     }
     <div class="footer">
-      <span>Evidence Výdajů — Osobní finance</span>
+      <span>Aurix Core — Osobní finance</span>
       <span>Vygenerováno: ${dnes()}</span>
     </div>
   </div>

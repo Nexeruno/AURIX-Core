@@ -229,7 +229,7 @@ const EMAIL_HTML = (link) => `<!DOCTYPE html>
         <tr>
           <td style="background:linear-gradient(135deg,#3b82f6,#8b5cf6);padding:32px;text-align:center">
             <div style="font-size:36px;margin-bottom:8px">💰</div>
-            <h1 style="margin:0;color:#fff;font-size:22px;font-weight:700">Evidence Výdajů</h1>
+            <h1 style="margin:0;color:#fff;font-size:22px;font-weight:700">Aurix Core</h1>
           </td>
         </tr>
         <tr>
@@ -402,7 +402,7 @@ exports.posliResetHesla = functions.region(REGION).https.onRequest((req, res) =>
       if (!validateEmail(email)) return res.status(400).json({ error: 'Neplatný formát emailu' });
 
       const link = await admin.auth().generatePasswordResetLink(email);
-      await sendEmail(email, 'Reset hesla — Evidence Výdajů', EMAIL_HTML(link));
+      await sendEmail(email, 'Reset hesla — Aurix Core', EMAIL_HTML(link));
 
       const durationMs = Date.now() - startTime;
       logger.info({
@@ -864,7 +864,7 @@ const sendEmail = async (to, subject, htmlContent) => {
     method: 'POST',
     headers: { 'api-key': apiKey, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      sender: { name: 'Evidence Výdajů', email: sender },
+      sender: { name: 'Aurix Core', email: sender },
       to: [{ email: to }],
       subject,
       htmlContent,
@@ -901,7 +901,7 @@ const ALERT_EMAIL_HTML = (alerts, timestamp) => {
         <tr>
           <td style="background:linear-gradient(135deg,${severityColor},#f97316);padding:32px;text-align:center">
             <div style="font-size:36px;margin-bottom:8px">${severityEmoji}</div>
-            <h1 style="margin:0;color:#fff;font-size:22px;font-weight:700">Evidence Výdajů — Alert</h1>
+            <h1 style="margin:0;color:#fff;font-size:22px;font-weight:700">Aurix Core — Alert</h1>
           </td>
         </tr>
         <tr>
@@ -1055,7 +1055,7 @@ exports.hourlyHealthMonitor = functions
 
       // Poslat email
       const html = ALERT_EMAIL_HTML(alerts, new Date());
-      await sendEmail(ADMIN_EMAIL, `🚨 Evidence Výdajů — ${alerts.length} alert(ů)`, html);
+      await sendEmail(ADMIN_EMAIL, `🚨 Aurix Core — ${alerts.length} alert(ů)`, html);
       console.log('✓ Email odeslán');
 
       return null;
@@ -1069,7 +1069,7 @@ exports.hourlyHealthMonitor = functions
           message: `Selhání monitoru: ${err.message}`,
         }];
         const html = ALERT_EMAIL_HTML(errorAlert, new Date());
-        await sendEmail(ADMIN_EMAIL, '🚨 Evidence Výdajů — MONITOR ERROR', html);
+        await sendEmail(ADMIN_EMAIL, '🚨 Aurix Core — MONITOR ERROR', html);
       } catch (emailErr) {
         console.error('Failed to send error email:', emailErr);
       }
@@ -4027,7 +4027,7 @@ exports.adminResetUserPassword = functions.region(REGION).https.onRequest(async 
       }
 
       const resetLink = await admin.auth().generatePasswordResetLink(email);
-      await sendEmail(email, 'Reset hesla — Evidence Výdajů', EMAIL_HTML(resetLink));
+      await sendEmail(email, 'Reset hesla — Aurix Core', EMAIL_HTML(resetLink));
       await logAdminAction(decoded.uid, 'USER_PASSWORD_RESET', { userId, email });
 
       res.status(200).json({ ok: true, message: 'Password reset email sent to ' + email });

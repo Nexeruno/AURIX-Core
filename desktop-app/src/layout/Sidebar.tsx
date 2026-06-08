@@ -79,7 +79,7 @@ export function Sidebar() {
       {/* Footer */}
       <div className="p-4 border-t border-light-border dark:border-dark-border text-xs space-y-2 text-light-textMuted dark:text-dark-textMuted">
         <p className="font-semibold text-light-text dark:text-dark-text">AURIX Control Center</p>
-        <p>Connected to Evidence výdajů</p>
+        <p>Connected to Aurix Core</p>
         <p>Admin access required</p>
       </div>
     </aside>

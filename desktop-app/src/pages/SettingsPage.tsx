@@ -258,7 +258,7 @@ export function SettingsPage() {
             <span className="font-semibold text-light-text dark:text-dark-text">Built with:</span> Electron, React 18, Vite, Firebase, Tailwind CSS
           </p>
           <p>
-            <span className="font-semibold text-light-text dark:text-dark-text">Backend:</span> Evidence výdajů
+            <span className="font-semibold text-light-text dark:text-dark-text">Backend:</span> Aurix Core
           </p>
         </div>
       </div>

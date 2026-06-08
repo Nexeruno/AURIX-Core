@@ -87,7 +87,7 @@ export const AuthPage = () => {
         <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center shadow-lg mb-4">
           <span className="text-3xl">💰</span>
         </div>
-        <h1 className="text-3xl font-bold text-light-text dark:text-dark-text">Evidence Výdajů</h1>
+        <h1 className="text-3xl font-bold text-light-text dark:text-dark-text">Aurix Core</h1>
         <p className="text-sm text-light-textMuted dark:text-dark-textMuted mt-1">Spravuj své finance</p>
       </div>
 
