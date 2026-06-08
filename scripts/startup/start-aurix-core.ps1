@@ -37,17 +37,19 @@ Write-Host ""
 # ==========================================
 Write-Host "[2/3] Checking desktop-app directory..." -ForegroundColor Yellow
 
-if (-not (Test-Path "desktop-app")) {
+$scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$projectRoot = Split-Path -Parent (Split-Path -Parent $scriptRoot)
+$desktopApp = Join-Path $projectRoot "desktop-app"
+
+if (-not (Test-Path $desktopApp)) {
     Write-Host ""
-    Write-Host "ERROR: desktop-app folder not found" -ForegroundColor Red
-    Write-Host ""
-    Write-Host "Make sure you run this script from the Evidence výdajů root directory" -ForegroundColor Yellow
+    Write-Host "ERROR: desktop-app folder not found at: $desktopApp" -ForegroundColor Red
     Write-Host ""
     Read-Host "Press Enter to exit"
     exit 1
 }
 
-Set-Location "desktop-app"
+Set-Location $desktopApp
 Write-Host "[OK] Desktop-app directory found" -ForegroundColor Green
 Write-Host ""
 
@@ -82,8 +84,8 @@ Write-Host ""
 Write-Host "Press Ctrl+C to stop the application" -ForegroundColor Yellow
 Write-Host ""
 
-# Spusť dev server + Electron
-npm run dev
+# Spusť Vite dev server + Electron
+npm run electron-dev
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host ""

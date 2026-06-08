@@ -1,7 +1,7 @@
 @echo off
 echo Spoustim AURIX Core...
 
-cd /d "%~dp0desktop-app"
+cd /d "%~dp0..\..\desktop-app"
 
 if not exist node_modules (
     echo Instaluji balicky...
