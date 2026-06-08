@@ -22,10 +22,6 @@ vi.mock('../components/ItemCard', () => ({
   ItemCardPrijem: ({ item }) => <div data-testid="item-card">Příjem: {item.id}</div>,
 }));
 
-vi.mock('../components/PendingTransactions', () => ({
-  PendingTransactions: () => <div data-testid="pending">Pending</div>,
-}));
-
 vi.mock('recharts', () => ({
   PieChart: ({ children }) => <div data-testid="pie-chart">{children}</div>,
   BarChart: ({ children }) => <div data-testid="bar-chart">{children}</div>,
