@@ -23,9 +23,13 @@ service cloud.firestore {
     match /users/{uid} {
       // Read: sám sobě nebo admin (use custom claims only to avoid recursive rule cycles)
       allow read: if isOwner(uid) || isAdminByCustomClaims();
-      // Write: sám sobě (ale ne role/disabled), admin může psát vše
-      allow write: if isOwner(uid) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'disabled'])
+      // Create: vlastní profil při registraci (resource je null, diff by selhal)
+      allow create: if isOwner(uid);
+      // Update: sám sobě (ale ne role/disabled), admin může psát vše
+      allow update: if isOwner(uid) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'disabled'])
                    || isAdminByCustomClaims();
+      // Delete: jen admin
+      allow delete: if isAdminByCustomClaims();
 
       // Transakce (vydaje, prijmy) — owner nebo admin/ml_admin
       match /vydaje/{document=**} {
