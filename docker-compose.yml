@@ -18,73 +18,71 @@
 #   podman-compose logs ml-runtime — Runtime logs only
 #   podman-compose ps              — Show service status
 
-version: '3.8'
-
-# Load environment variables from .env.docker-compose
-env_file:
-  - .env.docker-compose
-
 services:
   # Node.js Backend Service (FÁZA 6.2A)
   backend:
     build:
       context: .
       dockerfile: backend/Containerfile
-    container_name: ${BACKEND_SERVICE}
+    env_file:
+      - .env.docker-compose
+    container_name: ${BACKEND_SERVICE:-node-backend}
     ports:
-      - "${BACKEND_PORT}:3000"
+      - "${BACKEND_PORT:-3000}:3000"
     environment:
-      NODE_ENV: ${NODE_ENV}
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: 3000
-      ML_RUNTIME_HOST: ${ML_RUNTIME_HOST}
-      ML_RUNTIME_PORT: ${ML_RUNTIME_PORT}
-      ML_RUNTIME_ENABLED: ${ML_RUNTIME_ENABLED}
-      BACKEND_ENABLED: ${BACKEND_ENABLED}
+      ML_RUNTIME_HOST: ${ML_RUNTIME_HOST:-ml-runtime}
+      ML_RUNTIME_PORT: ${ML_RUNTIME_PORT:-5000}
+      ML_RUNTIME_ENABLED: ${ML_RUNTIME_ENABLED:-true}
+      BACKEND_ENABLED: ${BACKEND_ENABLED:-true}
     depends_on:
       ml-runtime:
         condition: service_healthy
     networks:
-      - ${DOCKER_NETWORK}
+      - ml-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
-      interval: ${HEALTH_CHECK_INTERVAL}s
-      timeout: ${HEALTH_CHECK_TIMEOUT}s
-      retries: ${HEALTH_CHECK_RETRIES}
-      start_period: ${HEALTH_CHECK_START_PERIOD}s
-    restart: ${BACKEND_RESTART}
+      interval: ${HEALTH_CHECK_INTERVAL:-30}s
+      timeout: ${HEALTH_CHECK_TIMEOUT:-10}s
+      retries: ${HEALTH_CHECK_RETRIES:-3}
+      start_period: ${HEALTH_CHECK_START_PERIOD:-5}s
+    restart: ${BACKEND_RESTART:-unless-stopped}
     logging:
-      driver: ${LOG_DRIVER}
+      driver: ${LOG_DRIVER:-json-file}
       options:
-        max-size: ${LOG_MAX_SIZE}
-        max-file: "${LOG_MAX_FILE}"
+        max-size: ${LOG_MAX_SIZE:-10m}
+        max-file: "${LOG_MAX_FILE:-3}"
 
   # Python ML Runtime Service (FÁZA 6.0A + 6.2C)
   ml-runtime:
     build:
       context: .
       dockerfile: ml-runtime/Containerfile
-    container_name: ${ML_RUNTIME_SERVICE}
+    env_file:
+      - .env.docker-compose
+    container_name: ${ML_RUNTIME_SERVICE:-ml-runtime}
     ports:
-      - "${ML_RUNTIME_EXPOSED_PORT}:5000"
+      - "${ML_RUNTIME_EXPOSED_PORT:-5000}:5000"
     environment:
-      PYTHONUNBUFFERED: ${PYTHONUNBUFFERED}
+      PYTHONUNBUFFERED: ${PYTHONUNBUFFERED:-1}
       PYTHONDONTWRITEBYTECODE: "1"
-      ML_RUNTIME_ENABLED: ${ML_RUNTIME_ENABLED}
+      ML_RUNTIME_ENABLED: ${ML_RUNTIME_ENABLED:-true}
     networks:
-      - ${DOCKER_NETWORK}
+      - ml-network
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
-      interval: ${HEALTH_CHECK_INTERVAL}s
-      timeout: ${HEALTH_CHECK_TIMEOUT}s
-      retries: ${HEALTH_CHECK_RETRIES}
-      start_period: ${HEALTH_CHECK_START_PERIOD}s
-    restart: ${ML_RUNTIME_RESTART}
+      interval: ${HEALTH_CHECK_INTERVAL:-30}s
+      timeout: ${HEALTH_CHECK_TIMEOUT:-10}s
+      retries: ${HEALTH_CHECK_RETRIES:-3}
+      start_period: ${HEALTH_CHECK_START_PERIOD:-5}s
+    restart: ${ML_RUNTIME_RESTART:-unless-stopped}
     logging:
-      driver: ${LOG_DRIVER}
+      driver: ${LOG_DRIVER:-json-file}
       options:
-        max-size: ${LOG_MAX_SIZE}
-        max-file: "${LOG_MAX_FILE}"
+        max-size: ${LOG_MAX_SIZE:-10m}
+        max-file: "${LOG_MAX_FILE:-3}"
 
 networks:
-  ${DOCKER_NETWORK}:
-    driver: ${NETWORK_DRIVER}
+  ml-network:
+    driver: bridge

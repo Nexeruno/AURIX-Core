@@ -1,712 +1,197 @@
-# Evidence v Datech
+# Evidence v Datech / AURIX Core
 
-Modern financial tracking application with production-grade DevOps and security practices.
+Portfolio project: personal finance tracking with an admin desktop console, Firebase backend, and an experimental Python ML runtime for prediction observability.
 
-**Live:** https://nexeruno.github.io/Evidence-v-daj/
+The project demonstrates a full-stack product workflow: data entry, admin tooling, audit trails, role-aware management, ML pipeline monitoring, runtime health checks, and container orchestration with Podman/Docker Compose.
 
----
+## Highlights
 
-## 🎯 Components
-
-This repository contains two main applications:
-
-### 1. **Evidence v Datech** (Web App)
-- Main financial tracking application
-- React 18 + TypeScript
-- Firestore backend
-- Run with: `npm run dev`
-
-### 2. **AURIX Core** (Desktop App - New!)
-- Admin & ML control center
-- Electron + React
-- Local desktop launcher
-- **🚀 [Quick Start: 5 Minutes](./QUICK_SETUP.md)**
-
----
-
-## 🚀 Running AURIX Core (Desktop App)
-
-### Easiest Way (Windows)
-
-1. **First time setup:**
-   ```powershell
-   .\create-desktop-shortcut.ps1
-   ```
-
-2. **Then just double-click** `AURIX Core` on your desktop
-
-**[Full Setup Guide](./QUICK_SETUP.md)**
-
-### Command Line
-
-```bash
-cd desktop-app
-npm install
-npm run dev
-```
-
----
-
-## Quick Start (Web App)
-
-### Prerequisites
-- Node.js 20+
-- npm or yarn
-- Firebase account (for cloud functions)
-
-### Local Development
-
-```bash
-# Install dependencies
-npm install
-
-# Run dev server
-npm run dev
-```
-
-Open http://localhost:5173
-
-### Build & Deploy
-
-```bash
-# Build for production
-npm run build
-
-# Deploy to GitHub Pages (requires setup)
-npm run deploy
-```
-
----
-
-## Project Structure
-
-```
-src/
-├── components/          # React components
-│   ├── Dashboard.jsx
-│   ├── FormVydaj.jsx   # Expense form
-│   ├── FormPrijem.jsx  # Income form
-│   ├── SeznamVydaj.jsx # Expense list
-│   ├── SeznamPrijem.jsx# Income list
-│   └── admin/          # Admin panels
-├── context/            # React Context
-│   ├── AuthContext.jsx # Firebase auth
-│   └── ThemeContext.jsx# Dark mode
-├── hooks/              # Custom hooks
-├── utils/              # Utilities
-│   ├── firebase.js     # Firebase config
-│   ├── store.js        # Zustand store
-│   └── aiTracker.js    # AI telemetry
-├── config/             # Configuration
-└── App.jsx             # Main component
-
-functions/             # Cloud Functions
-├── index.js           # Admin operations
-└── package.json
-
-k8s/                   # Kubernetes manifests
-├── deployment.yaml
-├── service.yaml
-├── ingress.yaml
-└── hpa.yaml
-
-.github/workflows/     # GitHub Actions
-├── deploy.yml         # CI/CD pipeline
-├── test.yml           # Test workflow
-└── rollback.yml       # Rollback workflow
-```
-
----
-
-## Features
-
-### Core
-- 📊 Real-time income/expense tracking
-- 💾 Cloud sync with Firestore
-- 🔐 Firebase Authentication
-- 🌙 Dark mode with persistence
-
-### Admin
-- 👤 User management
-- 🔑 Password reset
-- 🚫 User blocking
-- 📋 Audit logs
-
-### DevOps
-- 🔄 Automated CI/CD with GitHub Actions
-- 🧪 Unit tests (Vitest)
-- 🌐 Smoke tests
-- 📊 Structured logging to Cloud Logging
-- 🐳 Docker support
-- ☸️ Kubernetes ready
-
----
-
-## CI/CD Pipeline
-
-Automated on every push to `main`:
-
-```
-1. Install dependencies (npm ci)
-2. Lint code (ESLint)
-3. Run tests (npm test)
-4. Build (npm run build)
-5. Smoke tests (HTML validation, assets check)
-6. Deploy to GitHub Pages
-7. Notify on failure
-```
-
-**Status:** Check GitHub Actions tab
-
----
-
-## Logging
-
-### Firebase Cloud Functions
-
-All admin operations are logged to Firebase Cloud Logging:
-
-```javascript
-logger.info('password_reset_requested', {
-  functionName: 'posliResetHesla',
-  event: 'password_reset_requested',
-  uid: userUid,
-  adminUid: adminUid,
-  status: 'initiated'
-});
-```
-
-**View logs:**
-```bash
-firebase functions:log
-```
-
----
-
-## Security
-
-### Firestore Rules
-- Owner-only access to personal data
-- Admin overrides for management
-- Rate limiting on sensitive operations
-- Audit logging for all admin actions
-
-### Best Practices
-- No passwords or tokens in logs
-- Sensitive data filtered before logging
-- JWT-based authentication
-- Admin role verification
-
----
+- React/Vite finance tracker for income and expense data
+- Electron admin console called AURIX Core
+- Firebase Authentication, Firestore, Cloud Functions, and audit logging
+- ML control pages for predictions, training feedback, AI profiles, and L2 shadow pipeline monitoring
+- Python Flask ML runtime with health, readiness, prediction, dataset validation, and evaluation endpoints
+- Local backend proxy for runtime dependency checks
+- Podman/Docker Compose stack for `backend` + `ml-runtime`
+- Kubernetes manifests and CI/CD workflow examples
+- Security cleanup: local secrets and env files are ignored and excluded from container build context
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|------------|
-| Frontend | React 18 + Vite + Tailwind CSS |
-| State | Zustand |
-| Backend | Firebase Cloud Functions |
-| Database | Firestore |
-| Auth | Firebase Authentication |
-| Logging | Firebase Cloud Logging |
-| CI/CD | GitHub Actions |
-| Deployment | GitHub Pages + Firebase |
-| Container | Docker + Kubernetes |
+| Area | Technology |
+| --- | --- |
+| Web frontend | React 18, Vite, Tailwind CSS |
+| Desktop app | Electron, React, TypeScript |
+| Backend | Firebase Cloud Functions, Node.js proxy |
+| Database/Auth | Firestore, Firebase Authentication |
+| ML runtime | Python, Flask |
+| Containers | Podman/Docker Compose |
+| Infrastructure | Kubernetes manifests, GitHub Actions |
+| Testing | Vitest, TypeScript checks, Python runtime tests |
 
----
+## Repository Layout
 
-## Environment Setup
-
-### 1. Firebase
-
-Create `.env.local`:
-
-```env
-VITE_FIREBASE_API_KEY=xxx
-VITE_FIREBASE_AUTH_DOMAIN=xxx
-VITE_FIREBASE_PROJECT_ID=xxx
-VITE_FIREBASE_STORAGE_BUCKET=xxx
-VITE_FIREBASE_MESSAGING_SENDER_ID=xxx
-VITE_FIREBASE_APP_ID=xxx
-VITE_ADMIN_EMAIL=your@email.com
+```text
+backend/              Local Node.js backend/proxy for ML runtime checks
+desktop-app/          Electron admin and ML control center
+docs/                 Guides, reports, screenshots, cleanup notes
+functions/            Firebase Cloud Functions
+k8s/                  Kubernetes manifests
+ml-pipeline/          Experimental ML contract and validation utilities
+ml-runtime/           Python Flask ML runtime
+scripts/              Startup/admin/runtime helper scripts
+src/                  Main web application
+tests/                Manual test scripts
+docker-compose.yml    Podman/Docker Compose stack
 ```
 
-### 2. GitHub Secrets
+## Quick Start
 
-For CI/CD pipeline to work, add to GitHub repo settings:
+### 1. Install dependencies
 
-- `FIREBASE_API_KEY`
-- `FIREBASE_AUTH_DOMAIN`
-- `FIREBASE_PROJECT_ID`
-- `FIREBASE_STORAGE_BUCKET`
-- `FIREBASE_MESSAGING_SENDER_ID`
-- `FIREBASE_APP_ID`
-- `ADMIN_EMAIL`
-
-### 3. Cloud Functions
-
-```bash
-cd functions
+```powershell
 npm install
-firebase deploy --only functions
+cd desktop-app
+npm install
+cd ..
+cd backend
+npm install
+cd ..
 ```
 
----
+### 2. Configure Firebase
 
-## Docker
+Copy the example env file and fill in your Firebase values:
 
-### Build
-```bash
-docker build -t evidence-vydaju .
+```powershell
+Copy-Item .env.example .env.local
 ```
 
-### Run
-```bash
-docker run -p 80:80 evidence-vydaju
+Never commit local `.env*` files. They are ignored by Git.
+
+### 3. Run the web app
+
+```powershell
+npm run dev
 ```
 
----
+Default URL:
 
-## Kubernetes
-
-### Deploy
-```bash
-kubectl apply -k k8s/
+```text
+http://localhost:5173
 ```
 
-### Check status
-```bash
-kubectl get all -n evidence
+### 4. Run the desktop admin app
+
+```powershell
+cd desktop-app
+npm run electron-dev
 ```
 
----
+### 5. Run the Python ML runtime locally
 
-## Testing
-
-### Run Tests
-```bash
-npm test
+```powershell
+python ml-runtime/app.py
 ```
 
-### Watch Mode
-```bash
-npm test -- --watch
+Health check:
+
+```text
+http://localhost:5000/health
 ```
 
-### Coverage
-```bash
-npm test -- --coverage
+Expected response includes:
+
+```json
+{
+  "status": "healthy",
+  "service": "ml-runtime"
+}
 ```
 
----
+### 6. Run the backend proxy locally
 
-## Monitoring
-
-### Local
-```bash
-bash MONITORING.sh
+```powershell
+cd backend
+$env:ML_RUNTIME_HOST="localhost"
+npm start
 ```
 
-### Firebase
-```bash
-firebase functions:log
+Dependency check:
+
+```text
+http://localhost:3000/status/dependencies
 ```
 
----
+## Podman / Docker Compose
 
-## Troubleshooting
+Create local compose config:
 
-### Build fails
-```bash
-npm ci
-npm run lint
-npm test
+```powershell
+Copy-Item .env.docker-compose.example .env.docker-compose
 ```
 
-### Firebase not syncing
-- Check internet connection
-- Verify Firestore security rules
-- Check browser console for errors
-- Review Firebase project settings
+Start Podman machine if needed:
 
-### Tests failing
-```bash
-npm test -- --reporter=verbose
+```powershell
+podman machine start
+podman ps
 ```
 
----
+Start the stack:
 
-## Contributing
+```powershell
+podman compose up -d --build
+```
 
-1. Create a branch (`git checkout -b feature/name`)
-2. Make changes
-3. Push to branch (`git push origin feature/name`)
-4. Open Pull Request
+If port `5000` is already used by a manually started Python runtime, stop that process first.
 
-GitHub Actions will automatically lint, test, and preview your changes.
+## Verification
 
----
+Useful checks before presenting the project:
+
+```powershell
+cd desktop-app
+npm run type-check
+```
+
+```powershell
+python ml-runtime/test_dataset_error_handling.py
+```
+
+```powershell
+Invoke-WebRequest http://localhost:5000/health -UseBasicParsing
+Invoke-WebRequest http://localhost:3000/status/dependencies -UseBasicParsing
+```
+
+## Demo Flow for Interviews
+
+1. Show the main finance dashboard and explain income/expense tracking.
+2. Open AURIX Core and show admin-focused navigation.
+3. Show ML Predictions and explain L1 vs. L2 shadow prediction flow.
+4. Show Training Data and explain approved feedback records.
+5. Show AI Profiles and freshness/staleness concept.
+6. Show AI Observability and runtime health checks.
+7. Open `ml-runtime/app.py` and explain the Python service contract.
+8. Show `docker-compose.yml` and explain backend + ML runtime orchestration.
+
+## Security Notes
+
+- Local `.env*` files are ignored.
+- Local service-account JSON files are ignored.
+- Docker build context excludes env files, credentials, docs, tests, and local cache folders.
+- Example files such as `.env.example` and `.env.docker-compose.example` are safe templates.
+
+Important: if a real service-account key was committed before cleanup, rotate that key in Firebase/GCP before sharing the repository publicly.
 
 ## Documentation
 
-- [Deployment Guide](.github/DEPLOYMENT.md)
-- [Security Details](SECURITY.md)
-- [DevOps Guide](DEVOPS.md)
-- [Kubernetes Setup](KUBERNETES.md)
-- [Firebase Guide](FIREBASE_DEPLOY.md)
-
----
-
-## License
-
-MIT
-
----
-
-## Author
-
-Dan - Learning DevOps & MLOps through practical projects
-
-**Next Steps:**
-- [ ] Add ML pipeline for spending predictions
-- [ ] Add Prometheus + Grafana monitoring
-- [ ] Add E2E tests with Playwright
-- [ ] Add staging environment
-
----
-
----
-
-# 🇨🇿 Evidence v Datech
-
-Moderní aplikace na správu příjmů a výdajů s production-grade DevOps a bezpečnostními praktikami.
-
-**Live:** https://nexeruno.github.io/Evidence-v-daj/
-
----
-
-## Rychlý Start
-
-### Požadavky
-- Node.js 20+
-- npm nebo yarn
-- Firebase účet (pro cloud funkce)
-
-### Lokální Vývoj
-
-```bash
-# Instalace závislostí
-npm install
-
-# Spuštění dev serveru
-npm run dev
-```
-
-Otevřete http://localhost:5173
-
-### Build a Deploy
-
-```bash
-# Build pro produkci
-npm run build
-
-# Deploy na GitHub Pages (vyžaduje setup)
-npm run deploy
-```
-
----
-
-## Struktura Projektu
-
-```
-src/
-├── components/          # React komponenty
-│   ├── Dashboard.jsx
-│   ├── FormVydaj.jsx   # Formulář výdajů
-│   ├── FormPrijem.jsx  # Formulář příjmů
-│   ├── SeznamVydaj.jsx # Seznam výdajů
-│   ├── SeznamPrijem.jsx# Seznam příjmů
-│   └── admin/          # Admin panely
-├── context/            # React Context
-│   ├── AuthContext.jsx # Firebase auth
-│   └── ThemeContext.jsx# Dark mode
-├── hooks/              # Custom hooks
-├── utils/              # Utility funkce
-│   ├── firebase.js     # Firebase config
-│   ├── store.js        # Zustand store
-│   └── aiTracker.js    # AI telemetrie
-├── config/             # Konfigurace
-└── App.jsx             # Hlavní komponenta
-
-functions/             # Cloud Functions
-├── index.js           # Admin operace
-└── package.json
-
-k8s/                   # Kubernetes manifesty
-├── deployment.yaml
-├── service.yaml
-├── ingress.yaml
-└── hpa.yaml
-
-.github/workflows/     # GitHub Actions
-├── deploy.yml         # CI/CD pipeline
-├── test.yml           # Test workflow
-└── rollback.yml       # Rollback workflow
-```
-
----
-
-## Features
-
-### Základní
-- 📊 Real-time sledování příjmů a výdajů
-- 💾 Cloud sync s Firestore
-- 🔐 Firebase Authentication
-- 🌙 Dark mode s persistencí
-
-### Admin
-- 👤 Správa uživatelů
-- 🔑 Reset hesla
-- 🚫 Blokování uživatelů
-- 📋 Audit logy
-
-### DevOps
-- 🔄 Automatizovaný CI/CD s GitHub Actions
-- 🧪 Unit testy (Vitest)
-- 🌐 Smoke testy
-- 📊 Strukturované logování do Cloud Logging
-- 🐳 Docker support
-- ☸️ Kubernetes ready
-
----
-
-## CI/CD Pipeline
-
-Automaticky spouštěn při každém pushu do `main`:
-
-```
-1. Instalace závislostí (npm ci)
-2. Lint kódu (ESLint)
-3. Spuštění testů (npm test)
-4. Build (npm run build)
-5. Smoke testy (validace HTML, kontrola assetů)
-6. Deploy na GitHub Pages
-7. Notifikace při selhání
-```
-
-**Status:** Podívejte se na GitHub Actions tab
-
----
-
-## Logování
-
-### Firebase Cloud Functions
-
-Všechny admin operace jsou logovány do Firebase Cloud Logging:
-
-```javascript
-logger.info('password_reset_requested', {
-  functionName: 'posliResetHesla',
-  event: 'password_reset_requested',
-  uid: userUid,
-  adminUid: adminUid,
-  status: 'initiated'
-});
-```
-
-**Prohlížení logů:**
-```bash
-firebase functions:log
-```
-
----
-
-## Bezpečnost
-
-### Firestore Rules
-- Přístup jen vlastníka k osobním datům
-- Admin overrides pro správu
-- Rate limiting na citlivých operacích
-- Audit logging pro všechny admin akce
-
-### Best Practices
-- Žádná hesla nebo tokeny v logech
-- Citlivá data filtrovaná před logováním
-- JWT-based autentizace
-- Ověření admin role
-
----
-
-## Tech Stack
-
-| Layer | Technologie |
-|-------|------------|
-| Frontend | React 18 + Vite + Tailwind CSS |
-| State | Zustand |
-| Backend | Firebase Cloud Functions |
-| Database | Firestore |
-| Auth | Firebase Authentication |
-| Logging | Firebase Cloud Logging |
-| CI/CD | GitHub Actions |
-| Deployment | GitHub Pages + Firebase |
-| Container | Docker + Kubernetes |
-
----
-
-## Nastavení Prostředí
-
-### 1. Firebase
-
-Vytvořte `.env.local`:
-
-```env
-VITE_FIREBASE_API_KEY=xxx
-VITE_FIREBASE_AUTH_DOMAIN=xxx
-VITE_FIREBASE_PROJECT_ID=xxx
-VITE_FIREBASE_STORAGE_BUCKET=xxx
-VITE_FIREBASE_MESSAGING_SENDER_ID=xxx
-VITE_FIREBASE_APP_ID=xxx
-VITE_ADMIN_EMAIL=vase@email.com
-```
-
-### 2. GitHub Secrets
-
-Pro CI/CD pipeline přidejte do GitHub repo nastavení:
-
-- `FIREBASE_API_KEY`
-- `FIREBASE_AUTH_DOMAIN`
-- `FIREBASE_PROJECT_ID`
-- `FIREBASE_STORAGE_BUCKET`
-- `FIREBASE_MESSAGING_SENDER_ID`
-- `FIREBASE_APP_ID`
-- `ADMIN_EMAIL`
-
-### 3. Cloud Functions
-
-```bash
-cd functions
-npm install
-firebase deploy --only functions
-```
-
----
-
-## Docker
-
-### Build
-```bash
-docker build -t evidence-vydaju .
-```
-
-### Spuštění
-```bash
-docker run -p 80:80 evidence-vydaju
-```
-
----
-
-## Kubernetes
-
-### Deploy
-```bash
-kubectl apply -k k8s/
-```
-
-### Stav
-```bash
-kubectl get all -n evidence
-```
-
----
-
-## Testování
-
-### Spuštění Testů
-```bash
-npm test
-```
-
-### Watch Mode
-```bash
-npm test -- --watch
-```
-
-### Coverage
-```bash
-npm test -- --coverage
-```
-
----
-
-## Monitoring
-
-### Lokálně
-```bash
-bash MONITORING.sh
-```
-
-### Firebase
-```bash
-firebase functions:log
-```
-
----
-
-## Řešení Problémů
-
-### Build selže
-```bash
-npm ci
-npm run lint
-npm test
-```
-
-### Firebase se nesynchronizuje
-- Zkontrolujte internetové připojení
-- Ověřte Firestore security rules
-- Zkontrolujte konzoli prohlížeče
-- Zkontrolujte Firebase project settings
-
-### Testy selhávají
-```bash
-npm test -- --reporter=verbose
-```
-
----
-
-## Přispívání
-
-1. Vytvořte branch (`git checkout -b feature/name`)
-2. Udělejte změny
-3. Push do branch (`git push origin feature/name`)
-4. Otevřete Pull Request
-
-GitHub Actions automaticky provede lint, testy a preview vašich změn.
-
----
-
-## Dokumentace
-
-- [Deployment Guide](.github/DEPLOYMENT.md)
-- [Security Details](SECURITY.md)
-- [DevOps Guide](DEVOPS.md)
-- [Kubernetes Setup](KUBERNETES.md)
-- [Firebase Guide](FIREBASE_DEPLOY.md)
-
----
-
-## Licence
-
-MIT
-
----
-
-## Autor
-
-Dan - Učení DevOps & MLOps skrz praktické projekty
-
-**Další Kroky:**
-- [ ] Přidat ML pipeline pro predikci výdajů
-- [ ] Přidat Prometheus + Grafana monitoring
-- [ ] Přidat E2E testy s Playwright
-- [ ] Přidat staging environment
+- Root cleanup report: `docs/ROOT_CLEANUP_REPORT.md`
+- Secret ignore cleanup report: `docs/SECRET_IGNORE_CLEANUP_REPORT.md`
+- Runtime reports: `docs/reports/runtime/`
+- Phase and audit reports: `docs/reports/`
+- Setup guides: `docs/guides/`
+
+## Current Scope
+
+This project is portfolio-ready as an engineering demo. The Python ML runtime currently focuses on deterministic prediction, validation, evaluation, observability, and runtime integration. A production-grade trained model can be added on top of this foundation.

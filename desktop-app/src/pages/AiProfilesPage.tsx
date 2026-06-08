@@ -85,7 +85,7 @@ interface UserEntry {
 
 export function AiProfilesPage() {
   const { user, getIdToken } = useAuth()
-  const { role: userRole } = useUserRole(user)
+  const { role: userRole, loading: roleLoading } = useUserRole(user)
   const { users: adminUsers, usersLoading, selectedUserId, selectedUser, selectUser } = useAdminUserSelector()
 
   const [users, setUsers] = useState<UserEntry[]>([])
@@ -246,6 +246,14 @@ export function AiProfilesPage() {
   })
 
   // ─── Access guard ─────────────────────────────────────────────────────────
+  if (roleLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-sm text-light-textMuted dark:text-dark-textMuted">Loading...</p>
+      </div>
+    )
+  }
+
   if (!isAdmin) {
     return (
       <div className="flex items-center justify-center h-64">

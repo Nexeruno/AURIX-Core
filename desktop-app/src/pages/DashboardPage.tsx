@@ -1,10 +1,11 @@
 import { useMlRuns, useAllUsers, useAppConfig } from '@/hooks/useFirestore'
+import { SYMBOLS } from '@/utils/symbols'
 
 function formatTs(ts: any): string {
-  if (!ts) return 'Never'
+  if (!ts) return SYMBOLS.DASH
   try {
     const d = ts.seconds ? new Date(ts.seconds * 1000) : new Date(ts)
-    if (isNaN(d.getTime())) return 'Never'
+    if (isNaN(d.getTime())) return SYMBOLS.DASH
     const diff = Date.now() - d.getTime()
     const minutes = Math.floor(diff / 60000)
     const hours = Math.floor(diff / 3600000)
@@ -13,7 +14,7 @@ function formatTs(ts: any): string {
     if (hours < 24) return `${hours}h ago`
     return `${days}d ago`
   } catch {
-    return 'Never'
+    return SYMBOLS.DASH
   }
 }
 
@@ -61,7 +62,7 @@ export function DashboardPage() {
           <p className="text-3xl font-bold mt-2">
             {loading ? '…' : (
               <span className={level1Active ? 'text-green-600' : 'text-orange-500'}>
-                {level1Active ? '✅' : '⬇️'}
+                {level1Active ? SYMBOLS.SUCCESS : 'Fallback'}
               </span>
             )}
           </p>
@@ -72,7 +73,7 @@ export function DashboardPage() {
         <div className="card rounded-lg p-6">
           <p className="text-sm text-light-textMuted dark:text-dark-textMuted">Active Config</p>
           <p className="text-sm font-semibold mt-2 text-light-text dark:text-dark-text">
-            {configLoading ? '…' : !configData ? '—' :
+            {configLoading ? '…' : !configData ? SYMBOLS.DASH :
               `L${configData.activePredictionLevel} · L2 ${configData.level2Enabled ? (configData.level2ShadowMode ? 'Shadow' : 'Enabled') : 'Disabled'}`
             }
           </p>
@@ -96,7 +97,7 @@ export function DashboardPage() {
         <div className="card rounded-lg p-6">
           <p className="text-sm text-light-textMuted dark:text-dark-textMuted">Avg L2 Confidence</p>
           <p className="text-2xl font-bold mt-2 text-blue-500 dark:text-blue-400">
-            {runsLoading ? '…' : avgConfidence !== null ? `${avgConfidence.toFixed(1)}%` : 'N/A'}
+            {runsLoading ? '…' : avgConfidence !== null ? `${avgConfidence.toFixed(1)}%` : SYMBOLS.DASH}
           </p>
           {!runsLoading && avgConfidence === null && (
             <p className="text-xs text-light-textMuted dark:text-dark-textMuted mt-1">No L2 shadow runs yet</p>
@@ -129,10 +130,10 @@ export function DashboardPage() {
                     <td className="px-6 py-4 text-light-text dark:text-dark-text text-xs">
                       {run.startedAt
                         ? new Date(run.startedAt.seconds ? run.startedAt.seconds * 1000 : run.startedAt).toLocaleString()
-                        : '—'}
+                        : SYMBOLS.DASH}
                     </td>
                     <td className={`px-6 py-4 font-semibold ${run.pipelineLevel === 1 ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'}`}>
-                      L{run.pipelineLevel ?? '?'}
+                      L{run.pipelineLevel ?? SYMBOLS.DASH}
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-2 py-1 rounded text-xs font-semibold ${
@@ -142,14 +143,14 @@ export function DashboardPage() {
                           ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
                           : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
                       }`}>
-                        {run.status ?? '—'}
+                        {run.status ?? SYMBOLS.DASH}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-light-text dark:text-dark-text">
-                      {run.predictionsCreated ?? '—'}
+                      {run.predictionsCreated ?? SYMBOLS.DASH}
                     </td>
                     <td className="px-6 py-4 text-light-text dark:text-dark-text">
-                      {run.durationMs ? `${(run.durationMs / 1000).toFixed(1)}s` : '—'}
+                      {run.durationMs ? `${(run.durationMs / 1000).toFixed(1)}s` : SYMBOLS.DASH}
                     </td>
                   </tr>
                 ))}

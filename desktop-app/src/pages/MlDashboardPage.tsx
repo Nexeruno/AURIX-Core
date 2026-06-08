@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { usePredictionSettings } from '@/hooks/useMlPipelineControl'
 import { useMlRuns } from '@/hooks/useFirestore'
+import { SYMBOLS } from '@/utils/symbols'
 
 export function MlDashboardPage() {
   const location = useLocation()
@@ -76,7 +77,7 @@ export function MlDashboardPage() {
       {/* Settings load error */}
       {settingsError && !settingsLoading && (
         <div className="p-4 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-sm">
-          ⚠️ Prediction settings could not be loaded: {settingsError}
+          {SYMBOLS.WARNING} Prediction settings could not be loaded: {settingsError}
         </div>
       )}
 
@@ -172,7 +173,7 @@ export function MlDashboardPage() {
         <div className="card rounded-lg p-5">
           <p className="text-xs text-light-textMuted dark:text-dark-textMuted uppercase tracking-wide font-semibold">Active Configuration</p>
           <p className="text-sm mt-2 text-light-text dark:text-dark-text">
-            {settingsLoading ? 'Loading…' : !settings ? '—' : `Level ${settings.activePredictionLevel} · L2 ${settings.level2Enabled ? (settings.level2ShadowMode ? 'Shadow' : 'Enabled') : 'Disabled'}`}
+            {settingsLoading ? 'Loading…' : !settings ? SYMBOLS.DASH : `Level ${settings.activePredictionLevel} · L2 ${settings.level2Enabled ? (settings.level2ShadowMode ? 'Shadow' : 'Enabled') : 'Disabled'}`}
           </p>
         </div>
       </div>
@@ -185,7 +186,7 @@ export function MlDashboardPage() {
         <div className="overflow-x-auto">
           {runsError ? (
             <div className="px-6 py-8 text-center">
-              <p className="font-semibold text-red-600 dark:text-red-400 mb-1">⚠️ Error loading runs</p>
+              <p className="font-semibold text-red-600 dark:text-red-400 mb-1">{SYMBOLS.WARNING} Error loading runs</p>
               <p className="text-sm text-light-textMuted dark:text-dark-textMuted">{runsError.message}</p>
             </div>
           ) : runsLoading ? (
@@ -207,21 +208,21 @@ export function MlDashboardPage() {
                     <td className="px-6 py-4 text-light-text dark:text-dark-text text-xs">
                       {run.startedAt
                         ? new Date(run.startedAt.seconds ? run.startedAt.seconds * 1000 : run.startedAt).toLocaleString()
-                        : '—'}
+                        : SYMBOLS.DASH}
                     </td>
                     <td className={`px-6 py-4 font-semibold ${run.pipelineLevel === 1 ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'}`}>
-                      L{run.pipelineLevel ?? '?'}
+                      L{run.pipelineLevel ?? SYMBOLS.DASH}
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-2 py-1 rounded text-xs font-semibold ${getRunStatusClasses(run.status)}`}>
-                        {run.status ?? '—'}
+                        {run.status ?? SYMBOLS.DASH}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-light-text dark:text-dark-text">
-                      {run.averageConfidence ? `${run.averageConfidence.toFixed(1)}%` : run.predictionsCreated != null ? `${run.predictionsCreated} pred.` : '—'}
+                      {run.averageConfidence ? `${run.averageConfidence.toFixed(1)}%` : run.predictionsCreated != null ? `${run.predictionsCreated} pred.` : SYMBOLS.DASH}
                     </td>
                     <td className="px-6 py-4 text-light-text dark:text-dark-text">
-                      {run.durationMs ? `${(run.durationMs / 1000).toFixed(1)}s` : '—'}
+                      {run.durationMs ? `${(run.durationMs / 1000).toFixed(1)}s` : SYMBOLS.DASH}
                     </td>
                   </tr>
                 ))}
@@ -238,7 +239,7 @@ export function MlDashboardPage() {
           onClick={() => setDebugOpen(v => !v)}
           className="font-mono text-xs text-slate-700 dark:text-slate-300 select-none w-full text-left"
         >
-          {debugOpen ? '▾' : '▸'} 🔧 Debug: ML Dashboard Settings
+          {debugOpen ? '▾' : '▸'} Debug: ML Dashboard Settings
         </button>
         {debugOpen && (
           <pre className="mt-2 text-xs bg-slate-900 text-slate-100 p-3 rounded overflow-auto max-h-64">

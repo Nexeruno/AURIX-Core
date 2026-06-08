@@ -1,8 +1,8 @@
-import { Moon, Sun, LogOut, User, ShieldCheck, Home } from 'lucide-react';
+import { Moon, Sun, LogOut, User } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 
-export const Header = ({ onAdminClick, showingAdmin }) => {
+export const Header = () => {
   const { isDark, setIsDark } = useTheme();
   const { session, logout } = useAuth();
 
@@ -28,33 +28,6 @@ export const Header = ({ onAdminClick, showingAdmin }) => {
 
         {/* Right controls */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-
-          {/* Domů — jen pro admina v admin panelu */}
-          {session?.isAdmin && showingAdmin && (
-            <button
-              onClick={onAdminClick}
-              className="p-2 rounded-lg bg-light-bg dark:bg-dark-bg hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors group"
-              aria-label="Zpět na hlavní stránku"
-              title="Domů"
-            >
-              <Home size={18} className="text-light-textMuted dark:text-dark-textMuted group-hover:text-blue-500 transition-colors" />
-            </button>
-          )}
-
-          {/* Admin badge */}
-          {session?.isAdmin && (
-            <button
-              onClick={onAdminClick}
-              className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                showingAdmin
-                  ? 'bg-purple-500 text-white'
-                  : 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/50'
-              }`}
-            >
-              <ShieldCheck size={14} />
-              Admin
-            </button>
-          )}
 
           {/* User chip — skrytý na mobilu */}
           {session && (

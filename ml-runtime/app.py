@@ -17,6 +17,15 @@ app = Flask(__name__)
 PORT = 5000
 DEBUG = True
 
+
+@app.after_request
+def add_cors_headers(response):
+    """Allow the desktop/web UI to read local runtime health responses."""
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    return response
+
 # Logging
 logging.basicConfig(
     level=logging.DEBUG,

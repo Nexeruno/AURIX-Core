@@ -24,19 +24,53 @@ dist-ssr
 *.sln
 *.sw?
 
-# Environment variables
+# Environment variables and local runtime config
 .env
-.env.local
-.env.*.local
-.env
-.env.prod
-.env.*.prod
-functions/.env*
+.env.*
+*.env
+*.env.*
+functions/.env
+functions/.env.*
 functions/.runtimeconfig.json
+
+# Keep non-secret examples in Git
+!.env.example
+!.env.local.example
+!.env.*.example
+!**/.env.example
+!**/.env.local.example
+!**/.env.*.example
 
 # Kubernetes secrets (generated from example)
 k8s/secret.yaml
 
+# Python cache/test artifacts
+__pycache__/
+.pytest_cache/
+*.py[cod]
+
+# Local service account credentials
+*-key.json
+serviceAccount*.json
+service-account*.json
+credentials*.json
+*credentials*.json
+*secret*.json
+*.pem
+*.p12
+*.pfx
+*.crt
+*.key
+*.token
+
+# Keep documentation/examples for secrets in Git
+!**/*secret*.example
+!**/*secret*.example.*
+!**/SECRETS_SETUP.md
+
 # Test files
 test-*.js
 test-*.png
+
+# Claude Code internals
+.claude/

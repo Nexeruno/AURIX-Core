@@ -13,12 +13,8 @@ import { useMlRuns } from '@/hooks/useFirestore'
 /**
  * AI Observability Console
  *
- * FÁZE 4.6A: Skeleton page with placeholder sections
- * FÁZE 4.6B: Connected to runtime status
- * - AI Status (system status overview) - NOW REAL
- * - Success Runs (successful predictions) - PLACEHOLDER
- * - Failed Runs (failed predictions) - PLACEHOLDER
- * - Debug Console (debugging interface) - PLACEHOLDER
+ * Runtime status, run history, learning health, warning states, and debug details
+ * for the local Python ML runtime and backend dependency proxy.
  */
 
 export function AiObservabilityPage() {

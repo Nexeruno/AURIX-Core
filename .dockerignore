@@ -1,0 +1,60 @@
+# Exclude large dirs that are not needed in any container build
+node_modules
+desktop-app/node_modules
+backend/node_modules
+functions/node_modules
+desktop-app/dist
+.git
+.github
+.claude
+.vite
+.pytest_cache
+__pycache__
+*.pyc
+*.pyo
+
+# Local env/config/secrets
+.env
+.env.*
+*.env
+*.env.*
+*-key.json
+serviceAccount*.json
+service-account*.json
+credentials*.json
+*credentials*.json
+*secret*.json
+*.pem
+*.p12
+*.pfx
+*.crt
+*.key
+*.token
+functions/.runtimeconfig.json
+k8s/secret.yaml
+
+# Keep examples available when explicitly copied
+!.env.example
+!.env.local.example
+!.env.*.example
+!**/.env.example
+!**/.env.local.example
+!**/.env.*.example
+!**/*secret*.example
+!**/*secret*.example.*
+
+# Audit/observability markdown reports
+AI_OBSERVABILITY_*.md
+AUDIT_*.md
+FAZE_*.md
+FAZE_5_*
+CONTRACT_*.md
+*.md
+
+# Dev/test files
+*.test.js
+*.spec.js
+test_*.py
+tests
+docs
+scripts
