@@ -173,12 +173,12 @@ const firebaseConfig = {
 
 **Create `.env.local`:**
 ```
-VITE_FIREBASE_API_KEY=AIzaSy...
-VITE_FIREBASE_AUTH_DOMAIN=evidence-vydaju.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=evidence-vydaju
-VITE_FIREBASE_STORAGE_BUCKET=evidence-vydaju.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
-VITE_FIREBASE_APP_ID=1:123456789:web:abcd1234...
+VITE_FIREBASE_API_KEY=<your-firebase-web-api-key>
+VITE_FIREBASE_AUTH_DOMAIN=<your-project>.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=<your-project-id>
+VITE_FIREBASE_STORAGE_BUCKET=<your-project>.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=<your-sender-id>
+VITE_FIREBASE_APP_ID=<your-app-id>
 ```
 
 ### 7. Testing Workflow
@@ -296,7 +296,6 @@ If issues occur in production:
 
 ## Support Contacts
 
-- 📧 Admin: rezacdaniel2@gmail.com
 - 🐛 Bug Reports: GitHub Issues
 - 📚 Documentation: See `*.md` files in `desktop-app/`
 

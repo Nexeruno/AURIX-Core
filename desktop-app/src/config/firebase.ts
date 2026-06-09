@@ -2,13 +2,16 @@ import { initializeApp } from 'firebase/app'
 import { getAuth, connectAuthEmulator } from 'firebase/auth'
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore'
 
+// Values are injected at build time from environment variables (see .env.local.example).
+// The Firebase web API key is a public client identifier — security is enforced by
+// Firestore security rules, not by keeping this value secret.
 const firebaseConfig = {
-  apiKey: 'AIzaSyA7lrVXLwJjMIYocOg4hWRSTIzBo7M3YtE',
-  authDomain: 'evidence-vydaju.firebaseapp.com',
-  projectId: 'evidence-vydaju',
-  storageBucket: 'evidence-vydaju.firebasestorage.app',
-  messagingSenderId: '153586307551',
-  appId: '1:153586307551:web:814a28a53285f377c8b46a',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 }
 
 export const app = initializeApp(firebaseConfig)
@@ -28,14 +31,11 @@ if (isDev && isLocalhost) {
         // Emulator is available, connect to it
         connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true })
         connectFirestoreEmulator(db, 'localhost', 8080)
-        console.log('✅ Connected to Firebase Emulator')
       })
       .catch(() => {
         // Emulator not available, use real Firebase
-        console.log('ℹ️ Firebase Emulator not available, using real Firebase')
       })
   } catch (err) {
-    // Silently fail, use real Firebase
-    console.log('ℹ️ Using real Firebase (emulator unavailable)')
+    // Silently fall back to real Firebase
   }
 }

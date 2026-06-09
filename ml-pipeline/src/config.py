@@ -8,7 +8,7 @@ load_dotenv()
 
 # Firebase
 GOOGLE_APPLICATION_CREDENTIALS = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
-FIRESTORE_PROJECT_ID = os.getenv('FIRESTORE_PROJECT_ID', 'evidence-vydaju')
+FIRESTORE_PROJECT_ID = os.getenv('FIRESTORE_PROJECT_ID', 'your-project-id')
 FIRESTORE_COLLECTION_PREFIX = os.getenv('FIRESTORE_COLLECTION_PREFIX', 'users')
 
 # ML Configuration

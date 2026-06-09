@@ -15,7 +15,7 @@ Cloud Functions nasazeny úspěšně na Firebase!
 
 ### 1. V Firebase Console
 ```
-https://console.firebase.google.com/project/evidence-vydaju/functions
+https://console.firebase.google.com/project/<your-project-id>/functions
 ```
 
 Měl bys vidět:
@@ -25,7 +25,7 @@ Měl bys vidět:
 
 ### 2. Cloud Scheduler
 ```
-https://console.cloud.google.com/cloudscheduler?project=evidence-vydaju
+https://console.cloud.google.com/cloudscheduler?project=<your-project-id>
 ```
 
 Měl bys vidět:

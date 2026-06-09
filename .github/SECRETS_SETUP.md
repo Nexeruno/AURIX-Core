@@ -8,15 +8,15 @@
 
 3. Add each of these secrets:
 
-| Secret Name | Value |
+| Secret Name | Value (from Firebase Console → Project settings) |
 |-------------|-------|
-| `FIREBASE_API_KEY` | `AIzaSyA7lrVXLwJjMIYocOg4hWRSTIzBo7M3YtE` |
-| `FIREBASE_AUTH_DOMAIN` | `evidence-vydaju.firebaseapp.com` |
-| `FIREBASE_PROJECT_ID` | `evidence-vydaju` |
-| `FIREBASE_STORAGE_BUCKET` | `evidence-vydaju.firebasestorage.app` |
-| `FIREBASE_MESSAGING_SENDER_ID` | `153586307551` |
-| `FIREBASE_APP_ID` | `1:153586307551:web:814a28a53285f377c8b46a` |
-| `ADMIN_EMAIL` | `danzby@seznam.cz` |
+| `FIREBASE_API_KEY` | `<your-firebase-web-api-key>` |
+| `FIREBASE_AUTH_DOMAIN` | `<your-project>.firebaseapp.com` |
+| `FIREBASE_PROJECT_ID` | `<your-project-id>` |
+| `FIREBASE_STORAGE_BUCKET` | `<your-project>.firebasestorage.app` |
+| `FIREBASE_MESSAGING_SENDER_ID` | `<your-sender-id>` |
+| `FIREBASE_APP_ID` | `<your-app-id>` |
+| `ADMIN_EMAIL` | `<your-admin-email>` |
 
 4. Done! CI/CD will now work automatically.
 

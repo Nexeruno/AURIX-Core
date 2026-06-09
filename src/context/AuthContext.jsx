@@ -141,7 +141,6 @@ export const AuthProvider = ({ children }) => {
     const url = `https://europe-west1-${firebaseConfig.projectId}.cloudfunctions.net/posliResetHesla`;
 
     try {
-      console.log('Volám posliResetHesla Cloud Function...');
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -152,7 +151,6 @@ export const AuthProvider = ({ children }) => {
 
       // Pokud se email poslal (ok: true), považuj to za úspěch i když je HTTP error
       if (data.ok === true || response.status === 200) {
-        console.log('✓ Reset hesla úspěšně odeslán');
         return;
       }
 

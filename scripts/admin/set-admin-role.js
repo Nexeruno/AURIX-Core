@@ -7,11 +7,11 @@ import path from 'path';
 
 // Get email from command line arguments
 const email = process.argv[2];
-const serviceAccountPath = process.argv[3] || './evidence-vydaju-key.json';
+const serviceAccountPath = process.argv[3] || './service-account-key.json';
 
 if (!email) {
   console.error('❌ Usage: node set-admin-role.js [email] [optional-path-to-key]');
-  console.error('Example: node set-admin-role.js danzby@seznam.cz ./evidence-vydaju-12345.json');
+  console.error('Example: node set-admin-role.js admin@example.com ./service-account-key.json');
   process.exit(1);
 }
 
@@ -29,9 +29,9 @@ try {
 
   // Initialize Firebase Admin
   if (admin.apps.length === 0) {
+    // projectId is taken from the service account key itself.
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
-      projectId: 'evidence-vydaju'
     });
   }
 

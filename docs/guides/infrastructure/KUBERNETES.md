@@ -77,8 +77,8 @@ minikube addons enable metrics-server
 # Builduje s --base=/Evidence-v-daj-/
 docker build \
   --build-arg BASE_PATH=/Evidence-v-daj-/ \
-  --build-arg VITE_FIREBASE_PROJECT_ID=evidence-vydaju-37852 \
-  --build-arg VITE_FIREBASE_API_KEY=AIzaSyDfZ3jZfn4p5... \
+  --build-arg VITE_FIREBASE_PROJECT_ID=<your-project-id> \
+  --build-arg VITE_FIREBASE_API_KEY=<your-firebase-web-api-key> \
   -t evidence-vydaju-frontend:latest .
 ```
 
@@ -87,8 +87,8 @@ docker build \
 # Builduje s --base=/ (pro servírování z root v clusteru)
 docker build \
   --build-arg BASE_PATH=/ \
-  --build-arg VITE_FIREBASE_PROJECT_ID=evidence-vydaju-37852 \
-  --build-arg VITE_FIREBASE_API_KEY=AIzaSyDfZ3jZfn4p5... \
+  --build-arg VITE_FIREBASE_PROJECT_ID=<your-project-id> \
+  --build-arg VITE_FIREBASE_API_KEY=<your-firebase-web-api-key> \
   -t evidence-vydaju-frontend:latest .
 ```
 

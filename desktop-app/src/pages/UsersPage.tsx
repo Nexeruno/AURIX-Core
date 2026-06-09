@@ -159,7 +159,6 @@ function UsersPageInner() {
   // ── Open modal — single entry point, always takes the fresh user object ───
   const openModal = useCallback((kind: ModalKind, user: User) => {
     const n = normalizeUser(user)
-    console.log('[USERS_CLICK_DEBUG]', { kind, uid: n.uid, email: n.email })
     setModal({
       ...EMPTY_MODAL,
       kind,
@@ -181,7 +180,7 @@ function UsersPageInner() {
     fn: (token: string) => Promise<any>
   ): Promise<boolean> => {
     if (!uid) {
-      console.error('[USERS_ACTION_DEBUG]', { action, error: 'uid empty' })
+      console.error('User action failed: missing uid', { action })
       patchModal({ error: 'User UID is missing. Cannot perform this action.' })
       return false
     }
@@ -189,7 +188,6 @@ function UsersPageInner() {
     try {
       const token = await getIdToken()
       const result = await fn(token)
-      console.log('[USERS_ACTION_DEBUG]', { action, targetUid: uid, resultOk: result?.ok, resultError: result?.error ?? null })
       if (result?.notApplicable) {
         toast(result.message || 'Not applicable', { icon: 'ℹ️' })
         return false
@@ -223,7 +221,6 @@ function UsersPageInner() {
       reset:   { fn: 'adminResetUserPassword', msg: 'Password reset email sent' },
     }
     const { fn, msg, patch } = MAP[kind]
-    console.log('[USERS_CONFIRM_DEBUG]', { action: kind, uid, email: user.email })
     try {
       const ok = await runAction(uid, kind, token => callCF(fn, token, { targetUid: uid }))
       if (!ok) { closeModal(); return }
@@ -241,7 +238,6 @@ function UsersPageInner() {
     if (!user || !pendingRole) return
     const uid = getUid(user)
     patchModal({ error: '' })
-    console.log('[USERS_CONFIRM_DEBUG]', { action: 'role', uid, email: user.email, newRole: pendingRole })
     try {
       const ok = await runAction(uid, 'role', token =>
         callCF('adminUpdateUserRole', token, { targetUid: uid, newRole: pendingRole })

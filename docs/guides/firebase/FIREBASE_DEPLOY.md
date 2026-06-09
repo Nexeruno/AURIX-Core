@@ -10,7 +10,7 @@ Tento guide ti pomůže nasadit Firestore pravidla a aplikaci na Firebase Hostin
   npm install -g firebase-tools
   ```
 
-- **Firebase projekt** - `evidence-vydaju` (viz `.firebaserc`)
+- **Firebase projekt** - `<your-project-id>` (viz `.firebaserc`)
 
 ---
 
@@ -50,7 +50,7 @@ npm run build
 firebase deploy --only hosting
 ```
 
-App bude live na: `https://evidence-vydaju.web.app`
+App bude live na: `https://<your-project-id>.web.app`
 
 ---
 
@@ -66,7 +66,7 @@ firebase deploy
 
 ### "Project not set"
 ```bash
-firebase use evidence-vydaju
+firebase use <your-project-id>
 firebase deploy --only firestore:rules
 ```
 

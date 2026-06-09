@@ -5,6 +5,12 @@ const path = require("path");
 // VITE_PORT env var is set by the start script, fallback to 5173
 const VITE_PORT = process.env.VITE_PORT || "5173";
 
+// Firebase project id used to build Cloud Function URLs.
+// Supplied via environment (same value as the renderer's VITE_FIREBASE_PROJECT_ID);
+// falls back to a placeholder when not configured.
+const FIREBASE_PROJECT_ID =
+  process.env.VITE_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || "your-project-id";
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1400,
@@ -55,10 +61,10 @@ app.on("activate", () => {
 
 // IPC Handlers for ML Pipeline Control
 ipcMain.handle("runLevel2Pipeline", async (event, idToken) => {
-  const projectId = 'evidence-vydaju';
+  const projectId = FIREBASE_PROJECT_ID;
   const url = `https://europe-west1-${projectId}.cloudfunctions.net/runLevel2ShadowPipeline`;
 
-  console.log('[LEVEL2_PIPELINE]', {
+  console.log('Level 2 pipeline request', {
     url,
     hasIdToken: Boolean(idToken) && idToken.length > 10,
   });
@@ -81,7 +87,7 @@ ipcMain.handle("runLevel2Pipeline", async (event, idToken) => {
       result = { raw: responseText };
     }
 
-    console.log('[LEVEL2_PIPELINE] response', {
+    console.log('Level 2 pipeline response', {
       httpStatus: response.status,
       ok: response.ok,
       resultOk: result?.ok,
@@ -100,7 +106,7 @@ ipcMain.handle("runLevel2Pipeline", async (event, idToken) => {
     };
 
   } catch (err) {
-    console.error('[LEVEL2_PIPELINE] fetch error', { error: err.message });
+    console.error('Level 2 pipeline request failed', { error: err.message });
     return {
       success: false,
       message: err.message || 'Failed to run Level 2 pipeline',
@@ -117,10 +123,10 @@ ipcMain.handle("getPipelineStatus", async (event) => {
 });
 
 ipcMain.handle("callCloudFunction", async (event, functionName, idToken, data) => {
-  const projectId = 'evidence-vydaju';
+  const projectId = FIREBASE_PROJECT_ID;
   const url = `https://europe-west1-${projectId}.cloudfunctions.net/${functionName}`;
 
-  console.log('[ML_CONTROL_DEBUG]', {
+  console.log('Cloud Function request', {
     functionName,
     url,
     hasIdToken: Boolean(idToken) && idToken.length > 10,
@@ -145,7 +151,7 @@ ipcMain.handle("callCloudFunction", async (event, functionName, idToken, data) =
       result = { raw: responseText };
     }
 
-    console.log('[ML_CONTROL_DEBUG] response', {
+    console.log('Cloud Function response', {
       functionName,
       httpStatus: response.status,
       ok: response.ok,
@@ -165,7 +171,7 @@ ipcMain.handle("callCloudFunction", async (event, functionName, idToken, data) =
 
     return result;
   } catch (err) {
-    console.error('[ML_CONTROL_DEBUG] fetch error', { functionName, error: err.message });
+    console.error('Cloud Function request failed', { functionName, error: err.message });
     return {
       ok: false,
       error: err.message || 'Failed to call Cloud Function',
@@ -181,7 +187,7 @@ ipcMain.handle("clearLocalCache", async (event) => {
 });
 
 ipcMain.handle("generateAiProfile", async (event, idToken, userId) => {
-  const projectId = 'evidence-vydaju';
+  const projectId = FIREBASE_PROJECT_ID;
   const functionName = 'adminGenerateAiProfile';
   const url = `https://europe-west1-${projectId}.cloudfunctions.net/${functionName}`;
 
@@ -218,7 +224,7 @@ ipcMain.handle("generateAiProfile", async (event, idToken, userId) => {
 });
 
 ipcMain.handle("generateAllAiProfiles", async (event, idToken) => {
-  const projectId = 'evidence-vydaju';
+  const projectId = FIREBASE_PROJECT_ID;
   const functionName = 'adminGenerateAllAiProfiles';
   const url = `https://europe-west1-${projectId}.cloudfunctions.net/${functionName}`;
 
@@ -255,7 +261,7 @@ ipcMain.handle("generateAllAiProfiles", async (event, idToken) => {
 });
 
 ipcMain.handle("regenerateStaleProfiles", async (event, idToken) => {
-  const projectId = 'evidence-vydaju';
+  const projectId = FIREBASE_PROJECT_ID;
   const functionName = 'adminRegenerateStaleProfiles';
   const url = `https://europe-west1-${projectId}.cloudfunctions.net/${functionName}`;
 

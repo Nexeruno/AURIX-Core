@@ -287,7 +287,7 @@ firebase deploy --only functions:adminActivateLevel2Model,functions:adminRollbac
 
 Test with curl:
 ```bash
-curl -X POST https://us-central1-evidence-vydaju.cloudfunctions.net/adminActivateLevel2Model \
+curl -X POST https://us-central1-<your-project-id>.cloudfunctions.net/adminActivateLevel2Model \
   -H "Authorization: Bearer YOUR_ID_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"timestamp": 1234567890}'

@@ -41,13 +41,12 @@ export const AuthPage = () => {
           await resetPassword(email);
           setSuccess('Odkaz pro reset hesla byl odeslán na ' + email.trim() + '. Zkontroluj svůj e-mail.');
           setEmail('');
-        } catch (resetErr) {
+        } catch {
           // Pro reset hesla - tiše ignoruj všechny errory
           // Email se stejně pošle i když je error
           // Prostě ukaž success
           setSuccess('Odkaz pro reset hesla byl odeslán na ' + email.trim() + '. Zkontroluj svůj e-mail.');
           setEmail('');
-          console.log('Reset hesla odeslán (s interním errorem):', resetErr);
         }
       }
     } catch (err) {

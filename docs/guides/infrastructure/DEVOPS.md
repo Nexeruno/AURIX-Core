@@ -49,7 +49,7 @@ Tento projekt je připraven pro DevOps, monitoring a budoucí AI/MLOps.
 
 ### Health Check
 ```bash
-curl https://europe-west1-evidence-vydaju.cloudfunctions.net/healthCheck
+curl https://europe-west1-<your-project-id>.cloudfunctions.net/healthCheck
 ```
 
 **Response:**
@@ -66,7 +66,7 @@ curl https://europe-west1-evidence-vydaju.cloudfunctions.net/healthCheck
 
 ### Metrics (DevOps / AI-ready)
 ```bash
-curl https://europe-west1-evidence-vydaju.cloudfunctions.net/metrics
+curl https://europe-west1-<your-project-id>.cloudfunctions.net/metrics
 ```
 
 **Response:**
@@ -190,7 +190,7 @@ firebase functions:log
 ### Endpoint ladění
 ```bash
 curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
-  https://europe-west1-evidence-vydaju.cloudfunctions.net/debugRecurring
+  https://europe-west1-<your-project-id>.cloudfunctions.net/debugRecurring
 ```
 
 

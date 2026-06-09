@@ -207,7 +207,7 @@ const pythonProcess = spawn(pythonPath, [
 ], {
   env: {
     ...process.env,
-    FIREBASE_PROJECT: 'evidence-vydaju',
+    FIREBASE_PROJECT: '<your-project-id>',
     // Add ML-specific env vars here if needed
   }
 })

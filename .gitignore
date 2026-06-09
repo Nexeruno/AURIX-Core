@@ -74,3 +74,9 @@ test-*.png
 
 # Claude Code internals
 .claude/
+
+# Private notes / personal interview prep
+POHOVOR_POZNAMKY.md
+CLAUDE_NOTES.md
+CLAUDE_PROMPTS.md
+PRIVATE_*.md

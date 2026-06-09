@@ -138,18 +138,13 @@ export function AiProfilesPage() {
     await Promise.allSettled(userList.map(async (u) => {
       try {
         const result = await window.ipcApi!.callCloudFunction('adminGetAiProfile', token, { userId: u.uid })
-        console.log(`[AI_PROFILES] adminGetAiProfile for ${u.uid}:`, result?.profile?.profileStale, result?.profile?.staleReason)
         if (result?.ok && result.profile) {
           loaded[u.uid] = result.profile as AiProfile
         }
       } catch (err) {
-        console.error(`[AI_PROFILES] Failed to load profile for ${u.uid}:`, err)
+        console.error('Failed to load AI profile:', err)
       }
     }))
-    console.log('[AI_PROFILES] Loaded profiles:', Object.keys(loaded).length, 'with stale counts:', {
-      fresh: Object.values(loaded).filter(p => p.profileStale === false).length,
-      stale: Object.values(loaded).filter(p => p.profileStale === true).length,
-    })
     setProfiles(loaded)
   }
 
@@ -165,7 +160,6 @@ export function AiProfilesPage() {
       const token = await getIdToken()
       if (!window.ipcApi) throw new Error('IPC API not available')
       const result = await window.ipcApi.generateAiProfile(token, u.uid)
-      console.log(`[AI_PROFILES] generateAiProfile for ${u.uid}:`, result?.profile?.profileStale, result?.profile?.staleReason)
       if (result?.ok && result.profile) {
         setProfiles((prev) => ({ ...prev, [u.uid]: result.profile as AiProfile }))
         setStatusMsg({ text: `✅ Profile generated for ${u.email || u.uid}`, ok: true })
@@ -363,23 +357,6 @@ export function AiProfilesPage() {
             <span className="text-xs text-light-textMuted dark:text-dark-textMuted">
               {users.length} users · {Object.keys(profiles).length} profiles
             </span>
-          </div>
-        )
-      })()}
-
-      {/* C. Debug Info */}
-      {(() => {
-        const sampleProfile = Object.values(profiles)[0]
-        return (
-          <div className="bg-slate-100 dark:bg-slate-800 rounded-lg p-3 text-xs text-slate-700 dark:text-slate-300 font-mono overflow-auto max-h-32">
-            <p>Loaded profiles: {Object.keys(profiles).length} / {users.length}</p>
-            {sampleProfile && (
-              <>
-                <p>Sample profile.profileStale: {String(sampleProfile.profileStale)}</p>
-                <p>Sample profile.staleReason: {JSON.stringify(sampleProfile.staleReason)}</p>
-              </>
-            )}
-            {!sampleProfile && <p>No profiles loaded yet. Check Cloud Function.</p>}
           </div>
         )
       })()}

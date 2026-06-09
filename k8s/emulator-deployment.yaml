@@ -25,7 +25,7 @@ spec:
           firebase emulators:start \
             --only auth,firestore,functions \
             --host 0.0.0.0 \
-            --project evidence-vydaju-37852 \
+            --project <your-project-id> \
             --import /emulator-data/seed \
             --export-on-exit /emulator-data/snapshots
         ports:

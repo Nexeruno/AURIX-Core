@@ -19,8 +19,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (authUser) => {
       if (authUser) {
         setUser(authUser)
-        // Log success
-        console.log('✅ User authenticated:', authUser.email)
       } else {
         setUser(null)
       }

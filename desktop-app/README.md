@@ -326,6 +326,5 @@ MIT — See LICENSE file
 ## Support
 
 For issues or questions:
-- 📧 Contact: rezacdaniel2@gmail.com
 - 🐛 Bug reports: GitHub Issues
 - 📚 Documentation: See [documentation files](./)

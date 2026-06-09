@@ -5,8 +5,8 @@
 
 set -e
 
-PROJECT_ID="evidence-vydaju"
-REGION="europe-west1"
+PROJECT_ID="${FIREBASE_PROJECT_ID:-your-project-id}"
+REGION="${FIREBASE_REGION:-europe-west1}"
 
 echo "🚀 Evidence Výdajů - Skript monitorování"
 echo "════════════════════════════════════════"

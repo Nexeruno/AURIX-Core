@@ -167,11 +167,6 @@ export function usePodmanRuntimeStatus() {
         return 'Podman stack not running'
       })()
 
-      // Log only once at debug level (no console spam)
-      if (process.env.NODE_ENV === 'development') {
-        console.debug('[Podman Status] Dependency check failed:', errorReason)
-      }
-
       const warnings: PodmanRuntimeWarning[] = [
         {
           type: 'runtime_unavailable',

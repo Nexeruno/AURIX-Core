@@ -11,7 +11,8 @@ const cors = require('cors')({
 // FÁZE 5.0A: Import ML Runtime client for external Python server
 const mlRuntimeClient = require('./mlRuntimeClient');
 
-const ADMIN_EMAIL = 'danzby@seznam.cz';
+// Admin email is provided via environment (functions/.env or deployment config).
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const REGION = 'europe-west1';
 
 admin.initializeApp();
@@ -5313,7 +5314,7 @@ exports.adminGetMlSystemHealth = functions.region(REGION).https.onRequest(async 
       cloudFunctionsReachable: true,
       firestoreReadable,
       firestoreWritable,
-      firebaseProjectId: 'evidence-vydaju',
+      firebaseProjectId: process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || null,
       predictionSettingsExists,
       predictionSettings: settings ? {
         activePredictionLevel: settings.activePredictionLevel,

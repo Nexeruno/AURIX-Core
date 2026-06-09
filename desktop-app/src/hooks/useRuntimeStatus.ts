@@ -72,10 +72,6 @@ export function useRuntimeStatus() {
         return 'Runtime unavailable'
       })()
 
-      if (process.env.NODE_ENV === 'development') {
-        console.debug('[RuntimeStatus] Health check failed:', errorReason)
-      }
-
       setStatus({
         available: false,
         lastCheckTime: new Date(),

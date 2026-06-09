@@ -15,7 +15,7 @@ Complete step-by-step guide to configure Firebase for AURIX Core development.
 - Click **"Add project"**
 
 ### 1.2 Enter Project Details
-- **Project name:** `evidence-vydaju` (or your preferred name)
+- **Project name:** `your-project-id` (or your preferred name)
 - **Analytics:** Uncheck "Enable Google Analytics for this project" (optional for MVP)
 - Click **"Create project"**
 
@@ -104,9 +104,9 @@ Replace placeholder values with your Firebase config:
 ```typescript
 const firebaseConfig = {
   apiKey: 'YOUR_API_KEY_FROM_FIREBASE',              // Copy from Firebase
-  authDomain: 'YOUR_AUTH_DOMAIN_FROM_FIREBASE',      // e.g., "evidence-vydaju.firebaseapp.com"
-  projectId: 'YOUR_PROJECT_ID_FROM_FIREBASE',        // e.g., "evidence-vydaju"
-  storageBucket: 'YOUR_STORAGE_BUCKET_FROM_FIREBASE', // e.g., "evidence-vydaju.appspot.com"
+  authDomain: 'YOUR_AUTH_DOMAIN_FROM_FIREBASE',      // e.g., "your-project.firebaseapp.com"
+  projectId: 'YOUR_PROJECT_ID_FROM_FIREBASE',        // e.g., "your-project-id"
+  storageBucket: 'YOUR_STORAGE_BUCKET_FROM_FIREBASE', // e.g., "your-project.appspot.com"
   messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',     // Copy from Firebase
   appId: 'YOUR_APP_ID_FROM_FIREBASE',                // Copy from Firebase
 }
@@ -115,12 +115,12 @@ const firebaseConfig = {
 **Example (yours will be different):**
 ```typescript
 const firebaseConfig = {
-  apiKey: 'AIzaSyB1234567890abcdefghijklmnopqrst',
-  authDomain: 'evidence-vydaju.firebaseapp.com',
-  projectId: 'evidence-vydaju',
-  storageBucket: 'evidence-vydaju.appspot.com',
-  messagingSenderId: '123456789012',
-  appId: '1:123456789012:web:abcdef1234567890ab',
+  apiKey: '<your-firebase-web-api-key>',
+  authDomain: '<your-project>.firebaseapp.com',
+  projectId: '<your-project-id>',
+  storageBucket: '<your-project>.appspot.com',
+  messagingSenderId: '<your-sender-id>',
+  appId: '<your-app-id>',
 }
 ```
 

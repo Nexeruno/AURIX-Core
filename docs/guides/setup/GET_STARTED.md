@@ -63,7 +63,7 @@ Follow detailed guide: **[FIREBASE_SETUP.md](./FIREBASE_SETUP.md)**
 
 Quick summary:
 1. Go to https://console.firebase.google.com/
-2. Create new project: `evidence-vydaju`
+2. Create new project: `<your-project-id>`
 3. Enable Authentication (Email/Password + Google)
 4. Create Firestore Database (test mode)
 5. Copy Firebase config (6 values)
