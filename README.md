@@ -27,6 +27,22 @@ fill in your own values to run it.
 
 ---
 
+## Screenshots
+
+### Finance Web App
+
+![Finance Web App](./docs/assets/screenshots/Web%20main.png)
+
+### AURIX Core - Electron Admin Console
+
+![AURIX Core Electron Admin Console](./docs/assets/screenshots/Electron%20app.png)
+
+### AI Observability
+
+![AI Observability](./docs/assets/screenshots/AI%20Observability.png)
+
+---
+
 ## What's in the repo
 
 | App | Description | Where it runs |
