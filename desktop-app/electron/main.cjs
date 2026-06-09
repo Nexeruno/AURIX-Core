@@ -64,11 +64,6 @@ ipcMain.handle("runLevel2Pipeline", async (event, idToken) => {
   const projectId = FIREBASE_PROJECT_ID;
   const url = `https://europe-west1-${projectId}.cloudfunctions.net/runLevel2ShadowPipeline`;
 
-  console.log('Level 2 pipeline request', {
-    url,
-    hasIdToken: Boolean(idToken) && idToken.length > 10,
-  });
-
   try {
     const response = await fetch(url, {
       method: 'POST',
@@ -86,13 +81,6 @@ ipcMain.handle("runLevel2Pipeline", async (event, idToken) => {
     } catch {
       result = { raw: responseText };
     }
-
-    console.log('Level 2 pipeline response', {
-      httpStatus: response.status,
-      ok: response.ok,
-      resultOk: result?.ok,
-      resultError: result?.error || null,
-    });
 
     if (!response.ok) {
       const errMsg = result?.error || `Cloud Function returned HTTP ${response.status}`;
@@ -126,13 +114,6 @@ ipcMain.handle("callCloudFunction", async (event, functionName, idToken, data) =
   const projectId = FIREBASE_PROJECT_ID;
   const url = `https://europe-west1-${projectId}.cloudfunctions.net/${functionName}`;
 
-  console.log('Cloud Function request', {
-    functionName,
-    url,
-    hasIdToken: Boolean(idToken) && idToken.length > 10,
-    dataKeys: data ? Object.keys(data) : [],
-  });
-
   try {
     const response = await fetch(url, {
       method: 'POST',
@@ -150,14 +131,6 @@ ipcMain.handle("callCloudFunction", async (event, functionName, idToken, data) =
     } catch {
       result = { raw: responseText };
     }
-
-    console.log('Cloud Function response', {
-      functionName,
-      httpStatus: response.status,
-      ok: response.ok,
-      resultOk: result?.ok,
-      resultError: result?.error || null,
-    });
 
     if (!response.ok) {
       let errMsg;
