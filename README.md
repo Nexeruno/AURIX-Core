@@ -41,29 +41,33 @@ Co zatím není production-ready:
 
 ## Screenshoty (portfolio ukázka)
 
-### 1) Login / hlavní dashboard
+### 1) Login
 
-![Login a dashboard](./img/00.png)
+![Login](./img/00.png)
 
-### 2) Uživatelé a role
+### 2) Přehled
 
-![Uživatelé a role](./img/01.png)
+![Přehled](./img/01.png)
 
-### 3) ML dashboard / predikce
+### 3) Výdaje
 
-![ML dashboard](./img/02.png)
+![Výdaje](./img/02.png)
 
-### 4) Admin panel a audit
+### 4) Příjmy
 
-![Admin panel](./img/03.png)
+![Příjmy](./img/03.png)
 
-### 5) Nastavení / provozní detail
+### 5) Vyplněný přehled
 
-![Nastavení](./img/04.png)
+![Vyplněný přehled](./img/04.png)
 
-### 6) Chybový stav / observabilita
+### 6) AURIX Core ML dashboard
 
-![Chybový stav a observabilita](./img/05.png)
+![AURIX Core ML dashboard](./img/05.png)
+
+### 7) AI Observability
+
+![AI Observability](./img/06.png)
 
 ---
 
