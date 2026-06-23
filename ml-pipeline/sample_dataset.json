@@ -1,0 +1,263 @@
+{
+  "success": true,
+  "metadata": {
+    "exportedAt": "2026-06-07T14:30:00Z",
+    "version": "1.0",
+    "format": "json_array",
+    "totalRecords": 25,
+    "trainReadyRecords": 23,
+    "excludedRecords": 2
+  },
+  "rows": [
+    {
+      "userId": "user001",
+      "month": "2024-01",
+      "features": {
+        "avgExpense3m": 15200.5,
+        "avgExpense6m": 14800.2,
+        "avgExpense12m": 14500.1,
+        "avgIncome3m": 25100.0,
+        "avgIncome6m": 24900.3,
+        "avgIncome12m": 24700.7,
+        "volatilityScore": 0.35,
+        "regularityScore": 0.92,
+        "feedbackCount": 8.0,
+        "avgManualCorrectionFactor": 1.08,
+        "avgAutoCorrectionFactor": 1.05,
+        "avgFinalCorrectionFactor": 1.065
+      },
+      "target": 14200.0,
+      "metadata": {
+        "feedbackType": "l2_manual_feedback",
+        "recordId": "doc_001",
+        "predictedTotal": 13800.0,
+        "actualTotal": 14200.0
+      }
+    },
+    {
+      "userId": "user001",
+      "month": "2024-02",
+      "features": {
+        "avgExpense3m": 15300.1,
+        "avgExpense6m": 14900.4,
+        "avgExpense12m": 14600.2,
+        "avgIncome3m": 25200.5,
+        "avgIncome6m": 25000.1,
+        "avgIncome12m": 24800.3,
+        "volatilityScore": 0.33,
+        "regularityScore": 0.93,
+        "feedbackCount": 9.0,
+        "avgManualCorrectionFactor": 1.07,
+        "avgAutoCorrectionFactor": 1.04,
+        "avgFinalCorrectionFactor": 1.055
+      },
+      "target": 14300.0,
+      "metadata": {
+        "feedbackType": "l2_manual_feedback",
+        "recordId": "doc_002",
+        "predictedTotal": 13950.0,
+        "actualTotal": 14300.0
+      }
+    },
+    {
+      "userId": "user002",
+      "month": "2024-01",
+      "features": {
+        "avgExpense3m": 12000.3,
+        "avgExpense6m": 11500.5,
+        "avgExpense12m": 11200.1,
+        "avgIncome3m": 28000.2,
+        "avgIncome6m": 27800.4,
+        "avgIncome12m": 27500.6,
+        "volatilityScore": 0.25,
+        "regularityScore": 0.88,
+        "feedbackCount": 5.0,
+        "avgManualCorrectionFactor": 1.02,
+        "avgAutoCorrectionFactor": 1.01,
+        "avgFinalCorrectionFactor": 1.015
+      },
+      "target": 11800.0,
+      "metadata": {
+        "feedbackType": "l2_auto_feedback",
+        "recordId": "doc_003",
+        "predictedTotal": 11600.0,
+        "actualTotal": 11800.0
+      }
+    },
+    {
+      "userId": "user002",
+      "month": "2024-02",
+      "features": {
+        "avgExpense3m": 12100.4,
+        "avgExpense6m": 11600.2,
+        "avgExpense12m": 11300.3,
+        "avgIncome3m": 28100.1,
+        "avgIncome6m": 27900.5,
+        "avgIncome12m": 27600.7,
+        "volatilityScore": 0.27,
+        "regularityScore": 0.87,
+        "feedbackCount": 6.0,
+        "avgManualCorrectionFactor": 1.03,
+        "avgAutoCorrectionFactor": 1.02,
+        "avgFinalCorrectionFactor": 1.025
+      },
+      "target": 11900.0,
+      "metadata": {
+        "feedbackType": "l2_auto_feedback",
+        "recordId": "doc_004",
+        "predictedTotal": 11700.0,
+        "actualTotal": 11900.0
+      }
+    },
+    {
+      "userId": "user003",
+      "month": "2024-01",
+      "features": {
+        "avgExpense3m": 10000.2,
+        "avgExpense6m": 9500.1,
+        "avgExpense12m": 9200.4,
+        "avgIncome3m": 22000.3,
+        "avgIncome6m": 21800.5,
+        "avgIncome12m": 21500.2,
+        "volatilityScore": 0.15,
+        "regularityScore": 0.95,
+        "feedbackCount": 10.0,
+        "avgManualCorrectionFactor": 1.01,
+        "avgAutoCorrectionFactor": 1.0,
+        "avgFinalCorrectionFactor": 1.005
+      },
+      "target": 9500.0,
+      "metadata": {
+        "feedbackType": "l2_manual_feedback",
+        "recordId": "doc_005",
+        "predictedTotal": 9400.0,
+        "actualTotal": 9500.0
+      }
+    },
+    {
+      "userId": "user004",
+      "month": "2024-01",
+      "features": {
+        "avgExpense3m": 18000.5,
+        "avgExpense6m": 17500.3,
+        "avgExpense12m": 17200.2,
+        "avgIncome3m": 30000.1,
+        "avgIncome6m": 29800.4,
+        "avgIncome12m": 29500.6,
+        "volatilityScore": 0.42,
+        "regularityScore": 0.85,
+        "feedbackCount": 7.0,
+        "avgManualCorrectionFactor": 1.06,
+        "avgAutoCorrectionFactor": 1.03,
+        "avgFinalCorrectionFactor": 1.045
+      },
+      "target": 17500.0,
+      "metadata": {
+        "feedbackType": "l2_auto_feedback",
+        "recordId": "doc_006",
+        "predictedTotal": 17100.0,
+        "actualTotal": 17500.0
+      }
+    },
+    {
+      "userId": "user005",
+      "month": "2024-01",
+      "features": {
+        "avgExpense3m": 13500.1,
+        "avgExpense6m": 13000.2,
+        "avgExpense12m": 12700.5,
+        "avgIncome3m": 26000.4,
+        "avgIncome6m": 25800.1,
+        "avgIncome12m": 25500.3,
+        "volatilityScore": 0.28,
+        "regularityScore": 0.90,
+        "feedbackCount": 6.0,
+        "avgManualCorrectionFactor": 1.04,
+        "avgAutoCorrectionFactor": 1.02,
+        "avgFinalCorrectionFactor": 1.03
+      },
+      "target": 13000.0,
+      "metadata": {
+        "feedbackType": "l2_manual_feedback",
+        "recordId": "doc_007",
+        "predictedTotal": 12600.0,
+        "actualTotal": 13000.0
+      }
+    },
+    {
+      "userId": "user006",
+      "month": "2024-01",
+      "features": {
+        "avgExpense3m": 11000.3,
+        "avgExpense6m": 10500.4,
+        "avgExpense12m": 10200.1,
+        "avgIncome3m": 24000.2,
+        "avgIncome6m": 23800.5,
+        "avgIncome12m": 23500.7,
+        "volatilityScore": 0.22,
+        "regularityScore": 0.91,
+        "feedbackCount": 8.0,
+        "avgManualCorrectionFactor": 1.05,
+        "avgAutoCorrectionFactor": 1.03,
+        "avgFinalCorrectionFactor": 1.04
+      },
+      "target": 10500.0,
+      "metadata": {
+        "feedbackType": "l2_auto_feedback",
+        "recordId": "doc_008",
+        "predictedTotal": 10000.0,
+        "actualTotal": 10500.0
+      }
+    },
+    {
+      "userId": "user007",
+      "month": "2024-01",
+      "features": {
+        "avgExpense3m": 14000.2,
+        "avgExpense6m": 13500.1,
+        "avgExpense12m": 13200.4,
+        "avgIncome3m": 27000.3,
+        "avgIncome6m": 26800.5,
+        "avgIncome12m": 26500.2,
+        "volatilityScore": 0.32,
+        "regularityScore": 0.89,
+        "feedbackCount": 7.0,
+        "avgManualCorrectionFactor": 1.07,
+        "avgAutoCorrectionFactor": 1.04,
+        "avgFinalCorrectionFactor": 1.055
+      },
+      "target": 13500.0,
+      "metadata": {
+        "feedbackType": "l2_manual_feedback",
+        "recordId": "doc_009",
+        "predictedTotal": 13100.0,
+        "actualTotal": 13500.0
+      }
+    },
+    {
+      "userId": "user008",
+      "month": "2024-01",
+      "features": {
+        "avgExpense3m": 9000.4,
+        "avgExpense6m": 8500.2,
+        "avgExpense12m": 8200.5,
+        "avgIncome3m": 20000.1,
+        "avgIncome6m": 19800.3,
+        "avgIncome12m": 19500.6,
+        "volatilityScore": 0.18,
+        "regularityScore": 0.94,
+        "feedbackCount": 9.0,
+        "avgManualCorrectionFactor": 1.02,
+        "avgAutoCorrectionFactor": 1.01,
+        "avgFinalCorrectionFactor": 1.015
+      },
+      "target": 8500.0,
+      "metadata": {
+        "feedbackType": "l2_auto_feedback",
+        "recordId": "doc_010",
+        "predictedTotal": 8300.0,
+        "actualTotal": 8500.0
+      }
+    }
+  ]
+}

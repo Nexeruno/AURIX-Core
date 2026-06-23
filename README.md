@@ -1,270 +1,166 @@
 # AURIX Core
 
-Full-stack personal finance platform with a React web app, an Electron desktop admin console, Firebase backend, Python ML runtime, and containerised services via Podman.
+Portfolio full-stack prototyp zamereny na osobni finance, administraci a ML runtime vrstvu.
 
-Built as a portfolio project to demonstrate end-to-end product thinking: user-facing data entry, role-based admin tooling, ML pipeline integration, runtime observability, and cloud deployment.
-
----
-
-## Current Status
-
-**This is a portfolio project, not a production-ready system.** It is intended to
-demonstrate architecture and engineering breadth across a full stack - not to be
-deployed and operated as-is.
-
-What works today:
-- The Finance Web App is live on GitHub Pages with working Firebase auth, data entry, and dashboards.
-- AURIX Core (Electron) runs locally and talks to the Python ML runtime through the Node.js proxy.
-- The Python ML runtime serves health/readiness/validation endpoints and runs in a Podman container.
-- CI/CD (lint -> test -> build -> deploy) runs on every push to `main`.
-
-What is simulated or not yet production-grade is listed under
-[Known Limitations / Future Improvements](#known-limitations--future-improvements).
-
-All Firebase and email credentials are supplied via environment variables - no real
-secrets are committed to the repository. Copy the relevant `.env*.example` file and
-fill in your own values to run it.
+Projekt je postaveny jako learning project, na kterem jsem testoval navrh architektury, propojovani frontend/backend sluzeb, Firebase, observabilitu, kontejnerizaci a CI/CD.
 
 ---
 
-## Screenshots
+## Co je AURIX Core
 
-### Finance Web App
+AURIX Core je portfolio prototyp s vice castmi:
 
-![Finance Web App](./docs/assets/screenshots/Web%20main.png)
+- Finance Web App (React/Vite) pro evidenci prijmu a vydaju
+- Electron admin aplikace pro role, audit a ML dohled
+- Node.js backend proxy mezi desktop aplikaci a ML runtime
+- Python ML runtime (Flask) s endpointy pro health/readiness/predict/validaci datasetu
+- Integrace s Firebase Authentication a Firestore
 
-### AURIX Core - Electron Admin Console
-
-![AURIX Core Electron Admin Console](./docs/assets/screenshots/Electron%20app.png)
-
-### AI Observability
-
-![AI Observability](./docs/assets/screenshots/AI%20Observability.png)
+Cilem nebylo dodat hotovy komercni produkt, ale ukazat schopnost navrhnout a propojit cele end-to-end reseni.
 
 ---
 
-## What's in the repo
+## Status projektu
 
-| App | Description | Where it runs |
-|---|---|---|
-| **Finance Web App** | React/Vite SPA - income and expense tracking, dashboard, Firebase auth | GitHub Pages (live) |
-| **AURIX Core** | Electron desktop admin console - ML control, AI profiles, observability, audit trail | Locally (Electron) |
-| **Python ML Runtime** | Flask service - health, readiness, prediction, and dataset validation endpoints | Local / Podman container |
-| **Node.js Backend Proxy** | Express server - routes ML runtime calls, status checks | Local / Podman container |
+Tento repozitar je portfolio full-stack prototyp, ne hotova produkcni aplikace.
 
----
+Aktualne funkcni casti:
 
-## Tech Stack
+- Webova cast bezi na GitHub Pages
+- Lokalne lze spustit Electron + backend + ML runtime
+- Funguje CI/CD pipeline (lint, test, build, deploy)
+- Je pripravena observabilita a zakladni ML workflow
 
-| Layer | Technologies |
-|---|---|
-| Web app | React 18, Vite, Tailwind CSS, Firebase |
-| Desktop admin | Electron, React 18, TypeScript, Vite, Tailwind CSS |
-| Auth & database | Firebase Authentication, Firestore |
-| Cloud functions | Firebase Cloud Functions (Node.js) |
-| ML runtime | Python 3.11, Flask |
-| Backend proxy | Node.js, Express |
-| Containers | Podman, Docker Compose |
-| CI/CD | GitHub Actions - lint, test, build, deploy to GitHub Pages |
-| Infrastructure | Kubernetes manifests (k8s/) |
+Co zatim neni production-ready:
+
+- ML cast je z casti simulovana (nejde o finalne natrenovany produkcni model)
+- Chybi distribucni balicek Electron aplikace pro koncove uzivatele
+- Cloud provoz backendu/runtime je pripraveny jen na urovni infra podkladu
 
 ---
 
-## Architecture
+## Screenshoty (portfolio ukazka)
 
-```
-+-----------------------------------------------------------------+
-| GitHub Pages                                                    |
-|   Finance Web App  (React/Vite)                                 |
-|   <-> Firebase Auth + Firestore                                 |
-+-----------------------------------------------------------------+
+### 1) Login / hlavni dashboard
 
-+-----------------------------------------------------------------+
-| Local - started via start-aurix-core.bat                        |
-|                                                                 |
-|   AURIX Core Electron --> Firebase Auth + Firestore             |
-|                       --> Node.js Proxy :3000                   |
-|                                  --> Python ML Runtime :5000    |
-|                                                                 |
-|   Podman: [ml-runtime container] + [node-backend container]     |
-+-----------------------------------------------------------------+
-```
+![Login a dashboard](./img/00.png)
 
----
+### 2) Uzivatele a role
 
-## Finance Web App
+![Uzivatele a role](./img/01.png)
 
-Live on GitHub Pages: [nexeruno.github.io/AURIX-Core](https://nexeruno.github.io/AURIX-Core/)
+### 3) ML dashboard / predikce
 
-Features:
-- Income and expense entry with categories
-- Dashboard with totals and charts
-- Repeating transactions
-- Firebase Authentication (register, login, password reset)
-- Dark mode
+![ML dashboard](./img/02.png)
 
-Local development:
+### 4) Admin panel a audit
 
-```powershell
-npm install
-npm run dev
-# Opens at http://localhost:5175
-```
+![Admin panel](./img/03.png)
+
+### 5) Nastaveni / provozni detail
+
+![Nastaveni](./img/04.png)
+
+### 6) Chybovy stav / observabilita
+
+![Chybovy stav a observabilita](./img/05.png)
 
 ---
 
-## AURIX Core - Desktop Admin Console
+## Jak projekt spustit
 
-A standalone Electron app for admin and ML operations. Requires the Python ML runtime and Node.js backend running (handled automatically by the startup script).
-
-### Start everything with one command
+### Rychly start (Windows)
 
 ```powershell
 .\scripts\startup\start-aurix-core.bat
 ```
 
-The script:
-1. Verifies Node.js and Podman are installed
-2. Starts the Podman machine (WSL2 VM)
-3. Builds container images on first run
-4. Starts `ml-runtime` (port 5000) and `node-backend` (port 3000)
-5. Waits for both health checks to pass
-6. Launches AURIX Core (Vite dev server + Electron)
-7. Stops containers when Electron closes
+Skript automaticky:
 
-### Manual start (without Podman)
+1. overi Node.js a Podman
+2. spusti Podman machine
+3. postavi a spusti `ml-runtime` a `node-backend`
+4. pocka na health check
+5. spusti Electron aplikaci
+
+### Manualni start (bez Podman)
 
 ```powershell
 # Terminal 1 - ML runtime
 python ml-runtime/app.py
 
 # Terminal 2 - Node backend
-cd backend && npm start
+cd backend
+npm install
+npm start
 
-# Terminal 3 - AURIX Core
-cd desktop-app && npm run electron-dev
+# Terminal 3 - Electron app
+cd desktop-app
+npm install
+npm run electron-dev
 ```
 
-### AURIX Core sections
+### Dulezite k verejnemu spusteni
 
-| Section | Description |
-|---|---|
-| Dashboard | System overview - users, ML run history, health status |
-| ML Predictions | L1 / L2 prediction results per user |
-| ML Model Control | Switch prediction levels, manage shadow mode |
-| Training Data | Feedback records used to improve the ML model |
-| AI Profiles | Per-user feature layer - confidence scores, correction factors |
-| AI Observability | Python runtime health, run history, export |
-| Audit Trail | Full admin action log with filters |
-| Roles | User role management |
+Bez vlastni konfigurace neni projekt plne spustitelny v "public" rezimu.
 
----
+Duvod:
 
-## Python ML Runtime
+- je nutne doplnit vlastni Firebase projekt a `.env` hodnoty
+- cast integraci pocita s lokalni konfiguraci sluzeb a tajnych udaju
+- bez vlastnich credentials nebude autentizace/datova vrstva fungovat korektne
+
+Zakladni konfigurace:
 
 ```powershell
-python ml-runtime/app.py
-```
-
-Key endpoints:
-
-| Endpoint | Description |
-|---|---|
-| `GET /health` | Liveness check |
-| `GET /ready` | Readiness check |
-| `POST /predict` | Run a prediction |
-| `POST /validate-dataset` | Validate a training dataset |
-
----
-
-## Podman Containers
-
-Build and run individually (recommended on Windows):
-
-```powershell
-podman machine start
-podman network create ml-network
-
-podman build -t evidence-vydaju-ml-runtime ml-runtime/
-podman build -t evidence-vydaju-backend -f backend/Containerfile .
-
-podman run -d --name ml-runtime --network ml-network -p 5000:5000 evidence-vydaju-ml-runtime
-podman run -d --name node-backend --network ml-network -p 3000:3000 `
-  -e ML_RUNTIME_HOST=ml-runtime -e ML_RUNTIME_PORT=5000 `
-  -e ML_RUNTIME_ENABLED=true -e PORT=3000 evidence-vydaju-backend
-```
-
----
-
-## Configuration
-
-```powershell
-# Web app / Firebase
 Copy-Item .env.example .env.local
-
-# Containers
 Copy-Item .env.docker-compose.example .env.docker-compose
 ```
 
-Fill in Firebase project credentials. All `.env*` files are git-ignored.
+---
+
+## Co jsem se na projektu naucil
+
+- Prakticky debugging komplexnich toku mezi frontendem, backendem a Python runtime
+- Navrh rozhrani mezi sluzbami (kontrakty, health/readiness, error handling)
+- Integraci Firebase Authentication + Firestore v realne aplikaci
+- Praci s chybovymi stavy, observabilitou a logovanim
+- Kontejnerizaci (Docker/Podman), lokalni orchestrace a startup skripty
+- Nastaveni CI/CD pipeline od lintu po deploy
+- Efektivni praci s AI asistentem pri vyvoji, refaktoringu a dokumentaci
 
 ---
 
-## CI/CD
+## Tech stack
 
-GitHub Actions pipeline on every push to `main`:
-
-1. ESLint
-2. Vitest unit tests
-3. Vite build
-4. Smoke tests - verifies `dist/index.html` structure and assets
-5. Deploy to GitHub Pages
-
----
-
-## Repository Layout
-
-```
-backend/              Node.js Express backend proxy
-desktop-app/          AURIX Core Electron admin app (TypeScript/React)
-functions/            Firebase Cloud Functions
-k8s/                  Kubernetes manifests
-ml-pipeline/          ML contract validation utilities
-ml-runtime/           Python Flask ML service + Containerfile
-scripts/startup/      start-aurix-core.bat / .ps1 launcher
-src/                  Finance web app (React/Vite)
-docker-compose.yml    Podman/Docker Compose service definitions
-firestore.rules       Firestore security rules
-```
+- Frontend: React 18, Vite, Tailwind CSS
+- Desktop: Electron, React, TypeScript
+- Backend: Node.js, Express
+- ML runtime: Python 3.11, Flask
+- Data/Auth: Firebase Auth, Firestore
+- DevOps: Podman, Docker Compose, GitHub Actions
 
 ---
 
-## Known Limitations / Future Improvements
+## Struktura repozitare (zkracene)
 
-- **L2 predictions are a simplified baseline, not a trained model.** The Python ML
-  runtime responds with simulated predictions; there is no persisted model file
-  (`.pkl`) and no real-time training yet. The pipeline is wired up architecturally,
-  ready for a real scikit-learn (or similar) model to be dropped in.
-- **No real ML training loop.** Approved training data is collected, but the training
-  step is prepared rather than active.
-- **AURIX Core is not packaged for distribution.** It runs via `npm` in dev mode; no
-  `electron-builder` installer / `.exe` is produced yet.
-- **Containers are not deployed to the cloud.** The Kubernetes manifests in `k8s/` are
-  illustrative; nothing runs on a live cluster. `podman compose` is avoided on Windows
-  (credential-store conflict) in favour of direct `podman run` commands.
-- **Backend proxy has no external auth gateway.** It is an internal tool, not exposed
-  publicly, and performs no ML logic itself.
-- **Web app is responsive but not a PWA / native app.**
-
-Planned next steps:
-
-1. Plug in a real Python ML model with training on approved data.
-2. Wire L2 predictions to the Python runtime output instead of the baseline.
-3. Add Electron packaging (`electron-builder`) for a distributable installer.
-4. Deploy backend + ML runtime to the cloud (e.g. GCP Cloud Run or Kubernetes).
+- `src/` - webova aplikace (finance)
+- `desktop-app/` - Electron admin aplikace
+- `backend/` - Node.js proxy API
+- `ml-runtime/` - Python ML runtime
+- `functions/` - Firebase Cloud Functions
+- `scripts/startup/` - startup skripty (`.bat`, `.ps1`)
+- `k8s/` - Kubernetes manifesty
 
 ---
 
-## About
+Tento projekt slouzi jako dukaz schopnosti samostatne navrhnout a dotahnout slozitejsi full-stack reseni.
 
-Built by **Daniel Řezáč**. Architecture, product decisions, and direction by the author - Claude (Anthropic) used as implementation assistant throughout, writing code to the author's specifications.
+Ukazuje:
+
+- analyticke mysleni a navrh architektury
+- schopnost implementace napric technologiemi
+- praci s realnymi omezenimi (konfigurace, chyby, nasazeni)
+- orientaci na kvalitu (testy, lint, CI/CD, observabilita)
+
+Autor: Daniel Rezac

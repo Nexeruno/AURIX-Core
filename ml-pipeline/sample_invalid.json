@@ -1,0 +1,59 @@
+{
+  "success": true,
+  "metadata": {
+    "exportedAt": "2026-06-07T14:30:00Z",
+    "version": "1.0",
+    "format": "json_array",
+    "totalRecords": 5,
+    "trainReadyRecords": 2,
+    "excludedRecords": 3
+  },
+  "rows": [
+    {
+      "userId": "user001",
+      "month": "2024-01",
+      "features": {
+        "avgExpense3m": 15200.0,
+        "avgExpense6m": 14800.0,
+        "avgExpense12m": 14500.0,
+        "avgIncome3m": 25100.0,
+        "avgIncome6m": 24900.0,
+        "avgIncome12m": 24700.0,
+        "volatilityScore": 0.35,
+        "regularityScore": 0.92,
+        "feedbackCount": 8.0,
+        "avgManualCorrectionFactor": 1.08,
+        "avgAutoCorrectionFactor": 1.05,
+        "avgFinalCorrectionFactor": 1.065
+      },
+      "target": 14200.0,
+      "metadata": {}
+    },
+    {
+      "month": "2024-01",
+      "features": {},
+      "target": 14200.0,
+      "metadata": {}
+    },
+    {
+      "userId": "user003",
+      "month": "2024-1",
+      "features": {},
+      "target": 14200.0,
+      "metadata": {}
+    },
+    {
+      "userId": "user004",
+      "month": "2024-01",
+      "features": {},
+      "target": null,
+      "metadata": {}
+    },
+    {
+      "userId": "user005",
+      "month": "2024-01",
+      "target": 14200.0,
+      "metadata": {}
+    }
+  ]
+}

@@ -1,0 +1,402 @@
+{
+  "$schema": "http://json-schema.org/draft-2020-12/schema#",
+  "title": "ML Runtime API Contracts",
+  "description": "Shared contracts between Firebase and Python ML Runtime",
+  "version": "1.0.0",
+
+  "definitions": {
+    "ValidateDatasetRequest": {
+      "type": "object",
+      "title": "Validate Dataset Request",
+      "description": "Request to validate a training dataset (KROK 2)",
+      "required": ["dataset_path"],
+      "properties": {
+        "dataset_path": {
+          "type": "string",
+          "title": "Dataset Path",
+          "description": "GCS path to dataset file (JSON Lines format)",
+          "pattern": "^gs://[a-z0-9_-]+/[a-zA-Z0-9_./\\-]+\\.json$",
+          "example": "gs://evidence-bucket/exports/dataset-20260607.json"
+        },
+        "run_id": {
+          "type": ["string", "null"],
+          "title": "Run ID",
+          "description": "Unique identifier for this validation run (optional, auto-generate if missing)",
+          "pattern": "^[0-9]{8}-[a-z]+-[0-9]{3,}$|^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "example": "20260607-val-001",
+          "default": null
+        },
+        "validation_level": {
+          "type": "string",
+          "title": "Validation Level",
+          "description": "Depth of validation: quick (schema only) or full (quality checks)",
+          "enum": ["quick", "full"],
+          "default": "full"
+        },
+        "format": {
+          "type": "string",
+          "title": "Format",
+          "description": "Data format: json (JSON Lines) or csv",
+          "enum": ["json", "csv"],
+          "default": "json"
+        },
+        "timeout_seconds": {
+          "type": ["integer", "null"],
+          "title": "Timeout",
+          "description": "Request timeout in seconds (optional)",
+          "minimum": 10,
+          "maximum": 600,
+          "default": 30
+        }
+      }
+    },
+
+    "ValidateDatasetResponse": {
+      "type": "object",
+      "title": "Validate Dataset Response",
+      "description": "Response from dataset validation (KROK 2 result)",
+      "required": ["run_id", "status", "dataset_stats"],
+      "properties": {
+        "run_id": {
+          "type": "string",
+          "title": "Run ID",
+          "description": "Unique identifier for this validation run",
+          "example": "20260607-val-001"
+        },
+        "status": {
+          "type": "string",
+          "title": "Status",
+          "description": "Validation result: PASS (meets quality gates), FAIL (doesn't meet gates), WARNING (marginal)",
+          "enum": ["PASS", "FAIL", "WARNING"]
+        },
+        "timestamp": {
+          "type": "string",
+          "title": "Timestamp",
+          "description": "ISO-8601 timestamp of validation completion",
+          "format": "date-time",
+          "example": "2026-06-07T14:32:15Z"
+        },
+        "dataset_stats": {
+          "type": "object",
+          "title": "Dataset Statistics",
+          "description": "Summary statistics of the dataset",
+          "required": ["total_rows", "valid_rows", "unique_users"],
+          "properties": {
+            "total_rows": {
+              "type": "integer",
+              "title": "Total Rows",
+              "description": "Total number of rows in dataset",
+              "minimum": 0,
+              "example": 8247
+            },
+            "valid_rows": {
+              "type": "integer",
+              "title": "Valid Rows",
+              "description": "Number of rows passing all validation checks",
+              "minimum": 0,
+              "example": 8211
+            },
+            "invalid_rows": {
+              "type": "integer",
+              "title": "Invalid Rows",
+              "description": "Number of rows failing validation",
+              "minimum": 0,
+              "example": 36
+            },
+            "valid_percentage": {
+              "type": "number",
+              "title": "Valid Percentage",
+              "description": "Percentage of valid rows (0-100)",
+              "minimum": 0,
+              "maximum": 100,
+              "example": 99.56
+            },
+            "unique_users": {
+              "type": "integer",
+              "title": "Unique Users",
+              "description": "Number of distinct user_id values",
+              "minimum": 0,
+              "example": 1847
+            },
+            "date_range": {
+              "type": "object",
+              "title": "Date Range",
+              "description": "Min/max dates in dataset",
+              "properties": {
+                "start": {
+                  "type": "string",
+                  "format": "date",
+                  "example": "2024-01-01"
+                },
+                "end": {
+                  "type": "string",
+                  "format": "date",
+                  "example": "2026-06-07"
+                }
+              }
+            }
+          }
+        },
+        "schema_validation": {
+          "type": "object",
+          "title": "Schema Validation",
+          "description": "Schema structure validation results",
+          "properties": {
+            "feature_count": {
+              "type": "integer",
+              "description": "Number of features found",
+              "example": 12
+            },
+            "required_features": {
+              "type": "array",
+              "description": "List of required feature names",
+              "items": { "type": "string" },
+              "example": [
+                "avgExpense3m", "avgExpense6m", "avgExpense12m",
+                "avgIncome3m", "avgIncome6m", "avgIncome12m",
+                "volatilityScore", "regularityScore", "feedbackCount",
+                "avgManualCorrectionFactor", "avgAutoCorrectionFactor", "avgFinalCorrectionFactor"
+              ]
+            },
+            "all_features_present": {
+              "type": "boolean",
+              "description": "True if all 12 required features are present",
+              "example": true
+            },
+            "extra_fields": {
+              "type": "integer",
+              "description": "Number of unexpected extra fields",
+              "example": 0
+            }
+          }
+        },
+        "quality_metrics": {
+          "type": "object",
+          "title": "Quality Metrics",
+          "description": "Data quality metrics",
+          "properties": {
+            "quality_score": {
+              "type": "number",
+              "description": "Overall quality score (0-1)",
+              "minimum": 0,
+              "maximum": 1,
+              "example": 0.9956
+            },
+            "completeness_percent": {
+              "type": "number",
+              "description": "Percentage of non-null values",
+              "minimum": 0,
+              "maximum": 100,
+              "example": 99.99
+            },
+            "validity_percent": {
+              "type": "number",
+              "description": "Percentage of valid values (no NaN, ranges OK)",
+              "minimum": 0,
+              "maximum": 100,
+              "example": 99.56
+            },
+            "null_percent": {
+              "type": "number",
+              "description": "Percentage of null values",
+              "minimum": 0,
+              "maximum": 100,
+              "example": 0.0
+            },
+            "nan_percent": {
+              "type": "number",
+              "description": "Percentage of NaN values",
+              "minimum": 0,
+              "maximum": 100,
+              "example": 0.0
+            }
+          }
+        },
+        "quality_gates": {
+          "type": "object",
+          "title": "Quality Gates",
+          "description": "Pass/fail criteria for dataset validation",
+          "properties": {
+            "gate_1_valid_rows_percent": {
+              "type": "object",
+              "properties": {
+                "required": {
+                  "type": "string",
+                  "example": "≥80%"
+                },
+                "actual": {
+                  "type": "string",
+                  "example": "99.56%"
+                },
+                "passed": {
+                  "type": "boolean",
+                  "example": true
+                }
+              }
+            },
+            "gate_2_min_rows_and_users": {
+              "type": "object",
+              "properties": {
+                "required": {
+                  "type": "string",
+                  "example": "≥10 rows AND ≥2 users"
+                },
+                "actual": {
+                  "type": "string",
+                  "example": "8211 rows AND 1847 users"
+                },
+                "passed": {
+                  "type": "boolean",
+                  "example": true
+                }
+              }
+            },
+            "all_gates_passed": {
+              "type": "boolean",
+              "description": "True if ALL quality gates passed",
+              "example": true
+            }
+          }
+        },
+        "issues": {
+          "type": "array",
+          "title": "Issues Found",
+          "description": "List of validation issues (warnings, errors)",
+          "items": {
+            "type": "object",
+            "properties": {
+              "severity": {
+                "type": "string",
+                "enum": ["ERROR", "WARNING", "INFO"],
+                "example": "WARNING"
+              },
+              "type": {
+                "type": "string",
+                "description": "Issue category",
+                "example": "predicted_total_zero"
+              },
+              "count": {
+                "type": "integer",
+                "description": "How many rows affected",
+                "example": 36
+              },
+              "percent": {
+                "type": "number",
+                "description": "Percentage of dataset affected",
+                "example": 0.44
+              },
+              "description": {
+                "type": "string",
+                "description": "Human-readable issue description",
+                "example": "36 rows have predictedTotal ≤ 0 (invalid for training)"
+              }
+            }
+          }
+        },
+        "recommendations": {
+          "type": "array",
+          "title": "Recommendations",
+          "description": "Actionable recommendations based on validation",
+          "items": {
+            "type": "string"
+          },
+          "example": [
+            "Dataset is ready for training (all quality gates passed)",
+            "Consider removing 36 rows with predictedTotal ≤ 0"
+          ]
+        }
+      }
+    },
+
+    "EvaluateModelRequest": {
+      "type": "object",
+      "title": "Evaluate Model Request",
+      "description": "Request to evaluate a trained model (KROK 3b - future use)",
+      "required": ["model_path"],
+      "properties": {
+        "model_path": {
+          "type": "string",
+          "title": "Model Path",
+          "description": "GCS path to trained model artifact (.pkl file)",
+          "pattern": "^gs://[a-z0-9_-]+/[a-zA-Z0-9_./\\-]+\\.pkl$",
+          "example": "gs://evidence-bucket/models/v3.3/model.pkl"
+        },
+        "validation_data_path": {
+          "type": ["string", "null"],
+          "title": "Validation Data Path",
+          "description": "GCS path to validation dataset (optional, uses default holdout if null)",
+          "pattern": "^gs://[a-z0-9_-]+/[a-zA-Z0-9_./\\-]+\\.json$|^$",
+          "example": "gs://evidence-bucket/data/validation-20260607.json",
+          "default": null
+        },
+        "run_id": {
+          "type": ["string", "null"],
+          "title": "Run ID",
+          "description": "Unique identifier for this evaluation run (optional, auto-generate if missing)",
+          "default": null
+        },
+        "timeout_seconds": {
+          "type": ["integer", "null"],
+          "title": "Timeout",
+          "description": "Request timeout in seconds",
+          "minimum": 10,
+          "maximum": 600,
+          "default": 30
+        }
+      }
+    },
+
+    "EvaluateModelResponse": {
+      "type": "object",
+      "title": "Evaluate Model Response",
+      "description": "Response from model evaluation (KROK 3b result - minimal version)",
+      "required": ["run_id", "status", "accuracy", "f1_score"],
+      "properties": {
+        "run_id": {
+          "type": "string",
+          "title": "Run ID",
+          "description": "Unique identifier for this evaluation run",
+          "example": "20260607-eval-001"
+        },
+        "status": {
+          "type": "string",
+          "title": "Status",
+          "description": "Evaluation result: PASS (model quality acceptable), FAIL (quality too low)",
+          "enum": ["PASS", "FAIL"]
+        },
+        "accuracy": {
+          "type": "number",
+          "title": "Accuracy",
+          "description": "Model accuracy on validation set (0-1)",
+          "minimum": 0,
+          "maximum": 1,
+          "example": 0.942
+        },
+        "f1_score": {
+          "type": "number",
+          "title": "F1 Score",
+          "description": "F1 score on validation set (0-1, weighted average)",
+          "minimum": 0,
+          "maximum": 1,
+          "example": 0.931
+        },
+        "timestamp": {
+          "type": "string",
+          "title": "Timestamp",
+          "description": "ISO-8601 timestamp of evaluation completion",
+          "format": "date-time",
+          "example": "2026-06-07T14:35:22Z"
+        }
+      }
+    }
+  },
+
+  "type": "object",
+  "title": "ML Runtime Contract Definitions",
+  "properties": {
+    "ValidateDatasetRequest": { "$ref": "#/definitions/ValidateDatasetRequest" },
+    "ValidateDatasetResponse": { "$ref": "#/definitions/ValidateDatasetResponse" },
+    "EvaluateModelRequest": { "$ref": "#/definitions/EvaluateModelRequest" },
+    "EvaluateModelResponse": { "$ref": "#/definitions/EvaluateModelResponse" }
+  }
+}
