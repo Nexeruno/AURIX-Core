@@ -1,53 +1,53 @@
 # AURIX Core
 
-Portfolio full-stack prototyp zamereny na osobni finance, administraci a ML runtime vrstvu.
+Portfolio full-stack prototyp zaměřený na osobní finance, administraci a ML runtime vrstvu.
 
-Projekt je postaveny jako learning project, na kterem jsem testoval navrh architektury, propojovani frontend/backend sluzeb, Firebase, observabilitu, kontejnerizaci a CI/CD.
+Projekt je postavený jako learning project, na kterém jsem testoval návrh architektury, propojování frontend/backend služeb, Firebase, observabilitu, kontejnerizaci a CI/CD.
 
 ---
 
 ## Co je AURIX Core
 
-AURIX Core je portfolio prototyp s vice castmi:
+AURIX Core je portfolio prototyp s více částmi:
 
-- Finance Web App (React/Vite) pro evidenci prijmu a vydaju
+- Finance Web App (React/Vite) pro evidenci příjmů a výdajů
 - Electron admin aplikace pro role, audit a ML dohled
-- Node.js backend proxy mezi desktop aplikaci a ML runtime
-- Python ML runtime (Flask) s endpointy pro health/readiness/predict/validaci datasetu
+- Node.js backend proxy mezi desktop aplikací a ML runtime
+- Python ML runtime (Flask) s endpointy pro health/readiness/predict/validaci datasetů
 - Integrace s Firebase Authentication a Firestore
 
-Cilem nebylo dodat hotovy komercni produkt, ale ukazat schopnost navrhnout a propojit cele end-to-end reseni.
+Cílem nebylo dodat hotový komerční produkt, ale ukázat schopnost navrhnout a propojit celé end-to-end řešení.
 
 ---
 
 ## Status projektu
 
-Tento repozitar je portfolio full-stack prototyp, ne hotova produkcni aplikace.
+Tento repozitář je portfolio full-stack prototyp, ne hotová produkční aplikace.
 
-Aktualne funkcni casti:
+Aktuálně funkční části:
 
-- Webova cast bezi na GitHub Pages
-- Lokalne lze spustit Electron + backend + ML runtime
+- Webová část běží na GitHub Pages
+- Lokálně lze spustit Electron + backend + ML runtime
 - Funguje CI/CD pipeline (lint, test, build, deploy)
-- Je pripravena observabilita a zakladni ML workflow
+- Je připravena observabilita a základní ML workflow
 
-Co zatim neni production-ready:
+Co zatím není production-ready:
 
-- ML cast je z casti simulovana (nejde o finalne natrenovany produkcni model)
-- Chybi distribucni balicek Electron aplikace pro koncove uzivatele
-- Cloud provoz backendu/runtime je pripraveny jen na urovni infra podkladu
+- ML část je z části simulovaná (nejde o finálně natrénovaný produkční model)
+- Chybí distribuční balíček Electron aplikace pro koncové uživatele
+- Cloud provoz backendu/runtime je připravený jen na úrovni infra podkladů
 
 ---
 
-## Screenshoty (portfolio ukazka)
+## Screenshoty (portfolio ukázka)
 
-### 1) Login / hlavni dashboard
+### 1) Login / hlavní dashboard
 
 ![Login a dashboard](./img/00.png)
 
-### 2) Uzivatele a role
+### 2) Uživatelé a role
 
-![Uzivatele a role](./img/01.png)
+![Uživatelé a role](./img/01.png)
 
 ### 3) ML dashboard / predikce
 
@@ -57,19 +57,19 @@ Co zatim neni production-ready:
 
 ![Admin panel](./img/03.png)
 
-### 5) Nastaveni / provozni detail
+### 5) Nastavení / provozní detail
 
-![Nastaveni](./img/04.png)
+![Nastavení](./img/04.png)
 
-### 6) Chybovy stav / observabilita
+### 6) Chybový stav / observabilita
 
-![Chybovy stav a observabilita](./img/05.png)
+![Chybový stav a observabilita](./img/05.png)
 
 ---
 
 ## Jak projekt spustit
 
-### Rychly start (Windows)
+### Rychlý start (Windows)
 
 ```powershell
 .\scripts\startup\start-aurix-core.bat
@@ -77,13 +77,13 @@ Co zatim neni production-ready:
 
 Skript automaticky:
 
-1. overi Node.js a Podman
-2. spusti Podman machine
-3. postavi a spusti `ml-runtime` a `node-backend`
-4. pocka na health check
-5. spusti Electron aplikaci
+1. ověří Node.js a Podman
+2. spustí Podman machine
+3. postaví a spustí `ml-runtime` a `node-backend`
+4. počká na health check
+5. spustí Electron aplikaci
 
-### Manualni start (bez Podman)
+### Manuální start (bez Podman)
 
 ```powershell
 # Terminal 1 - ML runtime
@@ -100,17 +100,17 @@ npm install
 npm run electron-dev
 ```
 
-### Dulezite k verejnemu spusteni
+### Důležité k veřejnému spuštění
 
-Bez vlastni konfigurace neni projekt plne spustitelny v "public" rezimu.
+Bez vlastní konfigurace není projekt plně spustitelný v "public" režimu.
 
-Duvod:
+Důvod:
 
-- je nutne doplnit vlastni Firebase projekt a `.env` hodnoty
-- cast integraci pocita s lokalni konfiguraci sluzeb a tajnych udaju
-- bez vlastnich credentials nebude autentizace/datova vrstva fungovat korektne
+- je nutné doplnit vlastní Firebase projekt a `.env` hodnoty
+- část integrací počítá s lokální konfigurací služeb a tajných údajů
+- bez vlastních credentials nebude autentizace/datová vrstva fungovat korektně
 
-Zakladni konfigurace:
+Základní konfigurace:
 
 ```powershell
 Copy-Item .env.example .env.local
@@ -119,15 +119,15 @@ Copy-Item .env.docker-compose.example .env.docker-compose
 
 ---
 
-## Co jsem se na projektu naucil
+## Co jsem se na projektu naučil
 
-- Prakticky debugging komplexnich toku mezi frontendem, backendem a Python runtime
-- Navrh rozhrani mezi sluzbami (kontrakty, health/readiness, error handling)
-- Integraci Firebase Authentication + Firestore v realne aplikaci
-- Praci s chybovymi stavy, observabilitou a logovanim
-- Kontejnerizaci (Docker/Podman), lokalni orchestrace a startup skripty
-- Nastaveni CI/CD pipeline od lintu po deploy
-- Efektivni praci s AI asistentem pri vyvoji, refaktoringu a dokumentaci
+- Praktický debugging komplexních toků mezi frontendem, backendem a Python runtime
+- Návrh rozhraní mezi službami (kontrakty, health/readiness, error handling)
+- Integraci Firebase Authentication + Firestore v reálné aplikaci
+- Práci s chybovými stavy, observabilitou a logováním
+- Kontejnerizaci (Docker/Podman), lokální orchestraci a startup skripty
+- Nastavení CI/CD pipeline od lintu po deploy
+- Efektivní práci s AI asistentem při vývoji, refaktoringu a dokumentaci
 
 ---
 
@@ -142,9 +142,9 @@ Copy-Item .env.docker-compose.example .env.docker-compose
 
 ---
 
-## Struktura repozitare (zkracene)
+## Struktura repozitáře (zkráceně)
 
-- `src/` - webova aplikace (finance)
+- `src/` - webová aplikace (finance)
 - `desktop-app/` - Electron admin aplikace
 - `backend/` - Node.js proxy API
 - `ml-runtime/` - Python ML runtime
@@ -154,13 +154,15 @@ Copy-Item .env.docker-compose.example .env.docker-compose
 
 ---
 
-Tento projekt slouzi jako dukaz schopnosti samostatne navrhnout a dotahnout slozitejsi full-stack reseni.
+## Pro HR
+
+Tento projekt slouží jako důkaz schopnosti samostatně navrhnout a dotáhnout složitější full-stack řešení.
 
 Ukazuje:
 
-- analyticke mysleni a navrh architektury
-- schopnost implementace napric technologiemi
-- praci s realnymi omezenimi (konfigurace, chyby, nasazeni)
+- analytické myšlení a návrh architektury
+- schopnost implementace napříč technologiemi
+- práci s reálnými omezeními (konfigurace, chyby, nasazení)
 - orientaci na kvalitu (testy, lint, CI/CD, observabilita)
 
-Autor: Daniel Rezac
+Autor: Daniel Řezáč
